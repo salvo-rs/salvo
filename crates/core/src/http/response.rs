@@ -113,7 +113,7 @@ where
                 status,
                 version,
                 headers,
-                // extensions,
+                extensions,
                 ..
             },
             body,
@@ -128,7 +128,7 @@ where
                 if let Ok(header) = header.to_str()
                     && let Ok(cookie) = Cookie::parse_encoded(header).map(|c| c.into_owned())
                 {
-                    cookie_jar.add(cookie);
+                    cookie_jar.add_original(cookie);
                 }
             }
             cookie_jar
@@ -141,7 +141,7 @@ where
             headers,
             #[cfg(feature = "cookie")]
             cookies,
-            extensions: Extensions::new(),
+            extensions,
         }
     }
 }
@@ -330,12 +330,40 @@ impl Response {
         })
     }
 
-    /// Append every cookie in `cookies.delta()` to `headers` as a `Set-Cookie` header,
-    /// then drain the cookie jar so subsequent calls do not re-emit the same cookies.
+    /// Serialize pending cookie changes, replacing only matching name/domain/path
+    /// fields, then drain the jar so subsequent calls do not re-emit the changes.
     #[cfg(feature = "cookie")]
-    fn flush_cookies_into(headers: &mut HeaderMap, cookies: &mut CookieJar) {
+    pub(crate) fn flush_cookies_into(headers: &mut HeaderMap, cookies: &mut CookieJar) {
         for cookie in cookies.delta() {
-            if let Ok(hv) = cookie.encoded().to_string().parse() {
+            if let Ok(hv) = cookie.encoded().to_string().parse::<HeaderValue>() {
+                // Replace only the same name/domain/path identity. Other paths,
+                // opaque fields, and unrelated cookies retain their original bytes.
+                if headers.contains_key(http::header::SET_COOKIE) {
+                    let retained: Vec<_> = headers
+                        .get_all(http::header::SET_COOKIE)
+                        .iter()
+                        .filter(|header| {
+                            let previous = header
+                                .to_str()
+                                .ok()
+                                .and_then(|value| Cookie::parse_encoded(value).ok());
+                            !previous.is_some_and(|previous| {
+                                previous.name() == cookie.name()
+                                    && previous.path() == cookie.path()
+                                    && match (previous.domain(), cookie.domain()) {
+                                        (Some(a), Some(b)) => a.eq_ignore_ascii_case(b),
+                                        (None, None) => true,
+                                        _ => false,
+                                    }
+                            })
+                        })
+                        .cloned()
+                        .collect();
+                    headers.remove(http::header::SET_COOKIE);
+                    for header in retained {
+                        headers.append(http::header::SET_COOKIE, header);
+                    }
+                }
                 headers.append(http::header::SET_COOKIE, hv);
             }
         }
@@ -356,6 +384,7 @@ impl Response {
             #[cfg(not(feature = "cookie"))]
             headers,
             body,
+            version,
             extensions,
             ..
         } = self;
@@ -372,6 +401,7 @@ impl Response {
         *res.extensions_mut() = extensions;
         *res.headers_mut() = headers;
         *res.status_mut() = status_code;
+        *res.version_mut() = version;
 
         res
     }
@@ -386,6 +416,7 @@ impl Response {
         Self::flush_cookies_into(&mut self.headers, &mut self.cookies);
 
         let mut res = hyper::Response::new(std::mem::take(&mut self.body));
+        *res.version_mut() = self.version;
         *res.extensions_mut() = std::mem::take(&mut self.extensions);
         *res.headers_mut() = std::mem::take(&mut self.headers);
         if let Some(status) = self.status_code {

@@ -13,18 +13,43 @@ use super::{
 /// Implements [OpenAPI Path Object][paths] types.
 ///
 /// [paths]: https://spec.openapis.org/oas/latest.html#paths-object
-#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
-pub struct Paths(PathMap<String, PathItem>);
+#[derive(Serialize, Default, Clone, PartialEq, Debug)]
+pub struct Paths {
+    #[serde(flatten)]
+    paths: PathMap<String, PathItem>,
+    /// Optional specification extensions (`x-something`).
+    #[serde(default, skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
+}
+
+impl<'de> Deserialize<'de> for Paths {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = PathMap::<String, serde_json::Value>::deserialize(deserializer)?;
+        let mut result = Self::new();
+        for (name, value) in raw {
+            if name.starts_with("x-") {
+                result.extensions.insert(name, value);
+            } else {
+                let item = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+                result.paths.insert(name, item);
+            }
+        }
+        Ok(result)
+    }
+}
 impl Deref for Paths {
     type Target = PathMap<String, PathItem>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.paths
     }
 }
 impl DerefMut for Paths {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.paths
     }
 }
 impl Paths {
@@ -45,7 +70,7 @@ impl Paths {
     pub fn insert<K: Into<String>, V: Into<PathItem>>(&mut self, key: K, value: V) {
         let key = key.into();
         let mut value = value.into();
-        self.0
+        self.paths
             .entry(key)
             .and_modify(|item| item.append(&mut value))
             .or_insert(value);
@@ -57,9 +82,12 @@ impl Paths {
     /// and `operations` are appended, while the scalar fields (`ref_location`,
     /// `summary`, `description`) are overwritten by `other`'s non-empty values.
     pub fn append(&mut self, other: &mut Self) {
-        let items = std::mem::take(&mut other.0);
+        let items = std::mem::take(&mut other.paths);
         for item in items {
             self.insert(item.0, item.1);
+        }
+        for (name, value) in std::mem::take(&mut other.extensions) {
+            self.extensions.entry(name).or_insert(value);
         }
     }
     /// Extends a collection with the contents of an iterator.

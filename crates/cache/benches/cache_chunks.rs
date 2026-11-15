@@ -47,7 +47,7 @@ fn main() {
         let entry = CachedEntry::new(
             Some(StatusCode::OK),
             HeaderMap::new(),
-            CachedBody::Chunks(chunks.clone()),
+            CachedBody::try_from(&ResBody::Chunks(chunks.clone())).unwrap(),
         );
         support::measure(&runtime, &format!("entry_clone/{count}"), || async {
             std::hint::black_box(entry.clone());

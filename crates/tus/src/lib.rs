@@ -279,10 +279,31 @@ impl Tus {
         }
     }
 
+    /// Creates a service from the complete public configuration.
+    #[must_use]
+    pub fn with_options(mut options: TusOptions) -> Self {
+        options.path = normalize_path(&options.path);
+        Self {
+            options,
+            store: Arc::new(DiskStore::new()),
+        }
+    }
+
+    /// Returns the configuration used by this service.
+    #[must_use]
+    pub fn options(&self) -> &TusOptions {
+        &self.options
+    }
+
+    /// Changes configuration before mounting the router.
+    pub fn options_mut(&mut self) -> &mut TusOptions {
+        &mut self.options
+    }
+
     /// Sets the route path where tus endpoints are mounted.
     #[must_use]
     pub fn path(mut self, path: impl Into<String>) -> Self {
-        self.options.path = path.into();
+        self.options.path = normalize_path(&path.into());
         self
     }
 
@@ -405,8 +426,9 @@ impl Tus {
     /// before any service or router hoops run. Those hoops and lifecycle hooks
     /// see the effective method. Filters outside this router still see the
     /// original wire method; use hoops for access control by effective method.
-    pub fn into_router(self) -> Router {
-        let base_path = normalize_path(&self.options.path);
+    pub fn into_router(mut self) -> Router {
+        self.options.path = normalize_path(&self.options.path);
+        let base_path = self.options.path.clone();
         if !self.options.relative_location && self.options.canonical_origin.is_none() {
             tracing::warn!(
                 "Tus is configured with relative_location(false) but no canonical_origin; \

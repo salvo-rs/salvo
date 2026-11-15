@@ -6,6 +6,8 @@
 //! [request_body]: request_body/struct.RequestBody.html
 use serde::{Deserialize, Serialize};
 
+use super::PropMap;
+
 /// Implements [OpenAPI Example Object][example].
 ///
 /// Example is used on path operations to describe possible response bodies.
@@ -29,14 +31,22 @@ pub struct Example {
     ///
     /// Deprecated for non-JSON serialization targets in OpenAPI 3.2; prefer
     /// [`Example::data_value`] and/or [`Example::serialized_value`].
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "crate::openapi::deserialize_json_value",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub value: Option<serde_json::Value>,
 
     /// An example of the data structure, which must be valid against the relevant schema. Added
     /// in OpenAPI 3.2. When present, [`Example::value`] must be absent.
     ///
     /// See <https://spec.openapis.org/oas/v3.2.0.html#example-object>.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "crate::openapi::deserialize_json_value",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub data_value: Option<serde_json::Value>,
 
     /// An example of the serialized form of the value, including encoding and escaping. Added
@@ -51,6 +61,10 @@ pub struct Example {
     /// [`Example::value`] and [`Example::external_value`] are mutually exclusive.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub external_value: String,
+
+    /// Optional specification extensions (`x-something`).
+    #[serde(default, skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 impl Example {

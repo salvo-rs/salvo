@@ -46,7 +46,8 @@ use std::fmt::{self, Debug, Formatter};
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use salvo_core::http::header::{
-    AUTHORIZATION, CONNECTION, CONTENT_LENGTH, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE,
+    AUTHORIZATION, CONNECTION, CONTENT_LENGTH, HOST, HeaderMap, HeaderName, HeaderValue,
+    SET_COOKIE, UPGRADE, VARY,
 };
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
@@ -744,6 +745,26 @@ fn is_hop_by_hop_header(name: &HeaderName, connection_headers: &[HeaderName]) ->
 }
 
 fn append_end_to_end_headers(destination: &mut HeaderMap, source: &HeaderMap, status: StatusCode) {
+    // The upstream body replaces any prepared body. Its representation metadata
+    // is authoritative, even when an old field is absent from the new response.
+    for name in [
+        "content-type",
+        "content-length",
+        "content-encoding",
+        "content-range",
+        "content-language",
+        "content-location",
+        "content-disposition",
+        "content-md5",
+        "content-digest",
+        "repr-digest",
+        "digest",
+        "etag",
+        "last-modified",
+        "accept-ranges",
+    ] {
+        destination.remove(name);
+    }
     let connection_headers = connection_header_names(source);
     let upgrade_type = if status == StatusCode::SWITCHING_PROTOCOLS {
         get_upgrade_type(source)
@@ -754,15 +775,21 @@ fn append_end_to_end_headers(destination: &mut HeaderMap, source: &HeaderMap, st
         if is_hop_by_hop_header(name, &connection_headers) {
             continue;
         }
+        // Set-Cookie remains additive and Vary preserves outer negotiation.
+        // Other upstream fields replace prepared values instead of creating
+        // conflicting singleton fields such as Content-Length or Location.
+        if name != SET_COOKIE && name != VARY {
+            destination.remove(name);
+        }
         for value in source.get_all(name) {
             destination.append(name, value.to_owned());
         }
     }
     if let Some(upgrade_type) = upgrade_type {
-        destination.append(CONNECTION, HeaderValue::from_static("upgrade"));
+        destination.insert(CONNECTION, HeaderValue::from_static("upgrade"));
         match HeaderValue::from_str(&upgrade_type) {
             Ok(upgrade_type) => {
-                destination.append(UPGRADE, upgrade_type);
+                destination.insert(UPGRADE, upgrade_type);
             }
             Err(e) => {
                 tracing::error!(error = ?e, "invalid upgrade header value");

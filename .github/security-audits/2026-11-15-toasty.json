@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-15",
+  "source_base": "e8128e21bd54ba737300f39754ab8160b607074a",
+  "scope": "examples workspace after isolated Toasty PEM patch, independent of other audit fixes",
+  "lockfile_sha256": "447ced5eea39537472f179ad4b1791d349d172fee96757e17c4ced69d81c956c",
+  "database": {
+    "advisory-count": 1509,
+    "last-commit": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
+    "last-updated": "2026-11-15T10:59:21+01:00"
+  },
+  "rustls_pemfile_referrers": [
+    "rbdc"
+  ],
+  "remaining_vulnerabilities": [
+    {
+      "advisory": "RUSTSEC-2026-0459",
+      "package": "libsqlite3-sys",
+      "version": "0.30.1"
+    }
+  ],
+  "remaining_warnings": {
+    "unmaintained": [
+      {
+        "advisory": "RUSTSEC-2025-0134",
+        "package": "rustls-pemfile",
+        "version": "2.2.0"
+      }
+    ],
+    "unsound": [
+      {
+        "advisory": "RUSTSEC-2026-0002",
+        "package": "lru",
+        "version": "0.14.0"
+      },
+      {
+        "advisory": "RUSTSEC-2026-0253",
+        "package": "lru",
+        "version": "0.14.0"
+      }
+    ]
+  },
+  "isolated_driver_test_workspace_audit": {
+    "vulnerabilities": [],
+    "warnings": {}
+  },
+  "validation": [
+    "16 isolated driver tests passed, including five PEM/client identity regressions.",
+    "PostgreSQL Toasty all-targets check passed.",
+    "Complete upstream MIT license is included."
+  ],
+  "new_advisory_exceptions": []
+}

@@ -208,6 +208,7 @@ fn test_derive_to_schema_generics() {
                     "operationId": "use_i32",
                     "requestBody": {
                         "description": "Extract json format data from request.",
+                        "required": true,
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -236,6 +237,7 @@ fn test_derive_to_schema_generics() {
                     "operationId": "use_string",
                     "requestBody": {
                         "description": "Extract json format data from request.",
+                        "required": true,
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -264,6 +266,7 @@ fn test_derive_to_schema_generics() {
                     "operationId": "use_u64",
                     "requestBody": {
                         "description": "Extract json format data from request.",
+                        "required": true,
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -337,6 +340,7 @@ fn test_derive_to_schema_enum() {
                     "operationId": "hello",
                     "requestBody": {
                         "description": "Extract json format data from request.",
+                        "required": true,
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -549,6 +553,7 @@ fn test_derive_to_schema_new_type_struct() {
                     "operationId": "new_type",
                     "requestBody": {
                         "description": "Extract json format data from request.",
+                        "required": true,
                         "content": {
                             "application/json": {
                                 "schema": {

@@ -389,10 +389,7 @@ impl HyperHandler {
                 );
             }
 
-            if Method::HEAD != *req.method()
-                && (res.body.is_none() || res.body.is_error())
-                && has_error
-            {
+            if (res.body.is_none() || res.body.is_error()) && has_error {
                 if let Some(catcher) = &state.catcher {
                     catcher
                         .catch(&mut req, &mut depot, &mut res, conn_ctrl)
@@ -404,9 +401,22 @@ impl HyperHandler {
 
             res.run_after_response_hooks(&req);
 
-            if Method::HEAD == *req.method() && !res.body.is_none() {
-                tracing::debug!("stripping response body for HEAD request per RFC 9110 §9.3.2");
+            let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
+            if req.method() == Method::HEAD
+                || status.is_informational()
+                || matches!(
+                    status,
+                    StatusCode::NO_CONTENT | StatusCode::RESET_CONTENT | StatusCode::NOT_MODIFIED
+                )
+            {
+                // Apply the same final semantics before every transport, including H3.
                 res.take_body();
+                if status.is_informational() || status == StatusCode::NO_CONTENT {
+                    res.headers_mut().remove(http::header::CONTENT_LENGTH);
+                } else if status == StatusCode::RESET_CONTENT {
+                    res.headers_mut()
+                        .insert(http::header::CONTENT_LENGTH, HeaderValue::from_static("0"));
+                }
             }
             #[cfg(feature = "quinn")]
             {

@@ -1,6 +1,5 @@
 use std::any::TypeId;
-use std::collections::{BTreeSet, HashMap};
-use std::sync::{LazyLock, RwLock};
+use std::collections::BTreeSet;
 
 use salvo_core::Router;
 use salvo_core::http::Method;
@@ -125,16 +124,11 @@ impl NormNode {
             metadata: inherited_metadata,
             ..Self::default()
         };
-        // Clone out and release the guard before recursing into the children:
-        // re-acquiring a read lock while a writer is queued deadlocks.
-        let metadata = METADATA_REGISTRY
-            .read()
-            .expect("failed to lock METADATA_REGISTRY for read")
-            .get(&router.id)
-            .cloned();
-        if let Some(metadata) = metadata {
-            node.metadata.tags.extend(metadata.tags);
-            node.metadata.securities.extend(metadata.securities);
+        if let Some(metadata) = router.extensions().get::<Metadata>() {
+            node.metadata.tags.extend(metadata.tags.iter().cloned());
+            node.metadata
+                .securities
+                .extend(metadata.securities.iter().cloned());
         }
 
         for filter in router.filters() {
@@ -205,9 +199,15 @@ impl NormNode {
     }
 }
 
-/// A component for save router metadata.
-type MetadataMap = RwLock<HashMap<usize, Metadata>>;
-static METADATA_REGISTRY: LazyLock<MetadataMap> = LazyLock::new(MetadataMap::default);
+fn router_metadata(router: &mut Router) -> &mut Metadata {
+    let extensions = router.extensions_mut();
+    if extensions.get::<Metadata>().is_none() {
+        extensions.insert(Metadata::default());
+    }
+    extensions
+        .get_mut::<Metadata>()
+        .expect("metadata was inserted")
+}
 
 /// Router extension trait for openapi metadata.
 pub trait RouterExt {
@@ -242,43 +242,29 @@ pub trait RouterExt {
 }
 
 impl RouterExt for Router {
-    fn oapi_security(self, security: SecurityRequirement) -> Self {
-        let mut guard = METADATA_REGISTRY
-            .write()
-            .expect("failed to lock METADATA_REGISTRY for write");
-        let metadata = guard.entry(self.id).or_default();
-        metadata.securities.push(security);
+    fn oapi_security(mut self, security: SecurityRequirement) -> Self {
+        router_metadata(&mut self).securities.push(security);
         self
     }
-    fn oapi_securities<I>(self, iter: I) -> Self
+    fn oapi_securities<I>(mut self, iter: I) -> Self
     where
         I: IntoIterator<Item = SecurityRequirement>,
     {
-        let mut guard = METADATA_REGISTRY
-            .write()
-            .expect("failed to lock METADATA_REGISTRY for write");
-        let metadata = guard.entry(self.id).or_default();
-        metadata.securities.extend(iter);
+        router_metadata(&mut self).securities.extend(iter);
         self
     }
-    fn oapi_tag(self, tag: impl Into<String>) -> Self {
-        let mut guard = METADATA_REGISTRY
-            .write()
-            .expect("failed to lock METADATA_REGISTRY for write");
-        let metadata = guard.entry(self.id).or_default();
-        metadata.tags.insert(tag.into());
+    fn oapi_tag(mut self, tag: impl Into<String>) -> Self {
+        router_metadata(&mut self).tags.insert(tag.into());
         self
     }
-    fn oapi_tags<I, V>(self, iter: I) -> Self
+    fn oapi_tags<I, V>(mut self, iter: I) -> Self
     where
         I: IntoIterator<Item = V>,
         V: Into<String>,
     {
-        let mut guard = METADATA_REGISTRY
-            .write()
-            .expect("failed to lock METADATA_REGISTRY for write");
-        let metadata = guard.entry(self.id).or_default();
-        metadata.tags.extend(iter.into_iter().map(Into::into));
+        router_metadata(&mut self)
+            .tags
+            .extend(iter.into_iter().map(Into::into));
         self
     }
 }

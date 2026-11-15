@@ -78,6 +78,7 @@ where
             .try_into()
             .map_err(|err| IoError::other(err.to_string()))?;
         let endpoint = Endpoint::server(initial, socket)?;
+        let socket = endpoint.local_addr()?;
         let cancel_reload = CancellationToken::new();
 
         tracing::info!("quinn config loaded");

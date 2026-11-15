@@ -45,18 +45,25 @@ substitute the narrower consumer for the root or RustCrypto feature graph.
 
 ## RustCrypto JWT: RUSTSEC-2026-0387
 
-The fresh root lockfile still contains `jsonwebtoken 11.1.0 -> p256/p384 0.13 ->
-elliptic-curve 0.13.8 -> crypto-bigint 0.5.5`. The patched crypto-bigint range is
-`>=0.7.6`, which does not satisfy this upstream requirement. Salvo enables this
-JWT backend through `salvo-jwt-auth/ring` or `salvo/jwt-auth-ring`; the separate
-`salvo/ring` feature selects TLS crypto only. Cargo features are additive, so
-choosing AWS-LC at runtime does not remove an enabled RustCrypto dependency.
+The workspace now requires jsonwebtoken 12. Its RustCrypto backend uses
+`p256/p384 0.14 -> elliptic-curve 0.14 -> crypto-bigint 0.7`, and RSA uses the
+0.10 family. A fresh root resolution on 2026-11-15 selected crypto-bigint
+0.7.11 and rsa 0.10.0 for JWT, removing the crypto-bigint 0.5 path reported in
+the dated 2026-11-09 snapshot above. cargo-audit against RustSec DB
+`02e2517f457a359fc6d3440ea4560c8ea188fee8` reported no findings under the existing
+RSA exception below. No new advisory exception was added.
 
-Owner: Salvo maintainers. Recheck on upstream jsonwebtoken/RustCrypto releases
-and before publishing a dependency refresh. Upgrade a supported upstream graph,
-then audit all affected feature configurations. There is no exception for this
-finding. It concerns secret-integer operations; its presence does not by itself
-prove a timing attack on public-key token verification.
+The patched crypto-bigint range is `>=0.7.6`. Refresh and audit application
+lockfiles rather than assuming a compatible version range guarantees a patched
+resolution. Salvo's `salvo-jwt-auth/ring` and `salvo/jwt-auth-ring` features select
+the RustCrypto JWT backend; the separate `salvo/ring` feature selects TLS crypto.
+Cargo features are additive, so choosing AWS-LC at runtime does not remove an
+enabled RustCrypto dependency. Both JWT providers and their combined feature
+configuration are tested.
+
+`ConstDecoder::from_secret`, `DecodingKey::from_secret`, and
+`EncodingKey::from_secret` now return `Result` and reject empty HMAC secrets.
+Handle constructor errors during application configuration when upgrading.
 [Advisory](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
 
 ## RSA exception: RUSTSEC-2023-0071
@@ -90,9 +97,19 @@ example enables the affected bundle or opens attacker-controlled files.
 The resolution also retains `rbdc 4.9.10 -> lru 0.14.0`. Its requirement cannot
 select the fixed lru releases for RUSTSEC-2026-0002 (`>=0.16.3`) and
 RUSTSEC-2026-0253 (`>=0.18.2`). rustls-pemfile 2.2.0 remains an unmaintained
-warning through rbdc and toasty-driver-postgresql. Owner: Salvo maintainers;
-recheck on database-stack upgrades and before dependency refreshes. Supported
-upstream migrations are required; no exception has been added for these paths.
+warning through rbdc. The Toasty PostgreSQL driver is now explicitly patched
+in the examples workspace to use maintained rustls-pki-types PEM APIs; its
+published 0.8 version is retained because latest 0.11 also uses the old parser.
+The [patch notes](../examples/vendor/toasty-driver-postgresql/LOCAL_PATCH.md)
+record source, full MIT license, exact diff, tests and removal conditions.
+
+Sixteen isolated driver tests pass, including valid client identities and
+rejection of empty/malformed certificates, missing/invalid keys and mismatched
+keys. The Toasty example compiles. The dated
+[Toasty evidence](security-audits/2026-11-15-toasty.json) records that rbdc is
+the remaining rustls-pemfile referrer on this independent branch. No advisory
+exception has been added. Owner: Salvo maintainers; recheck when a supported
+upstream driver migrates away from the unmaintained parser.
 Actual iterator/panic-unwind reachability must be assessed in each application.
 
 The direct rustls/quinn minimums and isolated downstream TLS checks remain in
