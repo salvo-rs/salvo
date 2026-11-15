@@ -1,5 +1,7 @@
 [advisories]
-# certon 0.3 uses rsa for key generation and DER conversion, not private-key
-# decryption. TLS operations use rustls' ring/aws-lc backend. No fixed rsa release
-# exists for this advisory. See .github/DEPENDENCY_SECURITY.md; review by 2027-01-23.
+# certon 0.4 still requires rsa 0.9 for key generation, PKCS#1/PKCS#8 parsing
+# and DER encoding, not private-key decryption. rsa >=0.10 is patched, but
+# certon has not migrated. TLS operations use rustls' ring/aws-lc providers.
+# See .github/DEPENDENCY_SECURITY.md for the reviewed exception scope;
+# review by 2027-01-23.
 ignore = ["RUSTSEC-2023-0071"]
