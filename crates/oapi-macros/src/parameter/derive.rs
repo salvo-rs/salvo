@@ -74,7 +74,7 @@ impl TryToTokens for ToParameters {
         let ex_lifetime = GenericParam::Lifetime(LifetimeParam::new(ex_life.clone()));
         let mut ex_generics = self.generics.clone();
         ex_generics.params.insert(0, ex_lifetime);
-        if self.generics.lifetimes().next().is_some() {
+        if !self.generics.params.is_empty() {
             ex_generics
                 .make_where_clause()
                 .predicates
@@ -233,7 +233,10 @@ impl TryToTokens for ToParameters {
             }
             impl #impl_generics #oapi::oapi::EndpointArgRegister for #ident #ty_generics #where_clause {
                 fn register(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, _arg: &str) {
-                    for parameter in <Self as #oapi::oapi::ToParameters>::to_parameters(components) {
+                    // Registering schemas does not deserialize a request, so it
+                    // must not inherit the extraction impl's serde bounds.
+                    let parameters = #oapi::oapi::Parameters(#params.into_iter().map(#oapi::oapi::RefOr::Type).collect());
+                    for parameter in parameters {
                         operation.parameters.insert(parameter);
                     }
                 }
