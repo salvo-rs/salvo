@@ -688,7 +688,7 @@ impl<T: ComposeSchema> ComposeSchema for Option<T> {
             .first()
             .cloned()
             .unwrap_or_else(|| T::compose(components, vec![]));
-        schema::OneOf::new()
+        schema::AnyOf::new()
             .item(t_schema)
             .item(schema::Object::new().schema_type(schema::BasicType::Null))
             .into()

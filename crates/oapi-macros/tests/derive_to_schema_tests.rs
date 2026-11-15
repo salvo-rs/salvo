@@ -625,7 +625,7 @@ fn test_issue_1342_flatten_default_generates_composed_default() {
                     "properties": {
                         "ext": {
                             "default": null,
-                            "oneOf": [
+                            "anyOf": [
                                 {
                                     "type": "null"
                                 },
