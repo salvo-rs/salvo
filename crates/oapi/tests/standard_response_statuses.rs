@@ -1,6 +1,7 @@
 //! Existing standard StatusCode constants are accepted and inferred.
 #![allow(unused_braces)]
-use salvo_core::{Router, http::StatusCode};
+use salvo_core::Router;
+use salvo_core::http::StatusCode;
 use salvo_oapi::{OpenApi, endpoint};
 use serde_json::json;
 
