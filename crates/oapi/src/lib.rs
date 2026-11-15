@@ -648,7 +648,7 @@ impl<T: ComposeSchema, const N: usize> ComposeSchema for [T; N] {
             .first()
             .cloned()
             .unwrap_or_else(|| T::compose(components, vec![]));
-        schema::Array::new().items(t_schema).into()
+        schema::Array::new().items(t_schema).min_items(N).max_items(N).into()
     }
 }
 
