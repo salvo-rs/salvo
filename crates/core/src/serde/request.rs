@@ -238,19 +238,24 @@ impl<'de> RequestDeserializer<'de> {
             let parser = self.real_parser(source);
             let parse_json = parser == SourceParser::Json
                 && match source.from {
-                    SourceFrom::Body => true,
+                    SourceFrom::Body | SourceFrom::Query | SourceFrom::Header => true,
                     #[cfg(feature = "cookie")]
                     SourceFrom::Cookie => true,
                     _ => false,
                 };
             if parse_json {
-                // JSON body and cookie values are borrowed from the request. A missing value
-                // indicates a bug in the deserializer rather than an expected parse failure.
-                let value = self
-                    .field_str_value
-                    .take()
-                    .expect("MapAccess::next_value called before next_key");
-                // JSON values from these sources are always borrowed from the request.
+                // A JSON source contains one complete document, including when
+                // the source supports repeated query or header values.
+                let value = if let Some(value) = self.field_str_value.take() {
+                    value
+                } else if let Some(mut values) = self.field_vec_value.take() {
+                    if values.len() != 1 {
+                        return Err(ValError::custom("JSON source requires exactly one value"));
+                    }
+                    values.remove(0).0
+                } else {
+                    return Err(ValError::custom("JSON source has no value"));
+                };
                 let Cow::Borrowed(s) = value else {
                     return Err(ValError::custom("JSON source value must be borrowed"));
                 };
