@@ -244,7 +244,8 @@ impl WispBuilder for CharsWispBuilder {
                 min
             };
             if ps.len() == 1 {
-                (min, None)
+                // A single number is an exact width, as in `{id:num[10]}`.
+                (min, Some(min))
             } else {
                 let max = ps[1];
                 if max.is_empty() {
