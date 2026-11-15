@@ -52,10 +52,21 @@ pub(crate) fn salvo_crate() -> syn::Ident {
     }
 }
 
+/// Remove syntactic groups introduced by parentheses or macro_rules type fragments.
+pub(crate) fn unwrapped_type(mut ty: &Type) -> &Type {
+    loop {
+        ty = match ty {
+            Type::Group(group) => &group.elem,
+            Type::Paren(paren) => &paren.elem,
+            _ => return ty,
+        };
+    }
+}
+
 pub(crate) fn parse_input_type(input: &FnArg) -> InputType<'_> {
     if let FnArg::Typed(p) = input {
-        if let Type::Reference(ty) = &*p.ty {
-            if let syn::Type::Path(nty) = &*ty.elem {
+        if let Type::Reference(ty) = unwrapped_type(&p.ty) {
+            if let syn::Type::Path(nty) = unwrapped_type(&ty.elem) {
                 // the last ident for path type is the real type
                 // such as:
                 // `::std::vec::Vec` is `Vec`

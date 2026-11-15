@@ -123,7 +123,9 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                 ));
             }
             InputType::NoReference(pat) => {
-                if let (Pat::Ident(pat_ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
+                if let (Pat::Ident(pat_ident), Type::Path(ty)) =
+                    (&*pat.pat, unwrapped_type(&pat.ty))
+                {
                     let id = pat_ident.ident.clone();
                     call_args.push(id.clone());
                     let ty = omit_type_path_lifetimes(ty);
