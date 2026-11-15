@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Retain method-level where clauses in crafted handler factories and wrappers.
 - Preserve adjacent enum tags and content across separate serde attributes.
 
 - Preserve flattened map key constraints alongside conditional flattened fields,
