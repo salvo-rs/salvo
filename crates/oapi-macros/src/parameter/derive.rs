@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use proc_macro2::{Span, TokenStream};
-use quote::{ToTokens, quote};
+use quote::quote;
 use syn::ext::IdentExt;
 use syn::parse::Parse;
 use syn::punctuated::Punctuated;
@@ -661,29 +661,20 @@ impl TryToTokens for Parameter<'_> {
         if let Some(schema_with) = schema_with {
             tokens.extend(quote! { .schema(#schema_with) });
         } else {
-            let user_explicit_inline = schema_features
-                .iter()
-                .any(|f| matches!(f, Feature::Inline(Inline(true))));
-            let schema = if user_explicit_inline {
-                let oapi = crate::oapi_crate();
-                crate::component::build_inline_compose_block(
-                    value_type
-                        .as_ref()
-                        .map(|value_type| &value_type.0)
-                        .unwrap_or(&field.ty),
-                    &oapi,
-                )
-            } else {
-                ComponentSchema::for_params(component::ComponentSchemaProps {
+            let schema = ComponentSchema::for_params(
+                component::ComponentSchemaProps {
                     type_tree: &component,
                     features: Some(schema_features),
                     description: None,
                     deprecated: None,
                     object_name: "",
                     compose_context: None,
-                })?
-                .to_token_stream()
-            };
+                },
+                value_type
+                    .as_ref()
+                    .map(|value_type| &value_type.0)
+                    .unwrap_or(&field.ty),
+            )?;
 
             tokens.extend(quote! { .schema(#schema) });
         }
