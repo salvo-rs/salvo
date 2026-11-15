@@ -61,6 +61,176 @@ fn nested_generic_composition_propagates_overrides_without_to_schema_bounds() {
     );
 }
 
+#[derive(ToSchema)]
+struct Pair<A, B> {
+    left: A,
+    right: B,
+}
+type Swapped<A, B> = Pair<B, A>;
+type FixedParameter<A> = Pair<u32, A>;
+type FixedString<A> = Pair<String, A>;
+
+#[derive(ToSchema)]
+struct Aliased<T> {
+    swapped: Swapped<T, u32>,
+    fixed: FixedParameter<T>,
+    nested: Inner<Vec<T>>,
+}
+
+#[test]
+fn aliases_reorder_and_fix_parameters_using_the_actual_implementation() {
+    for kind in [BasicType::String, BasicType::Boolean] {
+        let result = json!(Aliased::<String>::compose(
+            &mut Components::new(),
+            vec![Object::with_type(kind.clone()).into()]
+        ));
+        for property in ["swapped", "fixed"] {
+            assert_eq!(
+                result["properties"][property]["properties"]["left"]["type"],
+                "integer"
+            );
+            assert_eq!(
+                result["properties"][property]["properties"]["right"]["type"],
+                json!(kind)
+            );
+        }
+        assert_eq!(
+            result["properties"]["nested"]["properties"]["value"]["items"]["type"],
+            json!(kind)
+        );
+    }
+}
+
+mod opaque_import {
+    use super::Pair;
+    #[derive(salvo_oapi::ToSchema)]
+    pub(crate) struct Wrapper<T, U> {
+        value: Pair<T, U>,
+    }
+}
+
+mod relative_path {
+    #[derive(salvo_oapi::ToSchema)]
+    pub(crate) struct Wrapper<T, U> {
+        value: super::Pair<T, U>,
+    }
+}
+
+mod same_name_alias {
+    type Pair<A, B> = super::Pair<B, A>;
+    #[derive(salvo_oapi::ToSchema)]
+    pub(crate) struct Wrapper<T, U> {
+        value: Pair<T, U>,
+    }
+}
+
+#[derive(ToSchema)]
+struct Repeated<T, U> {
+    direct: Pair<T, U>,
+    explicit_self: self::Pair<T, U>,
+    qualified: crate::Pair<T, U>,
+    fixed_direct: Pair<T, String>,
+    alias: Swapped<T, U>,
+    fixed_alias: FixedString<T>,
+    imported: opaque_import::Wrapper<T, U>,
+    relative: relative_path::Wrapper<T, U>,
+    same_name: same_name_alias::Wrapper<T, U>,
+}
+
+#[test]
+fn proven_declarations_keep_positions_and_opaque_duplicate_types_fall_back() {
+    let result = json!(Repeated::<String, String>::compose(
+        &mut Components::new(),
+        vec![
+            Object::with_type(BasicType::Boolean).into(),
+            Object::with_type(BasicType::Integer).into(),
+        ]
+    ));
+    for property in ["direct", "qualified", "explicit_self"] {
+        assert_eq!(
+            result["properties"][property]["properties"]["left"]["type"],
+            "boolean"
+        );
+        assert_eq!(
+            result["properties"][property]["properties"]["right"]["type"],
+            "integer"
+        );
+    }
+    assert_eq!(
+        result["properties"]["fixed_direct"]["properties"]["left"]["type"],
+        "boolean"
+    );
+    assert_eq!(
+        result["properties"]["fixed_direct"]["properties"]["right"]["type"],
+        "string"
+    );
+    for property in ["alias", "fixed_alias"] {
+        for field in ["left", "right"] {
+            assert_eq!(
+                result["properties"][property]["properties"][field]["type"],
+                "string"
+            );
+        }
+    }
+    for field in ["left", "right"] {
+        assert_eq!(
+            result["properties"]["imported"]["properties"]["value"]["properties"][field]["type"],
+            "string"
+        );
+        assert_eq!(
+            result["properties"]["same_name"]["properties"]["value"]["properties"][field]["type"],
+            "string"
+        );
+    }
+    assert_eq!(
+        result["properties"]["relative"]["properties"]["value"]["properties"]["left"]["type"],
+        "boolean"
+    );
+    assert_eq!(
+        result["properties"]["relative"]["properties"]["value"]["properties"]["right"]["type"],
+        "integer"
+    );
+}
+
+#[derive(ToSchema)]
+struct WithConst<T, const N: usize> {
+    value: T,
+    data: [u8; N],
+}
+#[derive(ToSchema)]
+struct ConstOuter<T> {
+    inner: WithConst<T, LIMIT>,
+}
+
+#[test]
+fn nested_named_constants_are_not_guessed_to_be_schema_types() {
+    let result = json!(ConstOuter::<String>::compose(
+        &mut Components::new(),
+        vec![Object::with_type(BasicType::Boolean).into(),]
+    ));
+    assert_eq!(
+        result["properties"]["inner"]["properties"]["value"]["type"],
+        "boolean"
+    );
+    assert_eq!(
+        result["properties"]["inner"]["properties"]["data"]["maxItems"],
+        LIMIT
+    );
+}
+
+#[test]
+fn manual_compose_implementations_keep_the_actual_type_default() {
+    assert_eq!(
+        json!(ComposeOnly::compose_with_bindings(
+            &mut Components::new(),
+            module_path!(),
+            &["UnknownAlias"],
+            vec![]
+        ))["type"],
+        "integer"
+    );
+}
+
 type Alias = Inner<String>;
 const LIMIT: usize = 3;
 #[derive(ToSchema)]

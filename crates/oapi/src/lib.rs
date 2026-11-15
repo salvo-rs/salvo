@@ -188,6 +188,23 @@ pub trait ComposeSchema {
         components: &mut Components,
         generics: Vec<RefOr<schema::Schema>>,
     ) -> RefOr<schema::Schema>;
+
+    /// Compose through a path whose generic arguments may belong to a type alias.
+    ///
+    /// Generated implementations preserve positional overrides when the source
+    /// path proves which declaration is used. Otherwise they match overrides
+    /// by concrete parameter type, falling back to the actual type for ambiguous
+    /// repeated types. This includes opaque imports with conflicting overrides.
+    /// Hand-written implementations retain their actual-type behavior by default.
+    #[doc(hidden)]
+    fn compose_with_bindings(
+        components: &mut Components,
+        _caller_module: &str,
+        _source_path: &[&str],
+        _arguments: Vec<Option<(&'static str, RefOr<schema::Schema>)>>,
+    ) -> RefOr<schema::Schema> {
+        Self::compose(components, Vec::new())
+    }
 }
 
 /// Tracks schema references for generic type resolution.

@@ -746,6 +746,72 @@ pub fn flatten_all_of_schema(schema: AllOf, components: &crate::Components) -> A
     schema
 }
 
+/// Resolve generated generic overrides without guessing a type alias's order.
+#[doc(hidden)]
+pub fn resolve_compose_bindings(
+    declaration: &str,
+    caller_module: &str,
+    source_path: &[&str],
+    parameters: &[&str],
+    arguments: Vec<Option<(&'static str, RefOr<Schema>)>>,
+) -> Vec<Option<RefOr<Schema>>> {
+    // Only module-path normalization is performed here. Concrete type names are
+    // opaque equality keys, never parsed to reconstruct Rust generic arguments.
+    let mut source = source_path;
+    let declaration_matches = if source.first() == Some(&"") {
+        declaration == source[1..].join("::")
+    } else {
+        let mut path: Vec<_> = caller_module.split("::").collect();
+        if source.first() == Some(&"crate") {
+            path.truncate(1);
+            source = &source[1..];
+        } else if source.first() == Some(&"self") {
+            source = &source[1..];
+        } else {
+            while source.first() == Some(&"super") {
+                path.pop();
+                source = &source[1..];
+            }
+        }
+        path.extend_from_slice(source);
+        declaration == path.join("::") || declaration == source_path.join("::")
+    };
+    if declaration_matches
+        && parameters.len() == arguments.len()
+        && parameters
+            .iter()
+            .zip(&arguments)
+            .all(|(expected, argument)| {
+                argument
+                    .as_ref()
+                    .is_none_or(|(actual, _)| expected == actual)
+            })
+    {
+        return arguments
+            .into_iter()
+            .map(|argument| argument.map(|(_, schema)| schema))
+            .collect();
+    }
+    parameters
+        .iter()
+        .map(|parameter| {
+            // A fixed alias argument may have the same concrete type as a varying
+            // argument. Repeated actual parameters therefore cannot be mapped safely.
+            if parameters.iter().filter(|name| *name == parameter).count() != 1 {
+                return None;
+            }
+            let mut matches = arguments
+                .iter()
+                .flatten()
+                .filter(|(name, _)| name == parameter);
+            let (_, first) = matches.next()?;
+            matches
+                .all(|(_, schema)| schema == first)
+                .then(|| first.clone())
+        })
+        .collect()
+}
+
 /// Apply a flattened map's key policy only to names not owned by fixed fields.
 #[doc(hidden)]
 pub fn with_flattened_map_key(

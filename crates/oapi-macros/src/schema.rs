@@ -199,6 +199,30 @@ impl TryToTokens for ToSchema<'_> {
         let compose_body = quote! {
             #compose_variant_tokens.into()
         };
+        let prepare_generics = has_generics.then(|| {
+            quote! {
+                let __compose_generics = __compose_generics.into_iter()
+                    .map(::std::option::Option::Some).collect::<::std::vec::Vec<_>>();
+            }
+        });
+        let compose_with_bindings = has_generics.then(|| {
+            let params = self.generics.type_params().map(|param| &param.ident);
+            quote! {
+                fn compose_with_bindings(
+                    components: &mut #oapi::oapi::Components,
+                    caller_module: &str,
+                    source_path: &[&str],
+                    arguments: ::std::vec::Vec<::std::option::Option<(&'static str, #oapi::oapi::RefOr<#oapi::oapi::schema::Schema>)>>,
+                ) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
+                    let __compose_generics = #oapi::oapi::schema::resolve_compose_bindings(
+                        ::std::concat!(::std::module_path!(), "::", ::std::stringify!(#ident)),
+                        caller_module, source_path,
+                        &[#(::std::any::type_name::<#params>()),*], arguments,
+                    );
+                    #compose_body
+                }
+            }
+        });
 
         tokens.extend(quote! {
             impl #compose_impl_generics #oapi::oapi::ComposeSchema for #ident #ty_generics #compose_where_clause {
@@ -206,8 +230,10 @@ impl TryToTokens for ToSchema<'_> {
                     components: &mut #oapi::oapi::Components,
                     __compose_generics: ::std::vec::Vec<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>,
                 ) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
+                    #prepare_generics
                     #compose_body
                 }
+                #compose_with_bindings
             }
         });
 

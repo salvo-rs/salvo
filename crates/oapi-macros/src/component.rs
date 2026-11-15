@@ -569,7 +569,7 @@ impl ComponentSchema {
             let has_description = !description_tokens.is_empty();
 
             let generic_path = type_tree.path.as_ref().expect("generic parameter path");
-            let schema = quote! { #generics_ident.get(#idx).cloned()
+            let schema = quote! { #generics_ident.get(#idx).and_then(::std::clone::Clone::clone)
             .unwrap_or_else(|| <#generic_path as #oapi::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())) };
 
             let schema = if default.is_some() || nullable {
@@ -767,29 +767,59 @@ impl ComponentSchema {
                             let schema = if let Some(context) = compose_context
                                 .filter(|context| contains_compose_parameter(type_tree, context))
                             {
-                                let children = type_tree
-                                    .children
-                                    .as_deref()
-                                    .unwrap_or_default()
-                                    .iter()
-                                    .map(|child| {
-                                        Self::new(ComponentSchemaProps {
-                                            type_tree: child,
+                                let children = type_path
+                                    .segments
+                                    .last()
+                                    .and_then(|segment| match &segment.arguments {
+                                        syn::PathArguments::AngleBracketed(args) => {
+                                            Some(&args.args)
+                                        }
+                                        _ => None,
+                                    })
+                                    .into_iter()
+                                    .flatten()
+                                    .filter_map(|argument| match argument {
+                                        syn::GenericArgument::Type(ty) => Some(ty),
+                                        _ => None,
+                                    })
+                                    .map(|ty| {
+                                        let child = TypeTree::from_type(ty)?;
+                                        if !contains_compose_parameter(&child, context) {
+                                            // A bare identifier may be a const argument.
+                                            // Resolve concrete/default arguments from the
+                                            // actual implementation instead of guessing.
+                                            return Ok(quote!(::std::option::Option::None));
+                                        }
+                                        let schema = Self::new(ComponentSchemaProps {
+                                            type_tree: &child,
                                             features: None,
                                             description: None,
                                             deprecated: None,
                                             object_name,
                                             compose_context: Some(context),
-                                        })
-                                        .map(|schema| schema.to_token_stream())
+                                        })?
+                                        .to_token_stream();
+                                        Ok(quote!(::std::option::Option::Some((
+                                            ::std::any::type_name::<#ty>(), (#schema).into()))))
                                     })
                                     .collect::<DiagResult<Vec<_>>>()?;
+                                let mut source_path = Vec::new();
+                                if type_path.leading_colon.is_some() {
+                                    source_path.push(String::new());
+                                }
+                                source_path.extend(
+                                    type_path
+                                        .segments
+                                        .iter()
+                                        .map(|segment| segment.ident.to_string()),
+                                );
                                 let args = quote::format_ident!(
                                     "__salvo_compose_children",
                                     span = proc_macro2::Span::mixed_site()
                                 );
-                                quote! {{ let #args = ::std::vec![#((#children).into()),*];
-                                <#type_path as #oapi::oapi::ComposeSchema>::compose(components, #args) }}
+                                quote! {{ let #args = ::std::vec![#(#children),*];
+                                <#type_path as #oapi::oapi::ComposeSchema>::compose_with_bindings(
+                                    components, ::std::module_path!(), &[#(#source_path),*], #args) }}
                             } else {
                                 quote! { #oapi::oapi::RefOr::from(<#type_path as #oapi::oapi::ToSchema>::to_schema(components)) }
                             };
