@@ -209,8 +209,8 @@ pub fn set_name_type_info(
 pub fn assign_name<T: 'static>(rule: NameRule) -> String {
     let type_id = TypeId::of::<T>();
     let type_name = std::any::type_name::<T>();
-    for (name, (exist_id, _)) in NAME_TYPES.read().iter() {
-        if *exist_id == type_id {
+    for (name, (exist_id, exist_type_name)) in NAME_TYPES.read().iter() {
+        if *exist_id == type_id && *exist_type_name == type_name {
             return name.clone();
         }
     }
@@ -239,8 +239,9 @@ pub fn response_component_name<T: ?Sized>() -> String {
 /// Get the name of the type. Panic if the name is not exist.
 pub fn get_name<T: 'static>() -> String {
     let type_id = TypeId::of::<T>();
-    for (name, (exist_id, _)) in NAME_TYPES.read().iter() {
-        if *exist_id == type_id {
+    let type_name = std::any::type_name::<T>();
+    for (name, (exist_id, exist_type_name)) in NAME_TYPES.read().iter() {
+        if *exist_id == type_id && *exist_type_name == type_name {
             return name.clone();
         }
     }
@@ -279,6 +280,9 @@ fn resolve_and_format_generic_part(type_name: &str, short_mode: bool) -> String 
 /// Namer is used to assign names to types.
 pub trait Namer: Sync + Send + 'static {
     /// Assign name to type.
+    ///
+    /// The pair `(type_id, type_name)` identifies the owner. Erased endpoint
+    /// wrappers can share a type ID while supplying distinct concrete names.
     fn assign_name(&self, type_id: TypeId, type_name: &'static str, rule: NameRule) -> String;
 }
 
@@ -352,9 +356,12 @@ impl Namer for FlexNamer {
         }
         let base = component_key(&base);
         let mut registry = NAME_TYPES.write();
-        // A concurrent request may already have named this type while we were
-        // resolving its generic arguments. Reuse that allocation consistently.
-        if let Some((name, _)) = registry.iter().find(|(_, (id, _))| *id == type_id) {
+        // Erased endpoint wrappers can share a TypeId while passing distinct
+        // concrete endpoint names. Reuse only the complete owner identity.
+        if let Some((name, _)) = registry
+            .iter()
+            .find(|(_, (id, name))| *id == type_id && *name == type_name)
+        {
             return name.clone();
         }
         let mut name = base.clone();
@@ -371,6 +378,42 @@ impl Namer for FlexNamer {
 #[cfg(test)]
 mod tests {
     use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn erased_type_ids_keep_distinct_concrete_name_owners() {
+        use super::*;
+        reset_global_state();
+        let erased_id = TypeId::of::<()>();
+        let namer = FlexNamer::new();
+        let left = namer.assign_name(erased_id, "endpoint::Number", NameRule::Force("Shared"));
+        let right = namer.assign_name(erased_id, "endpoint::Text", NameRule::Force("Shared"));
+        assert_ne!(left, right);
+        assert_eq!(
+            type_info_by_name(&left),
+            Some((erased_id, "endpoint::Number"))
+        );
+        assert_eq!(
+            type_info_by_name(&right),
+            Some((erased_id, "endpoint::Text"))
+        );
+        assert_eq!(
+            namer.assign_name(erased_id, "endpoint::Number", NameRule::Force("Changed")),
+            left
+        );
+        assert_eq!(
+            namer.assign_name(erased_id, "endpoint::Text", NameRule::Auto),
+            right
+        );
+        // The generic convenience APIs also distinguish a real type from an
+        // erased identity registered under that same TypeId.
+        let unit = assign_name::<()>(NameRule::Auto);
+        assert_ne!(unit, left);
+        assert_ne!(unit, right);
+        assert_eq!(get_name::<()>(), unit);
+        assert_eq!(NAME_TYPES.read().len(), 3);
+        reset_global_state();
+    }
 
     #[test]
     #[serial]
