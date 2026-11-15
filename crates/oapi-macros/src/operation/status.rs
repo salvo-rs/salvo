@@ -1,8 +1,9 @@
 /// Known http `StatusCode`s available in `http::status::StatusCode` struct in `http` crate.
-pub(crate) const STATUS_CODES: [(i16, &str); 60] = [
+pub(crate) const STATUS_CODES: [(i16, &str); 62] = [
     (100, "CONTINUE"),
     (101, "SWITCHING_PROTOCOLS"),
     (102, "PROCESSING"),
+    (103, "EARLY_HINTS"),
     (200, "OK"),
     (201, "CREATED"),
     (202, "ACCEPTED"),
@@ -44,6 +45,7 @@ pub(crate) const STATUS_CODES: [(i16, &str); 60] = [
     (422, "UNPROCESSABLE_ENTITY"),
     (423, "LOCKED"),
     (424, "FAILED_DEPENDENCY"),
+    (425, "TOO_EARLY"),
     (426, "UPGRADE_REQUIRED"),
     (428, "PRECONDITION_REQUIRED"),
     (429, "TOO_MANY_REQUESTS"),
