@@ -59,11 +59,11 @@ fn normalize_oapi_path(path: &str) -> String {
                 let Some(name) = content.get(..name_end) else {
                     break;
                 };
-                normalized.push_str(name);
+                normalized.push_str(parameter_name(name));
                 normalized.push('}');
             } else {
                 normalized.push('{');
-                normalized.push_str(content);
+                normalized.push_str(parameter_name(content));
                 normalized.push('}');
             }
         } else {
@@ -74,6 +74,18 @@ fn normalize_oapi_path(path: &str) -> String {
         }
     }
     normalized
+}
+
+/// Returns the name a path parameter has at runtime and in the operation's parameters.
+///
+/// A wildcard prefix (`**`, `*+`, `*?`, `*`) selects how much of the path is captured and is not
+/// part of that name. An unnamed wildcard has no name to expose and is left as written.
+fn parameter_name(name: &str) -> &str {
+    let stripped = ["*+", "*?", "**", "*"]
+        .into_iter()
+        .find_map(|prefix| name.strip_prefix(prefix))
+        .unwrap_or(name);
+    if stripped.is_empty() { name } else { stripped }
 }
 
 /// Where an operation discovered on a route belongs inside a Path Item Object.
@@ -299,6 +311,27 @@ mod tests {
             normalize_oapi_path("/posts/article_{id:num}"),
             "/posts/article_{id}"
         );
+    }
+
+    #[test]
+    fn normalize_wildcard_path_parameters() {
+        for wildcard in ["{**rest}", "{*+rest}", "{*?rest}", "{*rest}"] {
+            assert_eq!(
+                normalize_oapi_path(&format!("/files/{wildcard}")),
+                "/files/{rest}",
+                "{wildcard}"
+            );
+        }
+        assert_eq!(
+            normalize_oapi_path(r"/files/{**rest|public/.*}"),
+            "/files/{rest}"
+        );
+        assert_eq!(normalize_oapi_path("/a/{*+rest}/b"), "/a/{rest}/b");
+        // There is no name to expose for an unnamed wildcard.
+        for wildcard in ["{**}", "{*+}", "{*?}", "{*}"] {
+            let path = format!("/files/{wildcard}");
+            assert_eq!(normalize_oapi_path(&path), path);
+        }
     }
 
     /// Building a document while another thread adds router metadata must not

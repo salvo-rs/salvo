@@ -146,3 +146,24 @@ fn default_settings_are_unrestricted() {
     assert_eq!(CookieFinder::default(), CookieFinder::new(""));
     assert_eq!(FormFinder::default(), FormFinder::new(""));
 }
+
+#[tokio::test]
+async fn blank_values_are_not_tokens() {
+    for value in ["", "%20", "+"] {
+        let mut request = RequestBuilder::new(
+            format!("http://localhost/?access_token={value}"),
+            Method::POST,
+        )
+        .add_header("authorization", "Bearer ", true)
+        .add_header("cookie", "access_token=", true)
+        .raw_form(format!("access_token={value}"))
+        .build();
+        for finder in default_finders() {
+            assert_eq!(
+                finder.find_token(&mut request).await,
+                None,
+                "blank value {value:?} must not be returned as a token"
+            );
+        }
+    }
+}

@@ -2265,28 +2265,35 @@ mod tests {
                         "salvo_core.http.errors.status_error.StatusError": {
                             "type": "object",
                             "required": [
-                                "code",
-                                "name",
-                                "brief",
-                                "detail"
+                                "error"
                             ],
                             "properties": {
-                                "brief": {
-                                    "type": "string"
-                                },
-                                "cause": {
-                                    "type": "string"
-                                },
-                                "code": {
-                                    "type": "integer",
-                                    "format": if cfg!(feature = "non-strict-integers") { "uint16" } else { "int32" },
-                                    "minimum": 0
-                                },
-                                "detail": {
-                                    "type": "string"
-                                },
-                                "name": {
-                                    "type": "string"
+                                "error": {
+                                    "type": "object",
+                                    "required": [
+                                        "code",
+                                        "name",
+                                        "brief"
+                                    ],
+                                    "properties": {
+                                        "brief": {
+                                            "type": "string"
+                                        },
+                                        "cause": {
+                                            "type": "string"
+                                        },
+                                        "code": {
+                                            "type": "integer",
+                                            "format": if cfg!(feature = "non-strict-integers") { "uint16" } else { "int32" },
+                                            "minimum": 0
+                                        },
+                                        "detail": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        }
+                                    }
                                 }
                             }
                         }

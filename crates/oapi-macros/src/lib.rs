@@ -159,6 +159,13 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// The derive also reflects supported serde rename/default/skip attributes and
 /// Rust's `#[deprecated]` attribute into the generated parameters.
 ///
+/// Query arrays use repeated names by default (`values=1&values=2`). With
+/// `style = Form, explode = false` they use comma-separated elements; with
+/// `style = PipeDelimited` they use pipes. Header arrays use the default
+/// `Simple` style and comma separators. Query separators are identified before
+/// percent decoding, so an escaped comma or pipe stays inside its element.
+/// Other array encodings require a custom extractor and produce a derive error.
+///
 /// Full attribute reference:
 /// <https://docs.rs/salvo-oapi/latest/salvo_oapi/derive.ToParameters.html>
 #[proc_macro_derive(ToParameters, attributes(salvo))] //attributes(parameter, parameters)

@@ -15,6 +15,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Generate transparent serde schemas from the serialized field and omit skipped generic bounds.
+- Decode documented delimited query/header arrays and diagnose unsupported derived array encodings.
+- Allow handler and endpoint parameters to share their function's name.
+- Exclude serde-skipped tuple fields from schema positions, lengths and generic bounds.
+- Include serde struct tags and serialized type names in generated schemas.
+- Apply serde `rename_all_fields` rules to enum variant schemas.
+- Use serde container default functions when generating schema default values.
+- Retain method-level where clauses in crafted handler factories and wrappers.
+- Preserve adjacent enum tags and content across separate serde attributes.
+
 - Preserve flattened map key constraints alongside conditional flattened fields,
   including nested schemas, without exempting inactive fields or map values.
 
@@ -52,6 +62,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Extract tuple `ToParameters` fields in declaration order and honor field sources
   and renames, including serde defaults for absent tuple fields.
 - Restore stateless crafted handlers and endpoints in generic service impls.
+
+- Skip blank values in the form, query and cookie JWT finders, so they no longer hide a
+  token that a later finder would return.
 - Serve only the committed TUS upload prefix and retain read locks while
   streamed downloads use the file.
 
@@ -78,6 +91,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Preserve service `Self` and `Arc<Self>` receiver semantics in crafted method bodies.
 
+- Close connections that have not sent a request yet when the server stops gracefully,
+  instead of waiting for the header timeout, and serve an HTTP/1 request that has already
+  arrived instead of closing its connection.
+
 - Recognize a trusted proxy in `TrustedProxyIssuer` when a dual-stack listener reports
   its IPv4 address as an IPv4-mapped IPv6 address.
 
@@ -88,6 +105,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   newtype, and flattened structs.
 
 - Preserve all borrowed lifetimes when deriving request extractors and parameters.
+
+- Report the `content-length` of HTTP/3 request bodies through their size hint, so `Proxy`
+  forwards the length instead of using chunked transfer encoding, and fail an HTTP/3 request
+  whose content is longer or shorter than that length.
 
 - Skip extension methods in `MethodSkipper::skip_all`, so the default cache skipper
   stores responses to `GET` requests only.
@@ -100,6 +121,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Preserve parameter descriptions, requiredness, and options when using `schema_with`.
 
 - Resolve service `Self` response types in generated endpoint metadata.
+
+- Document wildcard routes such as `{**rest}` with the name of their path parameter.
+
+- Describe the JSON body of a `StatusError` response as the default catcher sends it.
+
+- Keep every document, with a name, in `SwaggerUi::url`, and select the primary one in
+  `SwaggerUi::urls`.
 
 - Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
   with `cannot find RefOr in salvo` (regression in 1.1.2).

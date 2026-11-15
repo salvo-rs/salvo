@@ -239,11 +239,18 @@ impl JwtTokenFinder for FormFinder {
             .as_ref()
             .is_none_or(|methods| methods.contains(req.method()))
         {
-            req.form(&self.field_name).await
+            non_blank(req.form(&self.field_name).await)
         } else {
             None
         }
     }
+}
+
+/// A blank value is not a token. Returning it would stop `JwtAuth` from asking
+/// the finders after this one, as [`HeaderFinder`] already avoids for an empty
+/// `Bearer` credential.
+fn non_blank(token: Option<String>) -> Option<String> {
+    token.filter(|token| !token.trim().is_empty())
 }
 
 /// Extracts JWT tokens from URL query parameters.
@@ -322,7 +329,7 @@ impl JwtTokenFinder for QueryFinder {
             .as_ref()
             .is_none_or(|methods| methods.contains(req.method()))
         {
-            req.query(&self.query_name)
+            non_blank(req.query(&self.query_name))
         } else {
             None
         }
@@ -404,7 +411,7 @@ impl JwtTokenFinder for CookieFinder {
             .as_ref()
             .is_none_or(|methods| methods.contains(req.method()))
         {
-            req.cookie(&self.cookie_name).map(|c| c.value().to_owned())
+            non_blank(req.cookie(&self.cookie_name).map(|c| c.value().to_owned()))
         } else {
             None
         }
