@@ -504,6 +504,7 @@ where
     ///
     /// When enabled, the proxy overwrites any inbound `X-Forwarded-For` value with the direct
     /// client IP from the connection instead of trusting a client-supplied forwarding chain.
+    /// If the peer has no IP address (for example, a Unix socket), the header is omitted.
     #[inline]
     #[must_use]
     pub fn client_ip_forwarding(mut self, enable: bool) -> Self {
@@ -589,6 +590,7 @@ where
             if key == HOST
                 || key == CONTENT_LENGTH
                 || is_hop_by_hop_header(key, &connection_headers)
+                || (self.client_ip_forwarding_enabled && key == X_FORWARDED_FOR_HEADER_NAME)
             {
                 continue;
             }

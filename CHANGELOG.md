@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - Match adjacent unit-enum schemas to serde's tag-only representation.
+- Drop untrusted `X-Forwarded-For` values on non-IP peers when proxy client-IP forwarding is enabled.
 - Generate transparent serde schemas from the serialized field and omit skipped generic bounds.
 - Decode documented delimited query/header arrays and diagnose unsupported derived array encodings.
 - Allow handler and endpoint parameters to share their function's name.
