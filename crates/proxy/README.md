@@ -111,7 +111,8 @@ forward only the bare host name without the port.
 
 Client IP forwarding overwrites any inbound `X-Forwarded-For` value with the
 direct client IP from the connection. This avoids trusting a client-supplied
-forwarding chain.
+forwarding chain. When the peer has no IP address, such as a Unix socket, the
+header is omitted instead of forwarding the inbound value.
 
 ### Request bodies
 

@@ -69,6 +69,15 @@ impl ComponentSchema {
         Self::new_inner(schema_props, true, None)
     }
 
+    /// Preserve explicit inlining when the original Rust type is available.
+    pub(crate) fn for_type(schema_props: ComponentSchemaProps, ty: &syn::Type) -> DiagResult<Self> {
+        let force_inline = schema_props
+            .features
+            .as_ref()
+            .is_some_and(|features| features.is_inline());
+        Self::new_inner(schema_props, true, force_inline.then_some(ty))
+    }
+
     /// Create a `ComponentSchema` for use in parameter contexts.
     ///
     /// When used for parameters, `Option<T>` means the parameter is optional (not required),

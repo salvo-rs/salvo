@@ -16,6 +16,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - Diagnose unsupported scalar/object `ToParameters` encodings instead of generating incompatible extractors.
+- Honor nested `salvo(schema(...))` attributes on enum variants, repr enums and newtype fields.
+- Describe serde-skipped enum newtypes as unit variants without unused generic bounds.
+- Generate valid adjacent enum variant titles and retain object schema titles.
+- Preserve conditional serde tuple skips, including shifted item positions, in schemas.
+- Preserve object closure, property-count bounds and map constraints when adding internally tagged newtype enum tags.
+- Match adjacent unit-enum schemas to serde's tag-only representation.
+- Drop untrusted `X-Forwarded-For` values on non-IP peers when proxy client-IP forwarding is enabled.
 - Generate transparent serde schemas from the serialized field and omit skipped generic bounds.
 - Decode documented delimited query/header arrays and diagnose unsupported derived array encodings.
 - Allow handler and endpoint parameters to share their function's name.
