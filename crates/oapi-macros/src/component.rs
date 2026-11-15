@@ -737,45 +737,110 @@ fn p_is_single_segment(path: Option<&std::borrow::Cow<'_, syn::Path>>) -> bool {
         .unwrap_or(false)
 }
 
-/// Generate a block that calls `ComposeSchema::compose` for `type_tree`,
-/// recursively composing each generic argument first via `let` bindings so that
-/// the nested `&mut Components` reborrows do not overlap.
-///
-/// Used by the user-explicit `inline(...)` syntax in `responses(...)`,
-/// `request_body = ...`, parameters, and headers to fully inline the schema
-/// body — including non-primitive generic arguments — without registering a
-/// wrapper component or emitting a `$ref`.
-pub(crate) fn build_inline_compose_block(type_tree: &TypeTree, oapi: &syn::Ident) -> TokenStream {
-    let Some(path) = type_tree.path.as_ref() else {
-        // Tuple / unit types do not have a path; fall back to an empty object.
-        return quote! { #oapi::oapi::RefOr::from(#oapi::oapi::Object::new()) };
-    };
-    let path = path.as_ref();
-    let children: &[TypeTree<'_>] = type_tree.children.as_deref().unwrap_or(&[]);
-    if children.is_empty() {
-        return quote_spanned! {path.span() =>
-            <#path as #oapi::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())
-        };
-    }
-    let bindings: Vec<TokenStream> = children
-        .iter()
-        .enumerate()
-        .map(|(idx, child)| {
-            let ident = quote::format_ident!("__inline_arg_{}", idx);
-            let value = build_inline_compose_block(child, oapi);
-            quote! { let #ident = #value; }
-        })
-        .collect();
-    let arg_idents: Vec<_> = (0..children.len())
-        .map(|idx| quote::format_ident!("__inline_arg_{}", idx))
-        .collect();
-    quote_spanned! {path.span() =>
-        {
-            #(#bindings)*
-            <#path as #oapi::oapi::ComposeSchema>::compose(
-                components,
-                ::std::vec![#(#arg_idents),*],
-            )
+/// Compose an explicitly inline Rust type without losing its structural syntax.
+/// Each child is evaluated first to keep mutable component borrows independent.
+pub(crate) fn build_inline_compose_block(ty: &syn::Type, oapi: &syn::Ident) -> TokenStream {
+    match ty {
+        syn::Type::Reference(reference) => build_inline_compose_block(&reference.elem, oapi),
+        syn::Type::Paren(paren) => build_inline_compose_block(&paren.elem, oapi),
+        syn::Type::Group(group) => build_inline_compose_block(&group.elem, oapi),
+        syn::Type::Array(array) => {
+            let item = build_inline_compose_block(&array.elem, oapi);
+            let ident =
+                quote::format_ident!("__inline_item", span = proc_macro2::Span::mixed_site());
+            let len = &array.len;
+            quote_spanned! {ty.span()=>
+                {
+                    let #ident = #item;
+                    #oapi::oapi::RefOr::from(#oapi::oapi::schema::Array::new()
+                        .items(#ident).min_items(#len).max_items(#len))
+                }
+            }
         }
+        syn::Type::Slice(slice) => {
+            let item = build_inline_compose_block(&slice.elem, oapi);
+            let ident =
+                quote::format_ident!("__inline_item", span = proc_macro2::Span::mixed_site());
+            quote_spanned! {ty.span()=>
+                {
+                    let #ident = #item;
+                    #oapi::oapi::RefOr::from(#oapi::oapi::schema::Array::new().items(#ident))
+                }
+            }
+        }
+        syn::Type::Tuple(tuple) if tuple.elems.is_empty() => quote_spanned! {ty.span()=>
+            #oapi::oapi::RefOr::from(#oapi::oapi::Object::new().schema_type(#oapi::oapi::BasicType::Null))
+        },
+        syn::Type::Tuple(tuple) => {
+            let count = tuple.elems.len();
+            let bindings = tuple.elems.iter().enumerate().map(|(idx, elem)| {
+                let ident = quote::format_ident!(
+                    "__inline_arg_{}",
+                    idx,
+                    span = proc_macro2::Span::mixed_site()
+                );
+                let value = build_inline_compose_block(elem, oapi);
+                quote! { let #ident = #value; }
+            });
+            let args = (0..count).map(|idx| {
+                quote::format_ident!(
+                    "__inline_arg_{}",
+                    idx,
+                    span = proc_macro2::Span::mixed_site()
+                )
+            });
+            quote_spanned! {ty.span()=>
+                {
+                    #(#bindings)*
+                    #oapi::oapi::RefOr::from(#oapi::oapi::schema::Array::new()
+                        .items(#oapi::oapi::schema::ArrayItems::False)
+                        .prefix_items([#(#args),*]).min_items(#count).max_items(#count))
+                }
+            }
+        }
+        syn::Type::Path(path) => {
+            let children = path
+                .path
+                .segments
+                .last()
+                .and_then(|segment| match &segment.arguments {
+                    syn::PathArguments::AngleBracketed(args) => Some(
+                        args.args
+                            .iter()
+                            .filter_map(|arg| match arg {
+                                syn::GenericArgument::Type(ty) => Some(ty),
+                                _ => None,
+                            })
+                            .collect::<Vec<_>>(),
+                    ),
+                    _ => None,
+                })
+                .unwrap_or_default();
+            let bindings = children.iter().enumerate().map(|(idx, child)| {
+                let ident = quote::format_ident!(
+                    "__inline_arg_{}",
+                    idx,
+                    span = proc_macro2::Span::mixed_site()
+                );
+                let value = build_inline_compose_block(child, oapi);
+                quote! { let #ident = #value; }
+            });
+            let args = (0..children.len()).map(|idx| {
+                quote::format_ident!(
+                    "__inline_arg_{}",
+                    idx,
+                    span = proc_macro2::Span::mixed_site()
+                )
+            });
+            quote_spanned! {ty.span()=>
+                {
+                    #(#bindings)*
+                    <#ty as #oapi::oapi::ComposeSchema>::compose(components, ::std::vec![#(#args),*])
+                }
+            }
+        }
+        _ => quote_spanned! {ty.span()=>
+            <#ty as #oapi::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())
+        },
     }
 }
