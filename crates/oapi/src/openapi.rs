@@ -304,6 +304,7 @@ impl OpenApi {
         self.components.append(&mut other.components);
         self.security.append(&mut other.security);
         self.tags.append(&mut other.tags);
+        self.deduplicate_auto_operation_ids();
         self
     }
 
@@ -622,7 +623,60 @@ impl OpenApi {
     pub fn merge_router_with_base(mut self, router: &Router, base: impl AsRef<str>) -> Self {
         let mut node = NormNode::new(router, Default::default());
         self.merge_norm_node(&mut node, base.as_ref());
+        self.deduplicate_auto_operation_ids();
         self
+    }
+
+    fn deduplicate_auto_operation_ids(&mut self) {
+        fn collect<'a>(
+            item: &'a mut PathItem,
+            path: &str,
+            operations: &mut Vec<(String, &'a mut Operation)>,
+        ) {
+            for (method, operation) in &mut item.operations.0 {
+                operations.push((format!("{method:?}:{path}"), operation));
+            }
+            for (method, operation) in &mut item.additional_operations {
+                operations.push((format!("{method}:{path}"), operation));
+            }
+        }
+        let mut operations = Vec::new();
+        for (path, item) in self.paths.iter_mut() {
+            collect(item, path, &mut operations);
+        }
+        for (name, item) in &mut self.webhooks {
+            if let RefOr::Type(item) = item {
+                collect(item, &format!("webhook:{name}"), &mut operations);
+            }
+        }
+        // Explicit IDs are reserved first, regardless of route ordering.
+        let mut used: BTreeSet<String> = operations
+            .iter()
+            .filter_map(|(_, operation)| {
+                operation
+                    .auto_operation_id_base()
+                    .is_none()
+                    .then(|| operation.operation_id.clone())
+                    .flatten()
+            })
+            .collect();
+        for (context, operation) in operations {
+            let Some(base) = operation.auto_operation_id_base().map(str::to_owned) else {
+                continue;
+            };
+            let mut candidate = base.clone();
+            if used.contains(&candidate) {
+                let suffix: String = context.bytes().map(|byte| format!("{byte:02x}")).collect();
+                candidate = format!("{base}__{suffix}");
+                let mut count = 2;
+                while used.contains(&candidate) {
+                    candidate = format!("{base}__{suffix}_{count}");
+                    count += 1;
+                }
+            }
+            used.insert(candidate.clone());
+            operation.update_auto_operation_id(candidate);
+        }
     }
 
     fn merge_norm_node(&mut self, node: &mut NormNode, base_path: &str) {

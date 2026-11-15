@@ -11,6 +11,15 @@ use super::response::{Response, Responses};
 use super::{Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server};
 use crate::{Parameter, Parameters, PathItemType, PropMap, Servers};
 
+/// Nonserialized provenance is a generation cache, not part of operation value equality.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct AutoOperationId(Option<(String, String)>);
+impl PartialEq for AutoOperationId {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
 /// Collection for save [`Operation`]s.
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
 pub struct Operations(pub PropMap<PathItemType, Operation>);
@@ -132,6 +141,9 @@ pub struct Operation {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub operation_id: Option<String>,
 
+    #[serde(skip)]
+    pub(crate) auto_operation_id: AutoOperationId,
+
     /// Additional external documentation for this operation.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_docs: Option<ExternalDocs>,
@@ -224,7 +236,30 @@ impl Operation {
     #[must_use]
     pub fn operation_id<S: Into<String>>(mut self, operation_id: S) -> Self {
         self.operation_id = Some(operation_id.into());
+        self.auto_operation_id = AutoOperationId::default();
         self
+    }
+
+    /// Record an inferred ID for disambiguation when attaching an endpoint to routes.
+    #[doc(hidden)]
+    pub fn assign_auto_operation_id(&mut self, operation_id: String) {
+        self.operation_id = Some(operation_id.clone());
+        self.auto_operation_id = AutoOperationId(Some((operation_id.clone(), operation_id)));
+    }
+
+    pub(crate) fn auto_operation_id_base(&self) -> Option<&str> {
+        self.auto_operation_id
+            .0
+            .as_ref()
+            .filter(|(_, current)| self.operation_id.as_ref() == Some(current))
+            .map(|(base, _)| base.as_str())
+    }
+
+    pub(crate) fn update_auto_operation_id(&mut self, operation_id: String) {
+        if let Some((_, current)) = &mut self.auto_operation_id.0 {
+            current.clone_from(&operation_id);
+        }
+        self.operation_id = Some(operation_id);
     }
 
     /// Add or change parameters of the [`Operation`].
