@@ -88,3 +88,37 @@ async fn every_alternative_matches_the_whole_rest() {
         );
     }
 }
+
+#[tokio::test]
+async fn verbose_trailing_comments_do_not_swallow_the_added_group() {
+    for (pattern, accepted, expected) in [
+        (
+            r"comments/{id|(?x)^foo\|bar$ # trailing comment}",
+            "/comments/foo%7Cbar",
+            "id=foo|bar",
+        ),
+        (
+            r"comments/{id|(?x)foo|foobar # trailing comment}",
+            "/comments/foobar",
+            "id=foobar",
+        ),
+        (
+            r"comments/{id|(?x)[a|b]+ # trailing comment}",
+            "/comments/a%7Cb",
+            "id=a|b",
+        ),
+    ] {
+        let service = Service::new(Router::try_with_path(pattern).unwrap().get(show));
+        assert_eq!(
+            get(&service, accepted).await,
+            (Some(StatusCode::OK), expected.to_owned()),
+            "{pattern}"
+        );
+        assert_eq!(
+            get(&service, "/comments/not-a-match").await.0,
+            Some(StatusCode::NOT_FOUND),
+            "{pattern}"
+        );
+    }
+    assert!(Router::try_with_path("invalid/{id|foo|[bar}").is_err());
+}
