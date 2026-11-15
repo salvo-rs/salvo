@@ -103,6 +103,7 @@ pub(crate) struct NormNode {
     // pub(crate) router_id: usize,
     pub(crate) handler_type_id: Option<TypeId>,
     pub(crate) handler_type_name: Option<&'static str>,
+    pub(crate) handler_creator: Option<fn() -> crate::Endpoint>,
     pub(crate) method: Option<OperationSlot>,
     pub(crate) path: Option<String>,
     pub(crate) children: Vec<Self>,
@@ -184,6 +185,12 @@ impl NormNode {
         });
         node.handler_type_id = router.goal.as_ref().map(|h| h.type_id());
         node.handler_type_name = router.goal.as_ref().map(|h| h.type_name());
+        node.handler_creator = router.goal.as_ref().and_then(|handler| {
+            handler
+                .type_data()?
+                .downcast_ref::<fn() -> crate::Endpoint>()
+                .copied()
+        });
         let routers = router.routers();
         if !routers.is_empty() {
             for router in routers {

@@ -316,6 +316,7 @@ pub mod oapi {
 #[doc(hidden)]
 pub mod __private {
     pub use inventory;
+    pub use salvo_oapi_macros::__craft_endpoint;
     pub use serde_json;
 }
 

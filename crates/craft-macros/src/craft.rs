@@ -187,6 +187,86 @@ fn rewrite_method(
     helper
         .attrs
         .retain(|attr| !attr.path().is_ident("deprecated"));
+    if stateless_generic {
+        let dispatch = Ident::new(
+            &format!(
+                "__salvo_dispatch_{}",
+                helper_name.to_string().trim_start_matches('_')
+            ),
+            method_name.span(),
+        );
+        let creator = Ident::new(
+            &format!(
+                "__salvo_metadata_{}",
+                helper_name.to_string().trim_start_matches('_')
+            ),
+            method_name.span(),
+        );
+        let mut lifetime_name = "__salvo_craft_request".to_owned();
+        while impl_generics
+            .lifetimes()
+            .chain(method.sig.generics.lifetimes())
+            .any(|parameter| parameter.lifetime.ident == lifetime_name)
+        {
+            lifetime_name.push('_');
+        }
+        let lifetime = syn::Lifetime::new(&format!("'{lifetime_name}"), Span::mixed_site());
+        let is_endpoint = macro_attr
+            .path()
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "endpoint");
+        let oapi = oapi_crate();
+        let endpoint_args = match &macro_attr.meta {
+            syn::Meta::List(list) => list.tokens.clone(),
+            _ => TokenStream::new(),
+        };
+        // Expand extraction and metadata helpers as associated functions, where
+        // the original service's type, const and lifetime parameters remain in scope.
+        helper.attrs = attrs.clone();
+        helper.attrs.push(if is_endpoint {
+            parse_quote!(#[#oapi::oapi::__private::__craft_endpoint(#dispatch, #creator, #lifetime, #method_name; #endpoint_args)])
+        } else {
+            parse_quote!(#[#salvo::macros::__craft_handler(#dispatch, #lifetime)])
+        });
+        let metadata_field = is_endpoint.then(|| quote!(creator: fn() -> #oapi::oapi::Endpoint,));
+        let metadata_init = is_endpoint.then(|| quote!(creator: Self::#creator,));
+        let metadata_hook = is_endpoint.then(|| {
+            quote! {
+                fn type_data(&self) -> Option<&(dyn ::std::any::Any + Send + Sync)> {
+                    Some(&self.creator)
+                }
+            }
+        });
+        let mut factory: ImplItemFn = parse_quote! {
+            #vis fn #method_name() -> impl #handler #factory_where {
+                // Function pointers erase the service parameters: even borrowed
+                // or non-Send service types can produce an independent handler.
+                type Dispatch = for<#lifetime> fn(
+                    &#lifetime mut #salvo::Request,
+                    &#lifetime mut #salvo::Depot,
+                    &#lifetime mut #salvo::Response,
+                    &#lifetime mut #salvo::FlowCtrl,
+                ) -> ::std::pin::Pin<::std::boxed::Box<
+                    dyn ::std::future::Future<Output = ()> + ::std::marker::Send + #lifetime
+                >>;
+                #[derive(Debug)]
+                struct handle { dispatch: Dispatch, #metadata_field }
+                #[#salvo::async_trait]
+                impl #handler for handle {
+                    #metadata_hook
+                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot,
+                        res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
+                        (self.dispatch)(req, depot, res, ctrl).await;
+                    }
+                }
+                handle { dispatch: Self::#dispatch, #metadata_init }
+            }
+        };
+        factory.attrs.append(&mut attrs);
+        *method = factory;
+        return Ok(Some(helper));
+    }
     let mut arguments = Vec::new();
     for (index, input) in method.sig.inputs.iter_mut().enumerate() {
         if let FnArg::Typed(input) = input {
@@ -261,16 +341,6 @@ fn rewrite_method(
     method.block = parse_quote!({ #call });
     let mut new_method: ImplItemFn = match style {
         FnReceiver::None => {
-            if stateless_generic {
-                // A nested function cannot refer to the enclosing impl parameters.
-                // Preserve the original stateless body for generic static methods.
-                method.sig = helper.sig.clone();
-                method.sig.ident = method_name.clone();
-                // The factory enforces these predicates. A nested stateless
-                // function cannot capture the enclosing impl's parameters.
-                method.sig.generics.where_clause = None;
-                method.block = helper.block.clone();
-            }
             method.attrs.push(macro_attr);
             parse_quote! {
                 #vis fn #method_name() -> impl #handler #factory_where {
@@ -346,7 +416,7 @@ fn rewrite_method(
     new_method.attrs.append(&mut attrs);
     *method = new_method;
     // println!("{}", method.to_token_stream());
-    Ok((!stateless_generic).then_some(helper))
+    Ok(Some(helper))
 }
 
 #[cfg(test)]

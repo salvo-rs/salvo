@@ -722,3 +722,14 @@ mod tests {
         );
     }
 }
+
+/// Internal stateless craft expansion; not a user-facing endpoint attribute.
+#[doc(hidden)]
+#[proc_macro_attribute]
+pub fn __craft_endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(attr as endpoint::CraftArgs);
+    let input = parse_macro_input!(input as syn::ItemFn);
+    endpoint::craft_helper(args, input)
+        .unwrap_or_else(|error| error.into_compile_error())
+        .into()
+}

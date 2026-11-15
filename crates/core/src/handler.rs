@@ -179,6 +179,12 @@ pub trait Handler: Send + Sync + 'static {
     fn type_id(&self) -> std::any::TypeId {
         std::any::TypeId::of::<Self>()
     }
+    /// Optional type-erased metadata supplied by generated handlers.
+    #[doc(hidden)]
+    fn type_data(&self) -> Option<&(dyn ::std::any::Any + Send + Sync)> {
+        None
+    }
+
     #[doc(hidden)]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
