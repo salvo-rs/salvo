@@ -1,150 +1,58 @@
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -44,7 +44,6 @@
- tls-rustls = [
-     "rustls",
-     "webpki-roots",
+@@ -47 +46,0 @@
 -    "rustls-pemfile",
-     "tokio-rustls",
- ]
- 
-@@ -153,7 +152,7 @@
- version = "1.0"
- 
- [dependencies.lru]
+@@ -156 +155 @@
 -version = "0.14.0"
 +version = "0.18.2"
- 
- [dependencies.memchr]
- version = "2.5.0"
-@@ -170,10 +169,6 @@
- features = ["ring"]
- optional = true
- default-features = false
+@@ -173,4 +171,0 @@
 -
 -[dependencies.rustls-pemfile]
 -version = "2.0.0"
 -optional = true
- 
- [dependencies.serde]
- version = "1"
 --- a/src/net/tls/rustls.rs
 +++ b/src/net/tls/rustls.rs
-@@ -8,7 +8,7 @@
- use rustls::pki_types::ServerName;
- use rustls::pki_types::{CertificateDer, TrustAnchor, UnixTime};
- use rustls::{CertificateError, ClientConfig, DigitallySignedStruct, RootCertStore};
+@@ -11 +11 @@
 -use std::io::Cursor;
 +use rustls::pki_types::pem::PemObject;
- use std::sync::Arc;
- 
- pub async fn configure_tls_connector(
-@@ -30,13 +30,17 @@
-         }));
-         if let Some(ca) = root_cert_path {
-             let data = ca.data().await?;
+@@ -33,2 +33,2 @@
 -            let mut cursor = Cursor::new(data);
 -            for cert_result in rustls_pemfile::certs(&mut cursor) {
 +            let mut certificate_count = 0;
 +            for cert_result in CertificateDer::pem_slice_iter(&data) {
-                 let cert =
-                     cert_result.map_err(|_| Error::from(format!("Invalid certificate {}", ca)))?;
-                 cert_store
-                     .add(cert)
-                     .map_err(|err| Error::from(err.to_string()))?;
+@@ -39,0 +40,4 @@
 +                certificate_count += 1;
 +            }
 +            if certificate_count == 0 {
 +                return Err(Error::from(format!("No certificates found in {}", ca)));
-             }
-         }
-         if accept_invalid_hostnames {
 --- a/tests/tls_test.rs
 +++ b/tests/tls_test.rs
-@@ -5,7 +5,7 @@
- 
- use rbdc::net::{CertificateInput, MaybeTlsStream};
- use rustls::pki_types::CertificateDer;
+@@ -8 +8 @@
 -use std::io::Cursor;
 +use rustls::pki_types::{PrivateKeyDer, pem::PemObject};
- use std::sync::Arc;
- use tokio::io::{AsyncReadExt, AsyncWriteExt};
- use tokio::net::{TcpListener, TcpStream};
-@@ -19,12 +19,10 @@
-     Vec<CertificateDer<'static>>,
-     rustls::pki_types::PrivateKeyDer<'static>,
- ) {
+@@ -22 +22 @@
 -    let certs = rustls_pemfile::certs(&mut Cursor::new(SERVER_CERT_PEM.as_bytes()))
 +    let certs = CertificateDer::pem_slice_iter(SERVER_CERT_PEM.as_bytes())
-         .collect::<Result<_, _>>()
-         .unwrap();
+@@ -25,3 +25 @@
 -    let key = rustls_pemfile::private_key(&mut Cursor::new(SERVER_KEY_PEM.as_bytes()))
 -        .unwrap()
 -        .unwrap();
 +    let key = PrivateKeyDer::from_pem_slice(SERVER_KEY_PEM.as_bytes()).unwrap();
-     (certs, key)
- }
- 
-@@ -67,6 +65,7 @@
- 
- #[tokio::test]
- async fn test_tls_upgrade_accept_invalid_certs() {
+@@ -69,0 +68 @@
 +    let _ = rustls::crypto::ring::default_provider().install_default();
-     let (port, server) = spawn_server().await;
-     let tcp = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
-     let mut stream = MaybeTlsStream::Raw(tcp);
-@@ -83,6 +82,7 @@
- 
- #[tokio::test]
- async fn test_tls_upgrade_with_custom_root_and_wrong_hostname() {
+@@ -85,0 +85 @@
 +    let _ = rustls::crypto::ring::default_provider().install_default();
-     let (port, server) = spawn_server().await;
-     let tcp = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
-     let mut stream = MaybeTlsStream::Raw(tcp);
-@@ -102,6 +102,7 @@
- 
- #[tokio::test]
- async fn test_tls_upgrade_twice_is_idempotent() {
+@@ -104,0 +105 @@
 +    let _ = rustls::crypto::ring::default_provider().install_default();
-     let (port, server) = spawn_server().await;
-     let tcp = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
-     let mut stream = MaybeTlsStream::Raw(tcp);
-@@ -117,6 +118,7 @@
- 
- #[tokio::test]
- async fn test_tls_upgrade_with_custom_root_valid_hostname() {
+@@ -119,0 +121 @@
 +    let _ = rustls::crypto::ring::default_provider().install_default();
-     // Exercises the plain "trusted roots + no hostname override" branch of
-     // `configure_tls_connector`.
-     let (port, server) = spawn_server().await;
-@@ -136,6 +138,7 @@
- 
- #[tokio::test]
- async fn test_tls_upgrade_with_invalid_der_root_cert_errors() {
+@@ -138,0 +141 @@
 +    let _ = rustls::crypto::ring::default_provider().install_default();
-     // The PEM block decodes, but its contents are not a valid X.509
-     // certificate, so adding it to the root store fails.
-     let (client, _server) = tokio::io::duplex(64);
-@@ -153,6 +156,7 @@
- 
- #[tokio::test]
- async fn test_tls_upgrade_no_hostname_verifier_accepts_valid_cert() {
+@@ -155,0 +159 @@
 +    let _ = rustls::crypto::ring::default_provider().install_default();
-     // With `accept_invalid_hostnames`, the inner verifier still runs and can
-     // succeed when the certificate is trusted and the hostname matches.
-     let (port, server) = spawn_server().await;
-@@ -172,6 +176,7 @@
- 
- #[tokio::test]
- async fn test_upgrade_from_upgrading_state_errors() {
+@@ -174,0 +179 @@
 +    let _ = rustls::crypto::ring::default_provider().install_default();
-     let (_client, _server) = tokio::io::duplex(64);
-     let mut stream: MaybeTlsStream<tokio::io::DuplexStream> = MaybeTlsStream::Upgrading;
-     let err = stream
-@@ -180,3 +185,26 @@
-         .unwrap_err();
-     assert!(!err.to_string().is_empty());
- }
+@@ -182,0 +188,23 @@
 +
 +#[test]
 +fn pem_key_loader_rejects_missing_and_malformed_keys() {
