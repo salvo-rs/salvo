@@ -324,7 +324,9 @@ pub enum JwtAuthState {
     /// Usually results in a 401 Unauthorized response unless `force_passed` is true.
     Unauthorized,
     /// A token was provided but it failed validation.
-    /// Usually results in a 403 Forbidden response unless `force_passed` is true.
+    /// Results in a 401 Unauthorized response unless `force_passed` is true.
+    /// The name is retained for compatibility; this is failed authentication,
+    /// rather than an authenticated identity lacking permission.
     Forbidden,
 }
 
@@ -349,8 +351,12 @@ pub trait JwtAuthDepotExt {
     /// Returns `JwtAuthState::Unauthorized` if no state is present in the depot.
     fn jwt_auth_state(&self) -> JwtAuthState;
 
-    /// Gets the JWT error if authentication failed.
+    /// Gets a `jsonwebtoken` error from [`ConstDecoder`]. For OIDC or a custom
+    /// decoder, use [`Self::jwt_auth_error_typed`] with its error type.
     fn jwt_auth_error(&self) -> Option<&JwtError>;
+
+    /// Gets the error type declared by the configured decoder.
+    fn jwt_auth_error_typed<E: std::error::Error + Send + Sync + 'static>(&self) -> Option<&E>;
 }
 
 impl JwtAuthDepotExt for Depot {
@@ -377,6 +383,10 @@ impl JwtAuthDepotExt for Depot {
 
     #[inline]
     fn jwt_auth_error(&self) -> Option<&JwtError> {
+        self.get(JWT_AUTH_ERROR_KEY).ok()
+    }
+
+    fn jwt_auth_error_typed<E: std::error::Error + Send + Sync + 'static>(&self) -> Option<&E> {
         self.get(JWT_AUTH_ERROR_KEY).ok()
     }
 }
@@ -509,7 +519,9 @@ where
                     depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Forbidden);
                     depot.insert(JWT_AUTH_ERROR_KEY, e);
                     if !self.force_passed {
-                        res.render(StatusError::forbidden());
+                        res.render(StatusError::unauthorized());
+                        res.add_header("www-authenticate", "Bearer error=\"invalid_token\"", true)
+                            .expect("static Bearer challenge is valid");
                         ctrl.skip_rest();
                     }
                 }
@@ -518,6 +530,8 @@ where
             depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Unauthorized);
             if !self.force_passed {
                 res.render(StatusError::unauthorized());
+                res.add_header("www-authenticate", "Bearer", true)
+                    .expect("static Bearer challenge is valid");
                 ctrl.skip_rest();
             }
         }
@@ -592,7 +606,7 @@ mod tests {
                 "http://localhost/?jwt=invalid",
                 None,
                 true,
-                StatusCode::FORBIDDEN,
+                StatusCode::UNAUTHORIZED,
             ),
         ] {
             let mut request = TestClient::get(url);
@@ -1098,7 +1112,7 @@ mod tests {
 
         let token = encode_test_token(&claim, &EncodingKey::from_secret(b"ABCDEFG").unwrap());
         let content = access(&service, &token).await;
-        assert!(content.contains("Forbidden"));
+        assert!(content.contains("Unauthorized"));
     }
 
     #[tokio::test]
