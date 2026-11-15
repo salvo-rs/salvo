@@ -45,6 +45,7 @@ reqwest = { workspace = true }
 salvo_core = { workspace = true, features = ["test", "server"] }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 x509-parser = { workspace = true }
 
