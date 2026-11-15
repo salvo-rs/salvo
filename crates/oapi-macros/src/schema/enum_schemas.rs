@@ -1082,8 +1082,7 @@ impl ComplexEnum<'_> {
                     let title = title_features
                         .first()
                         .map(TryToTokens::try_to_token_stream)
-                        .transpose()?
-                        .map(|title| quote! { .title(#title)});
+                        .transpose()?;
                     let variant_name_tokens = Enum::new([SimpleEnumVariant {
                         value: variant_name
                             .unwrap_or(Cow::Borrowed(name))
@@ -1146,6 +1145,24 @@ impl ComplexEnum<'_> {
                 }))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod adjacent_title_tests {
+    use syn::parse_quote;
+
+    #[test]
+    fn adjacent_multifield_tuples_keep_their_representation_diagnostic() {
+        let error = crate::schema::to_schema(parse_quote! {
+            #[serde(tag = "kind", content = "data")]
+            enum Message {
+                #[salvo(schema(title = "Pair"))]
+                Pair(String, u32),
+            }
+        })
+        .unwrap_err();
+        assert!(error.emit_as_item_tokens().to_string().contains("tuple"));
     }
 }
 
