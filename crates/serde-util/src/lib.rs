@@ -170,6 +170,8 @@ pub enum SerdeEnumRepr {
 #[derive(Default, Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct SerdeContainer {
+    /// Serialize the container as its one non-skipped field.
+    pub transparent: bool,
     /// Rename all fields.
     pub rename_all: Option<RenameRule>,
     /// Rename fields of every named enum variant.
@@ -198,6 +200,7 @@ impl SerdeContainer {
         deserializing: bool,
     ) -> syn::Result<()> {
         match ident.to_string().as_str() {
+            "transparent" => self.transparent = true,
             "rename_all_fields" => {
                 if let Some((literal, span)) = parse_rename(next, deserializing)? {
                     self.rename_all_fields = Some(

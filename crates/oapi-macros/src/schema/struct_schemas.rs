@@ -50,6 +50,121 @@ struct NamedStructFieldOptions<'a> {
     ignore: Option<crate::parse_utils::LitBoolOrExprPath>,
 }
 
+pub(crate) fn transparent_field(
+    fields: &Punctuated<Field, Token![,]>,
+) -> DiagResult<(usize, &Field)> {
+    let mut selected = None;
+    for (index, field) in fields.iter().enumerate() {
+        let rules = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
+        if is_not_skipped(rules.as_ref()) {
+            if selected.is_some() {
+                return Err(Diagnostic::spanned(
+                    fields.span(),
+                    DiagLevel::Error,
+                    "serde transparent requires exactly one serialized field",
+                ));
+            }
+            selected = Some((index, field));
+        }
+    }
+    selected.ok_or_else(|| {
+        Diagnostic::spanned(
+            fields.span(),
+            DiagLevel::Error,
+            "serde transparent requires a serialized field",
+        )
+    })
+}
+
+fn transparent_schema(
+    fields: &Punctuated<Field, Token![,]>,
+    attributes: &[Attribute],
+    mut features: Option<Vec<Feature>>,
+    description: Option<&Description>,
+    struct_name: &str,
+    compose_context: Option<&crate::component::ComposeContext>,
+) -> DiagResult<TokenStream> {
+    let (index, field) = transparent_field(fields)?;
+    let field_features = field
+        .attrs
+        .parse_features::<NamedFieldFeatures>()?
+        .into_inner()
+        .unwrap_or_default();
+    let features = features.get_or_insert_with(Vec::new);
+    for feature in field_features {
+        // Property names, requiredness and visibility do not wrap the value of
+        // a transparent container. All value-level features retain their meaning.
+        if matches!(
+            feature,
+            Feature::Rename(_) | Feature::Required(_) | Feature::Skip(_) | Feature::Ignore(_)
+        ) {
+            continue;
+        }
+        features.retain(|existing| {
+            std::mem::discriminant(existing) != std::mem::discriminant(&feature)
+        });
+        features.push(feature);
+    }
+    if let Some(with_schema) = pop_feature!(features => Feature::SchemaWith(_)) {
+        return with_schema.try_to_token_stream();
+    }
+    let value_type = features.pop_value_type_feature();
+    let type_tree = value_type
+        .as_ref()
+        .map(|value| value.as_type_tree())
+        .transpose()?
+        .unwrap_or(TypeTree::from_type(&field.ty)?);
+    let member = field
+        .ident
+        .clone()
+        .map(syn::Member::Named)
+        .unwrap_or_else(|| syn::Member::Unnamed(index.into()));
+    if pop_feature!(features => Feature::Default(Default(None))).is_some() {
+        features.push(Feature::Default(Default::new_default_trait(member)));
+    } else if !features
+        .iter()
+        .any(|feature| matches!(feature, Feature::Default(_)))
+        && let Some(rules) = serde_util::parse_container(attributes).map_err(Diagnostic::from)?
+        && rules.is_default
+    {
+        let constructor = match rules.default_path {
+            Some(path) => quote! { #path() },
+            None => quote! { Self::default() },
+        };
+        features.push(Feature::Default(Default(Some(AnyValue::Json(quote! {
+            (#constructor).#member
+        })))));
+    }
+    let comments = CommentAttributes::from_attributes(attributes);
+    let field_comments = CommentAttributes::from_attributes(&field.attrs);
+    let description = description
+        .map(ComponentDescription::Description)
+        .unwrap_or(ComponentDescription::CommentAttributes(
+            if comments.is_empty() {
+                &field_comments
+            } else {
+                &comments
+            },
+        ));
+    let field_deprecated =
+        pop_feature!(features => Feature::Deprecated(_)).and_then(|feature| match feature {
+            Feature::Deprecated(deprecated) => Some(Deprecated::from(deprecated.0)),
+            _ => None,
+        });
+    let deprecated = crate::get_deprecated(attributes)
+        .or_else(|| crate::get_deprecated(&field.attrs))
+        .or(field_deprecated);
+    Ok(ComponentSchema::new(ComponentSchemaProps {
+        type_tree: &type_tree,
+        features: Some(features.clone()),
+        description: Some(&description),
+        deprecated: deprecated.as_ref(),
+        object_name: struct_name,
+        compose_context,
+    })?
+    .to_token_stream())
+}
+
 impl NamedStructSchema<'_> {
     pub(crate) fn pop_skip_bound(&mut self) -> Option<SkipBound> {
         pop_feature_as_inner!(self.features => Feature::SkipBound(_v))
@@ -187,6 +302,20 @@ impl TryToTokens for NamedStructSchema<'_> {
         let oapi = crate::oapi_crate();
         let container_rules =
             serde_util::parse_container(self.attributes).map_err(Diagnostic::from)?;
+        if container_rules
+            .as_ref()
+            .is_some_and(|rules| rules.transparent)
+        {
+            tokens.extend(transparent_schema(
+                self.fields,
+                self.attributes,
+                self.features.clone(),
+                self.description.as_ref(),
+                &self.struct_name,
+                self.compose_context.as_ref(),
+            )?);
+            return Ok(());
+        }
         let schema_default = self
             .features
             .as_ref()
@@ -641,6 +770,20 @@ impl UnnamedStructSchema<'_> {
 
 impl TryToTokens for UnnamedStructSchema<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
+        if serde_util::parse_container(self.attributes)
+            .map_err(Diagnostic::from)?
+            .is_some_and(|rules| rules.transparent)
+        {
+            tokens.extend(transparent_schema(
+                self.fields,
+                self.attributes,
+                self.features.clone(),
+                self.description.as_ref(),
+                &self.struct_name,
+                self.compose_context.as_ref(),
+            )?);
+            return Ok(());
+        }
         let oapi = crate::oapi_crate();
         let is_newtype = self.fields.len() == 1;
         let fields = self
