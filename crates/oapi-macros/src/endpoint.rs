@@ -8,7 +8,7 @@ use crate::doc_comment::CommentAttributes;
 use crate::shared::cfg_attributes;
 use crate::{
     Array, DiagLevel, DiagResult, Diagnostic, InputType, Operation, omit_type_path_lifetimes,
-    parse_input_type,
+    parse_input_type, unwrapped_type,
 };
 
 mod attr;
@@ -343,7 +343,7 @@ fn handle_fn(
                 ));
             }
             InputType::NoReference(pat) => {
-                if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
+                if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, unwrapped_type(&pat.ty)) {
                     call_args.push(ident.ident.clone());
                     let ty = omit_type_path_lifetimes(ty);
                     let id = ident.ident.clone();
