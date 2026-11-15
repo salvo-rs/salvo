@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-15",
+  "source_base": "e8128e21bd54ba737300f39754ab8160b607074a",
+  "scope": "examples workspace after RBatis dependency patch, independent of other audit fixes",
+  "command": "cargo generate-lockfile --manifest-path examples/Cargo.toml; cargo audit --file examples/Cargo.lock --json",
+  "lockfile_sha256": "049e36b5426e2daf35abf984f2f422e4d28050a775f6c4e69e147ec64208c3ae",
+  "database": {
+    "advisory-count": 1509,
+    "last-commit": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
+    "last-updated": "2026-11-15T10:59:21+01:00"
+  },
+  "remaining_vulnerabilities": [
+    {
+      "advisory": "RUSTSEC-2026-0459",
+      "package": "libsqlite3-sys",
+      "version": "0.30.1"
+    }
+  ],
+  "remaining_warnings": {
+    "unmaintained": [
+      {
+        "advisory": "RUSTSEC-2025-0134",
+        "package": "rustls-pemfile",
+        "version": "2.2.0"
+      }
+    ]
+  },
+  "resolved_versions": [
+    {
+      "name": "lru",
+      "version": "0.18.5"
+    },
+    {
+      "name": "rbdc",
+      "version": "4.9.11"
+    },
+    {
+      "name": "rustls-pemfile",
+      "version": "2.2.0"
+    }
+  ],
+  "validation": [
+    "7 upstream statement-cache/common tests passed.",
+    "9 TLS tests passed, including verified local handshakes, malformed/empty CA roots and missing/malformed key fixtures.",
+    "All targets for example-db-mysql-rbatis compile."
+  ],
+  "new_advisory_exceptions": []
+}

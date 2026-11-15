@@ -87,13 +87,21 @@ version/exposure conditions. A lockfile entry alone does not establish that an
 example enables the affected bundle or opens attacker-controlled files.
 [Advisory](https://rustsec.org/advisories/RUSTSEC-2026-0459.html).
 
-The resolution also retains `rbdc 4.9.10 -> lru 0.14.0`. Its requirement cannot
-select the fixed lru releases for RUSTSEC-2026-0002 (`>=0.16.3`) and
-RUSTSEC-2026-0253 (`>=0.18.2`). rustls-pemfile 2.2.0 remains an unmaintained
-warning through rbdc and toasty-driver-postgresql. Owner: Salvo maintainers;
-recheck on database-stack upgrades and before dependency refreshes. Supported
-upstream migrations are required; no exception has been added for these paths.
-Actual iterator/panic-unwind reachability must be assessed in each application.
+The RBatis example now explicitly patches rbdc 4.9.11. Upstream 4.9.11 and
+its HEAD still require lru 0.14 and rustls-pemfile 2; the local compatibility
+patch requires lru >=0.18.2 and parses PEM through maintained rustls-pki-types.
+This removes its paths to RUSTSEC-2026-0002, RUSTSEC-2026-0253 and unmaintained
+RUSTSEC-2025-0134. Explicit empty or invalid custom CA input is rejected before
+a handshake. [Patch notes](../examples/vendor/rbdc/LOCAL_PATCH.md) preserve the
+published source commit, version, license, exact diff, and removal conditions.
+Upstream statement-cache tests and local TLS handshakes pass, including invalid
+roots and missing/malformed key fixtures; the RBatis example compiles.
+
+The fresh examples resolution no longer contains lru 0.14. The independent
+Toasty PostgreSQL driver still introduces rustls-pemfile until its separate
+migration. No advisory exceptions were added for either path; see the dated
+[RBatis evidence](security-audits/2026-11-15-rbdc.json) for the exact resolution.
+Actual iterator/panic-unwind reachability remains application-specific.
 
 The direct rustls/quinn minimums and isolated downstream TLS checks remain in
 place. They exclude known affected direct releases, but do not prove every

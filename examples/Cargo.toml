@@ -1,7 +1,7 @@
 [workspace]
 members = ["*"]
 resolver = "3"
-exclude = ["todos-utoipa", "target", "temp"]
+exclude = ["todos-utoipa", "target", "temp", "vendor"]
 
 [workspace.package]
 version = "0.1.0"
@@ -29,7 +29,7 @@ anyhow = "1.0.100"
 diesel = { version = "2.3.5" }
 r2d2 = "0.8.10"
 rbatis = "4.8"
-rbdc = "4.7"
+rbdc = "4.9.11"
 rbdc-mysql = "4.7"
 rbs = "4.5"
 async-trait = "0.1.89"
@@ -80,3 +80,7 @@ rand_core = "0.9.3"
 
 toasty = { version = "0.8.0", default-features = false }
 jiff = "0.2.23"
+
+[patch.crates-io]
+# Upstream rbdc still requires unsound lru and unmaintained PEM dependencies.
+rbdc = { path = "vendor/rbdc" }
