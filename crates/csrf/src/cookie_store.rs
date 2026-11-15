@@ -239,11 +239,11 @@ mod tests {
                 .add_header("cookie", &genuine, true)
                 .add_header("cookie", &alias, false)
                 .build();
-            // Exercise the actual Request parser: the alias shadows the genuine
-            // cookie in its decoded jar, but must not affect prefixed-store load.
+            // Both the Request parser and prefixed store preserve original names,
+            // so the encoded alias cannot replace the genuine cookie at either layer.
             assert_eq!(
                 req.cookie(&store.name).unwrap().value(),
-                format!("{attacker}.{attacker_proof}")
+                format!("{victim}.{victim_proof}")
             );
             assert_eq!(
                 store.load(&mut req, &mut Depot::new(), &cipher).await,

@@ -41,10 +41,11 @@ fn cookies_from_headers(headers: &HeaderMap) -> CookieJar {
     let mut cookies = CookieJar::new();
     for header in headers.get_all(http::header::COOKIE) {
         if let Ok(header) = header.to_str() {
-            for cookie in header.split(';').map(str::trim) {
-                if let Ok(cookie) = Cookie::parse_encoded(cookie).map(Cookie::into_owned) {
-                    cookies.add_original(cookie);
-                }
+            for pair in header.split(';').map(str::trim) {
+                let Some(cookie) = crate::http::parse_cookie_with_raw_name(pair) else {
+                    continue;
+                };
+                cookies.add_original(cookie);
             }
         }
     }
@@ -1072,6 +1073,8 @@ impl Request {
             &mut self.cookies
         }
         /// Get `Cookie` from cookies.
+        /// Names match the original wire identifier without percent-decoding;
+        /// values retain percent-decoding for compatibility.
         #[inline]
         pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
         where
@@ -1897,6 +1900,40 @@ mod tests {
 
     use super::*;
     use crate::test::TestClient;
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn cookie_names_are_exact_wire_identifiers_and_values_still_decode() {
+        let request = TestClient::get("https://example.com/")
+            .add_header("cookie", "__Host-session=victim; __%48ost-session=other; name%20with%20spaces=value%20with%20spaces; raw%FF=name; quoted=%22value%22", true)
+            .build();
+        assert_eq!(request.cookie("__Host-session").unwrap().value(), "victim");
+        assert_eq!(request.cookie("__%48ost-session").unwrap().value(), "other");
+        assert!(request.cookie("name with spaces").is_none());
+        assert_eq!(
+            request.cookie("name%20with%20spaces").unwrap().value(),
+            "value with spaces"
+        );
+        assert_eq!(request.cookie("raw%FF").unwrap().value(), "name");
+        assert_eq!(request.cookie("quoted").unwrap().value(), "\"value\"");
+    }
+
+    #[cfg(feature = "cookie")]
+    #[test]
+    fn rebuilding_cookies_preserves_encoded_names_across_header_lines() {
+        let mut request = TestClient::get("https://example.com/")
+            .add_header("cookie", "__Host-session=victim", true)
+            .build();
+        let mut hyper = request.strip_to_hyper::<ReqBody>().unwrap();
+        hyper.headers_mut().append(
+            http::header::COOKIE,
+            "__%48ost-session=other; value=a%2Bb".parse().unwrap(),
+        );
+        request.merge_hyper(hyper);
+        assert_eq!(request.cookie("__Host-session").unwrap().value(), "victim");
+        assert_eq!(request.cookie("__%48ost-session").unwrap().value(), "other");
+        assert_eq!(request.cookie("value").unwrap().value(), "a+b");
+    }
 
     #[cfg(feature = "cookie")]
     #[test]

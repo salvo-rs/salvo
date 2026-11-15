@@ -126,7 +126,7 @@ where
             let mut cookie_jar = CookieJar::new();
             for header in headers.get_all(http::header::SET_COOKIE) {
                 if let Ok(header) = header.to_str()
-                    && let Ok(cookie) = Cookie::parse_encoded(header).map(|c| c.into_owned())
+                    && let Some(cookie) = crate::http::parse_cookie_with_raw_name(header)
                 {
                     cookie_jar.add_original(cookie);
                 }
@@ -335,7 +335,37 @@ impl Response {
     #[cfg(feature = "cookie")]
     pub(crate) fn flush_cookies_into(headers: &mut HeaderMap, cookies: &mut CookieJar) {
         for cookie in cookies.delta() {
-            if let Ok(hv) = cookie.encoded().to_string().parse::<HeaderValue>() {
+            let mut serialized = cookie.encoded().to_string();
+            // Legal cookie names are wire identifiers. In particular `%` is a
+            // valid token character, not an instruction to decode or re-encode
+            // a name copied from the request jar. Values still use the cookie
+            // encoder, and invalid application names retain legacy escaping.
+            if let Some((encoded_name, tail)) = serialized.split_once('=')
+                && encoded_name != cookie.name()
+                && http::header::HeaderName::from_bytes(cookie.name().as_bytes()).is_ok()
+            {
+                serialized = format!("{}={tail}", cookie.name());
+            }
+            let wire_name = serialized
+                .split_once('=')
+                .map_or(cookie.name(), |(name, _)| name);
+            // A legacy invalid name and its encoded spelling address one wire
+            // cookie. Prefer the explicit legal spelling if both were mutated,
+            // rather than allowing CookieJar's iteration order to choose.
+            if wire_name != cookie.name()
+                && cookies.delta().any(|candidate| {
+                    candidate.name() == wire_name
+                        && candidate.path() == cookie.path()
+                        && match (candidate.domain(), cookie.domain()) {
+                            (Some(a), Some(b)) => a.eq_ignore_ascii_case(b),
+                            (None, None) => true,
+                            _ => false,
+                        }
+                })
+            {
+                continue;
+            }
+            if let Ok(hv) = serialized.parse::<HeaderValue>() {
                 // Replace only the same name/domain/path identity. Other paths,
                 // opaque fields, and unrelated cookies retain their original bytes.
                 if headers.contains_key(http::header::SET_COOKIE) {
@@ -346,9 +376,9 @@ impl Response {
                             let previous = header
                                 .to_str()
                                 .ok()
-                                .and_then(|value| Cookie::parse_encoded(value).ok());
+                                .and_then(|value| Cookie::parse(value).ok());
                             !previous.is_some_and(|previous| {
-                                previous.name() == cookie.name()
+                                previous.name() == wire_name
                                     && previous.path() == cookie.path()
                                     && match (previous.domain(), cookie.domain()) {
                                         (Some(a), Some(b)) => a.eq_ignore_ascii_case(b),
@@ -491,6 +521,12 @@ impl Response {
             self.cookies.get(name.as_ref())
         }
         /// Adds a cookie to the response.
+        ///
+        /// Valid cookie token names are sent verbatim, including percent signs;
+        /// values are percent-encoded. Use the original wire name when updating
+        /// a request cookie. Invalid application names retain legacy escaping.
+        /// An invalid name and its encoded spelling address the same wire
+        /// cookie; if both change in the same scope, the legal spelling wins.
         #[inline]
         pub fn add_cookie(&mut self, cookie: Cookie<'static>) -> &mut Self {
             self.cookies.add(cookie);
@@ -498,6 +534,7 @@ impl Response {
         }
 
         /// Removes a cookie from the response by name.
+        /// The name is the original wire identifier, without percent-decoding.
         ///
         /// Use [`Self::remove_cookie_with`] when the removal cookie must include
         /// the same path or domain as the cookie that was initially set.

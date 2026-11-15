@@ -82,6 +82,20 @@ pub use http::version::Version;
 pub use mime::Mime;
 pub use response::Response;
 
+#[cfg(feature = "cookie")]
+pub(crate) fn parse_cookie_with_raw_name(value: &str) -> Option<cookie::Cookie<'static>> {
+    let mut cookie = cookie::Cookie::parse(value).ok()?.into_owned();
+    // Names are wire identifiers; only values use the compatibility decoder.
+    if cookie.value().contains('%') {
+        let value = percent_encoding::percent_decode_str(cookie.value())
+            .decode_utf8()
+            .ok()?
+            .into_owned();
+        cookie.set_value(value);
+    }
+    Some(cookie)
+}
+
 #[doc(hidden)]
 pub fn append_vary_header(headers: &mut HeaderMap, vary_by: &'static str) {
     if headers.contains_key(header::VARY) {
