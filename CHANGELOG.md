@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Include serde struct tags and serialized type names in generated schemas.
 - Apply serde `rename_all_fields` rules to enum variant schemas.
 - Use serde container default functions when generating schema default values.
 - Retain method-level where clauses in crafted handler factories and wrappers.
