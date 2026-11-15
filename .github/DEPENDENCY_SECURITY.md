@@ -85,13 +85,24 @@ and remove the exception after a supported upstream migration or replacement.
 
 ## Examples: database dependency findings
 
-The new snapshot includes `sqlx 0.8.6 -> sqlx-sqlite 0.8.6 -> libsqlite3-sys
-0.30.1` through the SQLx and SeaORM examples. RUSTSEC-2026-0459 covers bundled
-SQLite before 3.54.0; libsqlite3-sys `>=0.39.0` contains the patched bundled
-SQLite. Its attack requires opening a less-trusted database and sibling WAL
-file with mismatched page sizes. System SQLite and SQLCipher have their own
-version/exposure conditions. A lockfile entry alone does not establish that an
-example enables the affected bundle or opens attacker-controlled files.
+The SQLx examples now use SQLx 0.9, and both SeaORM examples and their
+migration crate use stable SeaORM 2.0.4. SQLx 0.9's published SQLite driver still
+caps `libsqlite3-sys` below 0.38, so the examples workspace temporarily patches
+`sqlx-sqlite` 0.9.0 with an otherwise unchanged copy requiring libsqlite3-sys
+0.39. Its [patch notes](../examples/vendor/sqlx-sqlite/LOCAL_PATCH.md) record the
+source, licenses, exact change, and removal conditions.
+
+A fresh examples resolution on 2026-11-15 selected libsqlite3-sys 0.39.1.
+The SQLite in-memory smoke test checks that the linked engine is at least
+3.54.0, runs the example's migrations, and exercises insert/update/read/delete.
+All SQLx/SeaORM example targets compile. The dated
+[database refresh evidence](security-audits/2026-11-15-sqlite.json) records the
+remaining RBatis/Toasty warnings separately; they are not exceptions or a claim
+that the entire examples graph is clean.
+
+RUSTSEC-2026-0459 concerns bundled SQLite before 3.54.0. Its attack requires
+opening a less-trusted database and sibling WAL file with mismatched page sizes.
+System SQLite and SQLCipher have their own version/exposure conditions.
 [Advisory](https://rustsec.org/advisories/RUSTSEC-2026-0459.html).
 
 The resolution also retains `rbdc 4.9.10 -> lru 0.14.0`. Its requirement cannot

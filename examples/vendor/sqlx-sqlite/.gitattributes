@@ -1,0 +1,2 @@
+# Preserve Markdown hard line breaks in this unmodified upstream rustdoc file.
+src/connection/deserialize.rs whitespace=-blank-at-eol

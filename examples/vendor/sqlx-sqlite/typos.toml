@@ -1,0 +1,3 @@
+# Preserve this token in the unmodified upstream SQLite driver sources.
+[default.extend-words]
+doub = "doub"
