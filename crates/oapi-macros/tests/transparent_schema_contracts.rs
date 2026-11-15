@@ -25,6 +25,73 @@ struct Generic<T, Marker> {
 }
 struct NoSchema;
 
+#[derive(Serialize, ToSchema)]
+#[serde(transparent)]
+struct Constrained {
+    /// The selected value.
+    #[salvo(schema(min_length = 4, max_length = 8, example = "hello"))]
+    value: String,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(transparent)]
+struct TupleConstraint(#[salvo(schema(minimum = 3, maximum = 9))] u32);
+
+#[derive(Serialize)]
+#[serde(transparent)]
+struct SerializedOnly(String);
+
+#[derive(Serialize, ToSchema)]
+#[serde(transparent)]
+struct TypeOverride<T> {
+    #[salvo(schema(value_type = String, min_length = 4))]
+    value: T,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(transparent)]
+struct CustomSchema<T>(#[salvo(schema(schema_with = custom_string))] T);
+
+fn custom_string() -> Object {
+    Object::with_type(BasicType::String).pattern("^custom")
+}
+
+#[test]
+fn transparent_selected_fields_keep_constraints() {
+    let mut components = Components::new();
+    Constrained::to_schema(&mut components);
+    TupleConstraint::to_schema(&mut components);
+    let values = json!(components);
+    let schemas = values["schemas"].as_object().unwrap();
+    let named = schemas
+        .iter()
+        .find(|(name, _)| name.ends_with("Constrained"))
+        .unwrap()
+        .1;
+    assert_eq!(named["minLength"], 4);
+    assert_eq!(named["maxLength"], 8);
+    assert_eq!(named["examples"], json!(["hello"]));
+    assert_eq!(named["description"], "The selected value.");
+    let tuple = schemas
+        .iter()
+        .find(|(name, _)| name.ends_with("TupleConstraint"))
+        .unwrap()
+        .1;
+    assert_eq!(tuple["minimum"], 3);
+    assert_eq!(tuple["maximum"], 9);
+    let overridden = json!(TypeOverride::<SerializedOnly>::compose(
+        &mut Components::new(),
+        vec![]
+    ));
+    assert_eq!(overridden["type"], "string");
+    assert_eq!(overridden["minLength"], 4);
+    let custom = json!(CustomSchema::<SerializedOnly>::compose(
+        &mut Components::new(),
+        vec![]
+    ));
+    assert_eq!(custom["pattern"], "^custom");
+}
+
 fn case<T: Serialize + ToSchema>(value: T, invalid: Vec<Value>) -> Value {
     let mut components = Components::new();
     let schema = T::to_schema(&mut components);
@@ -33,6 +100,23 @@ fn case<T: Serialize + ToSchema>(value: T, invalid: Vec<Value>) -> Value {
 #[test]
 fn transparent_wrappers_match_serde_and_generic_composition() {
     let cases = vec![
+        case(
+            Constrained {
+                value: "hello".into(),
+            },
+            vec![json!("a"), json!("overlong value")],
+        ),
+        case(TupleConstraint(5), vec![json!(2), json!(10)]),
+        case(
+            TypeOverride {
+                value: SerializedOnly("hello".into()),
+            },
+            vec![json!("a")],
+        ),
+        case(
+            CustomSchema(SerializedOnly("custom value".into())),
+            vec![json!("wrong")],
+        ),
         case(
             Named {
                 value: "yes".into(),
@@ -49,7 +133,7 @@ fn transparent_wrappers_match_serde_and_generic_composition() {
         ),
     ];
     assert_eq!(
-        cases[1]["schema"]["components"]["schemas"]
+        cases[5]["schema"]["components"]["schemas"]
             .as_object()
             .unwrap()
             .values()

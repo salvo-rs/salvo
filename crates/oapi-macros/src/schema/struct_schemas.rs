@@ -85,9 +85,30 @@ fn transparent_schema(
     compose_context: Option<&crate::component::ComposeContext>,
 ) -> DiagResult<TokenStream> {
     let (index, field) = transparent_field(fields)?;
-    let value_type = features
-        .as_mut()
-        .and_then(|features| features.pop_value_type_feature());
+    let field_features = field
+        .attrs
+        .parse_features::<NamedFieldFeatures>()?
+        .into_inner()
+        .unwrap_or_default();
+    let features = features.get_or_insert_with(Vec::new);
+    for feature in field_features {
+        // Property names, requiredness and visibility do not wrap the value of
+        // a transparent container. All value-level features retain their meaning.
+        if matches!(
+            feature,
+            Feature::Rename(_) | Feature::Required(_) | Feature::Skip(_) | Feature::Ignore(_)
+        ) {
+            continue;
+        }
+        features.retain(|existing| {
+            std::mem::discriminant(existing) != std::mem::discriminant(&feature)
+        });
+        features.push(feature);
+    }
+    if let Some(with_schema) = pop_feature!(features => Feature::SchemaWith(_)) {
+        return with_schema.try_to_token_stream();
+    }
+    let value_type = features.pop_value_type_feature();
     let type_tree = value_type
         .as_ref()
         .map(|value| value.as_type_tree())
@@ -98,21 +119,28 @@ fn transparent_schema(
         .clone()
         .map(syn::Member::Named)
         .unwrap_or_else(|| syn::Member::Unnamed(index.into()));
-    let features = features.get_or_insert_with(Vec::new);
     if pop_feature!(features => Feature::Default(Default(None))).is_some() {
         features.push(Feature::Default(Default::new_default_trait(member)));
     }
-    features.extend(
-        parse_schema_features_with(&field.attrs, |input| {
-            Ok(parse_features!(input as attributes::Inline))
-        })?
-        .unwrap_or_default(),
-    );
     let comments = CommentAttributes::from_attributes(attributes);
+    let field_comments = CommentAttributes::from_attributes(&field.attrs);
     let description = description
         .map(ComponentDescription::Description)
-        .unwrap_or(ComponentDescription::CommentAttributes(&comments));
-    let deprecated = crate::get_deprecated(attributes);
+        .unwrap_or(ComponentDescription::CommentAttributes(
+            if comments.is_empty() {
+                &field_comments
+            } else {
+                &comments
+            },
+        ));
+    let field_deprecated =
+        pop_feature!(features => Feature::Deprecated(_)).and_then(|feature| match feature {
+            Feature::Deprecated(deprecated) => Some(Deprecated::from(deprecated.0)),
+            _ => None,
+        });
+    let deprecated = crate::get_deprecated(attributes)
+        .or_else(|| crate::get_deprecated(&field.attrs))
+        .or(field_deprecated);
     Ok(ComponentSchema::new(ComponentSchemaProps {
         type_tree: &type_tree,
         features: Some(features.clone()),
