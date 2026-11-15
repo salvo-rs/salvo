@@ -82,7 +82,7 @@ async fn check(policy: &'static str) -> bool {
     let token = jsonwebtoken::encode(
         &header,
         &json!({"iss":issuer,"aud":"client","exp":4_000_000_000u64}),
-        &EncodingKey::from_secret(b"secret"),
+        &EncodingKey::from_base64_secret("c2VjcmV0").unwrap(),
     )
     .unwrap();
     decoder

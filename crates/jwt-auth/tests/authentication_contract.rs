@@ -46,7 +46,8 @@ async fn custom_decoder_error_is_available_from_the_typed_accessor() {
 
 #[tokio::test]
 async fn missing_bearer_credential_returns_a_challenge() {
-    let auth: JwtAuth<Claims, _> = JwtAuth::new(ConstDecoder::from_secret(b"secret"));
+    let auth: JwtAuth<Claims, _> =
+        JwtAuth::new(ConstDecoder::from_base64_secret("c2VjcmV0").unwrap());
     let service = Service::new(Router::new().hoop(auth).goal(inspect));
     let response = TestClient::get("http://localhost/").send(&service).await;
     assert_eq!(response.status_code, Some(StatusCode::UNAUTHORIZED));
@@ -55,7 +56,8 @@ async fn missing_bearer_credential_returns_a_challenge() {
 
 #[tokio::test]
 async fn invalid_bearer_credential_requests_reauthentication() {
-    let auth: JwtAuth<Claims, _> = JwtAuth::new(ConstDecoder::from_secret(b"secret"));
+    let auth: JwtAuth<Claims, _> =
+        JwtAuth::new(ConstDecoder::from_base64_secret("c2VjcmV0").unwrap());
     let service = Service::new(Router::new().hoop(auth).goal(inspect));
     let response = TestClient::get("http://localhost/")
         .add_header("authorization", "Bearer invalid", true)
