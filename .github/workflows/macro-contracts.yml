@@ -23,6 +23,7 @@ jobs:
       - run: python3 .github/scripts/check_macro_contracts.py
       - run: python3 .github/scripts/check_macro_paths.py
       - run: python3 .github/scripts/check_enum_schema_contracts.py
+      - run: python3 .github/scripts/check_mixed_flatten_schema_contracts.py
       - run: python3 .github/scripts/check_optional_flatten_schema_contracts.py
       - run: python3 .github/scripts/check_tuple_struct_schema_contracts.py
       - run: python3 .github/scripts/check_fixed_sequence_schema_contracts.py
