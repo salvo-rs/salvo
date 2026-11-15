@@ -501,7 +501,12 @@ mod negative_literal_tests {
             ("-10i32", -10.0),
             ("-1_000.25f64", -1000.25),
         ] {
-            assert_eq!(parse_number::<f64>.parse_str(&format!("= {source}")).unwrap(), expected);
+            assert_eq!(
+                parse_number::<f64>
+                    .parse_str(&format!("= {source}"))
+                    .unwrap(),
+                expected
+            );
         }
         assert_eq!(
             parse_integer::<i64>
