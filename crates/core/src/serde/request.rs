@@ -199,6 +199,37 @@ impl<'de> RequestDeserializer<'de> {
         parser
     }
 
+    fn with_metadata(&self, metadata: &'de Metadata) -> Self {
+        Self {
+            params: self.params,
+            queries: self.queries,
+            headers: self.headers,
+            #[cfg(feature = "cookie")]
+            cookies: self.cookies,
+            payload: self.payload.clone(),
+            metadata,
+            depot: self.depot,
+            field_index: -1,
+            field_flatten: false,
+            field_source: None,
+            field_str_value: None,
+            field_vec_value: None,
+        }
+    }
+
+    fn has_value(mut self) -> bool {
+        let metadata = self.metadata;
+        metadata.fields.iter().any(|field| {
+            if field.flatten {
+                field
+                    .metadata
+                    .is_some_and(|metadata| self.with_metadata(metadata).has_value())
+            } else {
+                self.fill_value(field)
+            }
+        })
+    }
+
     fn deserialize_value<T>(&mut self, seed: T) -> Result<T::Value, ValError>
     where
         T: de::DeserializeSeed<'de>,
@@ -214,21 +245,7 @@ impl<'de> RequestDeserializer<'de> {
             let Some(metadata) = field.metadata else {
                 return Err(ValError::custom("flatten field has no metadata"));
             };
-            seed.deserialize(RequestDeserializer {
-                params: self.params,
-                queries: self.queries,
-                headers: self.headers,
-                #[cfg(feature = "cookie")]
-                cookies: self.cookies,
-                payload: self.payload.clone(),
-                metadata,
-                depot: self.depot,
-                field_index: -1,
-                field_flatten: false,
-                field_source: None,
-                field_str_value: None,
-                field_vec_value: None,
-            })
+            seed.deserialize(self.with_metadata(metadata))
         } else {
             let source = self
                 .field_source
@@ -513,6 +530,20 @@ impl<'de> de::Deserializer<'de> for RequestDeserializer<'de> {
         visitor.visit_map(&mut self)
     }
 
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        // The nested extractor is absent only when none of its declared
+        // sources has a value. Once present, serde validates the complete
+        // child so malformed or partial input still returns an error.
+        if self.with_metadata(self.metadata).has_value() {
+            visitor.visit_some(self)
+        } else {
+            visitor.visit_none()
+        }
+    }
+
     #[inline]
     fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
     where
@@ -553,7 +584,7 @@ impl<'de> de::Deserializer<'de> for RequestDeserializer<'de> {
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        bytes byte_buf option unit unit_struct map
+        bytes byte_buf unit unit_struct map
         struct enum identifier ignored_any
     }
 }
