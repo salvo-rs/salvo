@@ -1,9 +1,10 @@
 //! Catch-all map constraints apply after all flattened object properties.
 #![allow(dead_code)]
+use std::collections::BTreeMap;
+
 use salvo::oapi::{Components, ComposeSchema, ToSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
 #[derive(Serialize, Deserialize, ToSchema)]
 struct Child {
     label: String,
