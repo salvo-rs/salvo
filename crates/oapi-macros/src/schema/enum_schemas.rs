@@ -904,14 +904,19 @@ impl ComplexEnum<'_> {
 
                     if is_reference {
                         Ok(Some(quote! {
-                            #oapi::oapi::schema::AllOf::new()
-                                #title
-                                .item(#unnamed_enum)
-                                .item(#oapi::oapi::schema::Object::new()
-                                    .schema_type(#oapi::oapi::schema::BasicType::Object)
-                                    .property(#tag, #variant_name_tokens)
-                                    .required(#tag)
-                                )
+                            #oapi::oapi::schema::flatten_all_of_schema(
+                                #oapi::oapi::schema::AllOf::new()
+                                    #title
+                                    .item(#oapi::oapi::schema::tagged_payload_schema(
+                                        (#unnamed_enum).into(), #tag, components,
+                                    ))
+                                    .item(#oapi::oapi::schema::Object::new()
+                                        .schema_type(#oapi::oapi::schema::BasicType::Object)
+                                        .property(#tag, #variant_name_tokens)
+                                        .required(#tag)
+                                    ),
+                                components,
+                            )
                         }))
                     } else {
                         Ok(Some(quote! {
