@@ -28,7 +28,11 @@ async fn unix_upgrade_transfers_both_ways_and_stops_with_its_front_server() {
     let path = directory.path().join("app.sock.d");
     std::fs::create_dir(&path).unwrap();
     let path = path.join("server.sock");
-    let upstream = Server::new(salvo_core::conn::UnixListener::new(path.clone()).bind().await);
+    let upstream = Server::new(
+        salvo_core::conn::UnixListener::new(path.clone())
+            .bind()
+            .await,
+    );
     let upstream_handle = upstream.handle();
     let upstream = tokio::spawn(upstream.serve(Router::new().goal(websocket)));
     let front = TcpListener::new("127.0.0.1:0").bind().await;

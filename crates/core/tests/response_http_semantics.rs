@@ -1,11 +1,12 @@
 //! HTTP response semantics are finalized before selecting a transport.
 #![cfg(feature = "test")]
 
+use std::io::Cursor;
+
 use salvo_core::http::{HeaderMap, StatusCode};
 use salvo_core::prelude::*;
 use salvo_core::test::{ResponseExt, TestClient};
 use salvo_core::writing::ReadSeeker;
-use std::io::Cursor;
 
 #[tokio::test]
 async fn head_runs_the_catcher_but_suppresses_its_body() {
