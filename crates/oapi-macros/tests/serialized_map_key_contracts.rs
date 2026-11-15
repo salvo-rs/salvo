@@ -1,8 +1,9 @@
 //! Map property names describe serde's string serialization of Rust keys.
+use std::collections::BTreeMap;
+
 use salvo::oapi::{Components, ComposeSchema, ToSchema};
 use serde::Serialize;
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
 
 #[derive(Serialize, ToSchema)]
 struct Derived {
