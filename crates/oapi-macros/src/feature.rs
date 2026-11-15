@@ -170,19 +170,11 @@ impl Feature {
             Self::ExclusiveMinimum(exclusive_minimum) => {
                 exclusive_minimum.validate(IsNumber(schema_type))
             }
-            Self::MaxLength(max_length) => max_length.validate(
-                ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(max_length.0)),
-            ),
-            Self::MinLength(min_length) => min_length.validate(
-                ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(min_length.0)),
-            ),
+            Self::MaxLength(max_length) => max_length.validate(IsString(schema_type)),
+            Self::MinLength(min_length) => min_length.validate(IsString(schema_type)),
             Self::Pattern(pattern) => pattern.validate(IsString(schema_type)),
-            Self::MaxItems(max_items) => max_items.validate(
-                ValidatorChain::new(&AboveZeroUsize(max_items.0)).next(&IsVec(type_tree)),
-            ),
-            Self::MinItems(min_items) => min_items.validate(
-                ValidatorChain::new(&AboveZeroUsize(min_items.0)).next(&IsVec(type_tree)),
-            ),
+            Self::MaxItems(max_items) => max_items.validate(IsVec(type_tree)),
+            Self::MinItems(min_items) => min_items.validate(IsVec(type_tree)),
             _unsupported_variant => {
                 const SUPPORTED_VARIANTS: [&str; 10] = [
                     "multiple_of",

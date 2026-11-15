@@ -53,18 +53,6 @@ impl Validator for IsVec<'_> {
     }
 }
 
-pub(crate) struct AboveZeroUsize(pub(crate) usize);
-
-impl Validator for AboveZeroUsize {
-    fn is_valid(&self) -> Result<(), &'static str> {
-        if self.0 != 0 {
-            Ok(())
-        } else {
-            Err("can only be above zero value")
-        }
-    }
-}
-
 pub(crate) struct AboveZeroF64(pub(crate) f64);
 
 impl Validator for AboveZeroF64 {
