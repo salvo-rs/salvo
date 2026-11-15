@@ -180,7 +180,7 @@ impl TryToTokens for ToParameters {
             .map(|param| param.to_extract_field_token_stream(&salvo))
             .collect::<DiagResult<Vec<TokenStream>>>()?;
 
-        fn quote_rename_rule(salvo: &Ident, rename_all: RenameRule) -> TokenStream {
+        fn quote_rename_rule(salvo: &syn::Path, rename_all: RenameRule) -> TokenStream {
             let rename_all = match rename_all {
                 RenameRule::LowerCase => "LowerCase",
                 RenameRule::UpperCase => "UpperCase",
@@ -249,10 +249,10 @@ impl TryToTokens for ToParameters {
                             #serde_rename_all
                     )
                 }
-                async fn extract(req: &'__macro_gen_ex mut #salvo::Request, depot: &'__macro_gen_ex mut #salvo::Depot) -> ::std::result::Result<Self, impl #salvo::Writer + Send + std::fmt::Debug + 'static> {
+                async fn extract(req: &'__macro_gen_ex mut #salvo::Request, depot: &'__macro_gen_ex mut #salvo::Depot) -> ::std::result::Result<Self, impl #salvo::Writer + ::std::marker::Send + ::std::fmt::Debug + 'static> {
                     #salvo::serde::from_request(req, depot, Self::metadata()).await
                 }
-                async fn extract_with_arg(req: &'__macro_gen_ex mut #salvo::Request, depot: &'__macro_gen_ex mut #salvo::Depot, _arg: &str) -> ::std::result::Result<Self, impl #salvo::Writer + Send + std::fmt::Debug + 'static> {
+                async fn extract_with_arg(req: &'__macro_gen_ex mut #salvo::Request, depot: &'__macro_gen_ex mut #salvo::Depot, _arg: &str) -> ::std::result::Result<Self, impl #salvo::Writer + ::std::marker::Send + ::std::fmt::Debug + 'static> {
                     Self::extract(req, depot).await
                 }
             }
@@ -479,7 +479,7 @@ impl Parameter<'_> {
         ))
     }
 
-    fn to_extract_field_token_stream(&self, salvo: &Ident) -> DiagResult<TokenStream> {
+    fn to_extract_field_token_stream(&self, salvo: &syn::Path) -> DiagResult<TokenStream> {
         let (_, mut param_features) = self.resolve_field_features()?;
         let name = self
             .field

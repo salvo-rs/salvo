@@ -247,7 +247,7 @@ impl ExtractibleArgs {
     }
 }
 
-fn metadata_source(salvo: &Ident, source: &SourceInfo) -> TokenStream {
+fn metadata_source(salvo: &syn::Path, source: &SourceInfo) -> TokenStream {
     let from = Ident::new(
         &RenameRule::PascalCase.apply_to_field(&source.from),
         Span::call_site(),
@@ -309,7 +309,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             metadata = metadata.add_default_source(#source);
         });
     }
-    fn quote_rename_rule(salvo: &Ident, rename_all: RenameRule) -> TokenStream {
+    fn quote_rename_rule(salvo: &syn::Path, rename_all: RenameRule) -> TokenStream {
         let rename_all = match rename_all {
             RenameRule::LowerCase => "LowerCase",
             RenameRule::UpperCase => "UpperCase",

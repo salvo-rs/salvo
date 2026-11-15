@@ -203,7 +203,7 @@ impl TryToTokens for ToSchema<'_> {
             impl #compose_impl_generics #oapi::oapi::ComposeSchema for #ident #ty_generics #compose_where_clause {
                 fn compose(
                     components: &mut #oapi::oapi::Components,
-                    __compose_generics: Vec<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>,
+                    __compose_generics: ::std::vec::Vec<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>,
                 ) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
                     #compose_body
                 }

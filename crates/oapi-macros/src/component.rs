@@ -745,7 +745,7 @@ fn p_is_single_segment(path: Option<&std::borrow::Cow<'_, syn::Path>>) -> bool {
 /// `request_body = ...`, parameters, and headers to fully inline the schema
 /// body — including non-primitive generic arguments — without registering a
 /// wrapper component or emitting a `$ref`.
-pub(crate) fn build_inline_compose_block(type_tree: &TypeTree, oapi: &syn::Ident) -> TokenStream {
+pub(crate) fn build_inline_compose_block(type_tree: &TypeTree, oapi: &syn::Path) -> TokenStream {
     let Some(path) = type_tree.path.as_ref() else {
         // Tuple / unit types do not have a path; fall back to an empty object.
         return quote! { #oapi::oapi::RefOr::from(#oapi::oapi::Object::new()) };

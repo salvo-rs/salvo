@@ -219,7 +219,7 @@ impl<'a> Operation<'a> {
     }
 }
 
-fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStream> {
+fn generate_register_schemas(oapi: &syn::Path, content: &PathType) -> Vec<TokenStream> {
     let mut modifiers = vec![];
     match content {
         PathType::RefPath(path) => {

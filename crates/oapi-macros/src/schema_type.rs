@@ -236,7 +236,7 @@ impl TryToTokens for SchemaType<'_> {
 
         fn schema_type_tokens(
             tokens: &mut TokenStream,
-            oapi: &syn::Ident,
+            oapi: &syn::Path,
             schema_type: SchemaTypeInner,
             nullable: bool,
         ) {

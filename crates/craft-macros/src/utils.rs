@@ -2,26 +2,33 @@ use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::Span;
 use syn::Ident;
 
-pub(crate) fn oapi_crate() -> syn::Ident {
+// These crates declare an `extern crate self as ...` alias too, so the same
+// absolute path works both inside the defining crate and in downstream tests.
+fn dependency_path(name: &str) -> syn::Path {
+    let ident = Ident::new(name, Span::call_site());
+    syn::parse_quote!(::#ident)
+}
+
+pub(crate) fn oapi_crate() -> syn::Path {
     match crate_name("salvo-oapi") {
-        Ok(FoundCrate::Itself) => Ident::new("salvo_oapi", Span::call_site()),
-        Ok(FoundCrate::Name(name)) => Ident::new(&name, Span::call_site()),
+        Ok(FoundCrate::Itself) => dependency_path("salvo_oapi"),
+        Ok(FoundCrate::Name(name)) => dependency_path(&name),
         Err(_) => salvo_crate(),
     }
 }
 
-pub(crate) fn salvo_crate() -> syn::Ident {
+pub(crate) fn salvo_crate() -> syn::Path {
     match crate_name("salvo") {
         Ok(salvo) => match salvo {
-            FoundCrate::Itself => Ident::new("salvo", Span::call_site()),
-            FoundCrate::Name(name) => Ident::new(&name, Span::call_site()),
+            FoundCrate::Itself => dependency_path("salvo"),
+            FoundCrate::Name(name) => dependency_path(&name),
         },
         Err(_) => match crate_name("salvo_core") {
             Ok(salvo) => match salvo {
-                FoundCrate::Itself => Ident::new("salvo_core", Span::call_site()),
-                FoundCrate::Name(name) => Ident::new(&name, Span::call_site()),
+                FoundCrate::Itself => dependency_path("salvo_core"),
+                FoundCrate::Name(name) => dependency_path(&name),
             },
-            Err(_) => Ident::new("salvo", Span::call_site()),
+            Err(_) => dependency_path("salvo"),
         },
     }
 }
