@@ -13,7 +13,7 @@ enum TypeTreeValue<'t> {
     Path(&'t Path),
     /// Slice and array types need to be manually defined, since they cannot be recognized from
     /// generic arguments.
-    Array(Vec<Self>, Span),
+    Array(Vec<Self>, Span, Option<&'t syn::Expr>),
     UnitType,
     Tuple(Vec<Self>, Span),
 }
@@ -24,7 +24,7 @@ impl PartialEq for TypeTreeValue<'_> {
             (Self::TypePath(a), Self::TypePath(b)) => a == b,
             (Self::Path(a), Self::Path(b)) => a == b,
             (Self::UnitType, Self::UnitType) => true,
-            (Self::Array(a, _), Self::Array(b, _)) => a == b,
+            (Self::Array(a, _, a_len), Self::Array(b, _, b_len)) => a == b && a_len == b_len,
             (Self::Tuple(a, _), Self::Tuple(b, _)) => a == b,
             _ => false,
         }
@@ -39,6 +39,7 @@ pub(crate) struct TypeTree<'t> {
     pub(crate) value_type: ValueType,
     pub(crate) generic_type: Option<GenericType>,
     pub(crate) children: Option<Vec<Self>>,
+    pub(crate) array_len: Option<&'t syn::Expr>,
 }
 
 impl<'t> TypeTree<'t> {
@@ -56,10 +57,12 @@ impl<'t> TypeTree<'t> {
             Type::Slice(slice) => vec![TypeTreeValue::Array(
                 Self::get_type_paths(&slice.elem)?,
                 slice.bracket_token.span.join(),
+                None,
             )],
             Type::Array(array) => vec![TypeTreeValue::Array(
                 Self::get_type_paths(&array.elem)?,
                 array.bracket_token.span.join(),
+                Some(&array.len),
             )],
             Type::Tuple(tuple) => {
                 // Detect unit type ()
@@ -111,6 +114,7 @@ impl<'t> TypeTree<'t> {
                 }),
                 generic_type: None,
                 value_type: ValueType::Tuple,
+                array_len: None,
             })
         } else {
             Ok(Self::convert_types(paths)?
@@ -128,13 +132,14 @@ impl<'t> TypeTree<'t> {
                 let path = match value {
                     TypeTreeValue::TypePath(type_path) => &type_path.path,
                     TypeTreeValue::Path(path) => path,
-                    TypeTreeValue::Array(value, span) => {
+                    TypeTreeValue::Array(value, span, array_len) => {
                         let array: Path = Ident::new("Array", span).into();
                         return Ok(TypeTree {
                             path: Some(Cow::Owned(array)),
                             value_type: ValueType::Object,
                             generic_type: Some(GenericType::Vec),
                             children: Some(vec![Self::from_type_paths(value)?]),
+                            array_len,
                         });
                     }
                     TypeTreeValue::Tuple(tuple, _span) => {
@@ -142,6 +147,7 @@ impl<'t> TypeTree<'t> {
                             path: None,
                             generic_type: None,
                             value_type: ValueType::Tuple,
+                            array_len: None,
                             children: Some(match Self::convert_types(tuple) {
                                 Ok(converted_values) => converted_values.collect(),
                                 Err(diag) => return Err(diag),
@@ -154,6 +160,7 @@ impl<'t> TypeTree<'t> {
                             value_type: ValueType::Tuple,
                             generic_type: None,
                             children: None,
+                            array_len: None,
                         });
                     }
                 };
@@ -255,6 +262,7 @@ impl<'t> TypeTree<'t> {
             },
             generic_type,
             children: None,
+            array_len: None,
         }
     }
 

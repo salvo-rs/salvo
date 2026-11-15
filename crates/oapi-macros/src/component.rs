@@ -388,6 +388,10 @@ impl ComponentSchema {
         for example in examples {
             example.try_to_tokens(tokens)?;
         }
+
+        if let Some(len) = type_tree.array_len {
+            tokens.extend(quote! { .min_items(#len).max_items(#len) });
+        }
         if let Some(xml) = xml {
             xml.try_to_tokens(tokens)?;
         }
@@ -698,12 +702,14 @@ impl ComponentSchema {
                     })
                     .transpose()?
                     .map(|children| {
+                        let len = children.len();
                         let prefix_items = children.into_iter().collect::<Vec<_>>();
                         let nullable_schema_type =
                             Self::get_schema_type_override(nullable_feat, SchemaTypeInner::Array);
                         quote! {
                             #oapi::oapi::schema::Array::new()
                                 .items(#oapi::oapi::schema::ArrayItems::False)
+                                .min_items(#len)
                                 .prefix_items([#(
                                     Into::<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>::into(#prefix_items)
                                 ),*])
