@@ -243,9 +243,13 @@ fn rewrite_method(
     ServiceSelf(self_ty).visit_signature_mut(&mut method.sig);
     let call = match style {
         FnReceiver::None => quote!(<#self_ty>::#helper_name(#(#arguments),*).await),
-        FnReceiver::Ref => quote!(self.0.as_ref().#helper_name(#(#arguments),*).await),
-        FnReceiver::Arc if borrowed_arc => quote!(self.0.#helper_name(#(#arguments),*).await),
-        FnReceiver::Arc => quote!(self.0.clone().#helper_name(#(#arguments),*).await),
+        FnReceiver::Ref => {
+            quote!(self.__salvo_service.as_ref().#helper_name(#(#arguments),*).await)
+        }
+        FnReceiver::Arc if borrowed_arc => {
+            quote!(self.__salvo_service.#helper_name(#(#arguments),*).await)
+        }
+        FnReceiver::Arc => quote!(self.__salvo_service.clone().#helper_name(#(#arguments),*).await),
     };
     method.block = parse_quote!({ #call });
     let mut new_method: ImplItemFn = match style {
@@ -308,13 +312,17 @@ fn rewrite_method(
             parse_quote! {
                 #vis fn #method_name(#receiver) -> impl #handler {
                     #[allow(non_camel_case_types)]
-                    struct handle #impl_g(::std::sync::Arc<#self_ty>) #where_c;
+                    // Named fields avoid introducing a tuple constructor into
+                    // the value namespace of the user's parameter bindings.
+                    struct handle #impl_g #where_c {
+                        __salvo_service: ::std::sync::Arc<#self_ty>,
+                    }
                     #(#forwarded_attrs)*
                     #macro_attr
                     impl #impl_g handle #ty_g #where_c {
                         #method
                     }
-                    handle(#output)
+                    handle { __salvo_service: #output }
                 }
             }
         }
