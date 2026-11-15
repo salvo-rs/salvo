@@ -46,7 +46,7 @@ use std::fmt::{self, Debug, Formatter};
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use salvo_core::http::header::{
-    AUTHORIZATION, CONNECTION, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE,
+    AUTHORIZATION, CONNECTION, CONTENT_LENGTH, HOST, HeaderMap, HeaderName, HeaderValue, UPGRADE,
 };
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
@@ -562,7 +562,10 @@ where
         let connection_headers = connection_header_names(req.headers());
         let upgrade_type = get_upgrade_type(req.headers());
         for (key, value) in req.headers() {
-            if key == HOST || is_hop_by_hop_header(key, &connection_headers) {
+            if key == HOST
+                || key == CONTENT_LENGTH
+                || is_hop_by_hop_header(key, &connection_headers)
+            {
                 continue;
             }
             if self.strip_authorization_header_enabled && key == AUTHORIZATION {
@@ -612,7 +615,13 @@ where
             }
         }
 
-        request_builder.body(req.take_body()).map_err(Error::other)
+        let body = req.take_body_for_forwarding()?;
+        // Middleware may have consumed or replaced the body. Never reuse the
+        // inbound length; let the client frame streams with an unknown length.
+        if let Some(length) = hyper::body::Body::size_hint(&body).exact() {
+            request_builder = request_builder.header(CONTENT_LENGTH, length);
+        }
+        request_builder.body(body).map_err(Error::other)
     }
 }
 
@@ -1119,6 +1128,7 @@ mod tests {
     async fn test_build_proxied_request_strips_hop_by_hop_headers() {
         let proxy = Proxy::new(vec!["http://example.com"], HyperClient::default());
         let mut request = Request::new();
+        request.replace_body(ReqBody::from(""));
         let depot = Depot::new();
 
         request
@@ -1241,6 +1251,162 @@ mod tests {
             proxied.headers().get(AUTHORIZATION),
             Some(&HeaderValue::from_static("Bearer secret"))
         );
+    }
+
+    async fn collect_request_body(mut body: ReqBody) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        while let Some(frame) = body.next().await {
+            if let Ok(data) = frame.unwrap().into_data() {
+                bytes.extend_from_slice(&data);
+            }
+        }
+        bytes
+    }
+
+    #[tokio::test]
+    async fn cached_payload_is_forwarded_with_its_actual_length() {
+        let proxy = Proxy::new("http://example.com", HyperClient::default());
+        for parse_form in [false, true] {
+            let mut request = salvo_core::test::TestClient::post("http://localhost/")
+                .add_header("content-type", "application/x-www-form-urlencoded", true)
+                .add_header("content-length", "999", true)
+                .body("field=original")
+                .build();
+            assert_eq!(request.payload().await.unwrap(), "field=original");
+            if parse_form {
+                assert_eq!(
+                    request
+                        .form_data()
+                        .await
+                        .unwrap()
+                        .fields
+                        .get("field")
+                        .unwrap(),
+                    "original"
+                );
+            }
+            let proxied = proxy
+                .build_proxied_request(&mut request, &Depot::new())
+                .await
+                .unwrap();
+            assert_eq!(proxied.headers()[CONTENT_LENGTH], "14");
+            assert_eq!(
+                collect_request_body(proxied.into_body()).await,
+                b"field=original"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn replaced_body_discards_stale_and_duplicate_lengths() {
+        let proxy = Proxy::new("http://example.com", HyperClient::default());
+        let mut request = salvo_core::test::TestClient::post("http://localhost/")
+            .add_header("content-length", "100", true)
+            .body("original")
+            .build();
+        request.payload().await.unwrap();
+        request.replace_body(ReqBody::from("new"));
+        request
+            .headers_mut()
+            .append(CONTENT_LENGTH, HeaderValue::from_static("200"));
+        let proxied = proxy
+            .build_proxied_request(&mut request, &Depot::new())
+            .await
+            .unwrap();
+        assert_eq!(proxied.headers().get_all(CONTENT_LENGTH).iter().count(), 1);
+        assert_eq!(proxied.headers()[CONTENT_LENGTH], "3");
+        assert_eq!(collect_request_body(proxied.into_body()).await, b"new");
+    }
+
+    #[tokio::test]
+    async fn consumed_uncached_bodies_are_rejected() {
+        let proxy = Proxy::new("http://example.com", HyperClient::default());
+        // Form parsing alone retains no raw bytes, including for requests
+        // without a length header (such as HTTP/2 or chunked requests).
+        let mut form = salvo_core::test::TestClient::post("http://localhost/")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
+            .body("field=value")
+            .build();
+        form.form_data().await.unwrap();
+        form.headers_mut().remove(CONTENT_LENGTH);
+        assert!(form.payload().await.is_err());
+        assert!(
+            proxy
+                .build_proxied_request(&mut form, &Depot::new())
+                .await
+                .is_err()
+        );
+
+        for framing in ["content-length", "transfer-encoding"] {
+            let mut request = salvo_core::test::TestClient::post("http://localhost/")
+                .body("discarded")
+                .build();
+            request.take_body();
+            request.headers_mut().insert(
+                HeaderName::from_static(framing),
+                HeaderValue::from_static(if framing == "content-length" {
+                    "9"
+                } else {
+                    "chunked"
+                }),
+            );
+            assert!(
+                proxy
+                    .build_proxied_request(&mut request, &Depot::new())
+                    .await
+                    .is_err()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn unknown_length_body_stays_streamed_without_inbound_framing() {
+        use std::pin::Pin;
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::task::{Context, Poll};
+
+        use hyper::body::{Body, Frame};
+
+        struct UnknownLengthBody(ResBody);
+        impl Body for UnknownLengthBody {
+            type Data = <ResBody as Body>::Data;
+            type Error = BoxedError;
+
+            fn poll_frame(
+                mut self: Pin<&mut Self>,
+                cx: &mut Context<'_>,
+            ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+                Pin::new(&mut self.0).poll_frame(cx).map_err(Into::into)
+            }
+        }
+
+        let polled = Arc::new(AtomicBool::new(false));
+        let stream_polled = polled.clone();
+        let stream = futures_util::stream::once(async move {
+            stream_polled.store(true, Ordering::SeqCst);
+            Ok::<_, std::io::Error>("streamed")
+        });
+        let mut request = salvo_core::test::TestClient::post("http://localhost/")
+            .add_header("content-length", "999", true)
+            .add_header("transfer-encoding", "chunked", true)
+            .build();
+        request.replace_body(ReqBody::Boxed {
+            inner: Box::pin(UnknownLengthBody(ResBody::stream(stream))),
+            fuse_config: None,
+        });
+        let proxy = Proxy::new("http://example.com", HyperClient::default());
+        let proxied = proxy
+            .build_proxied_request(&mut request, &Depot::new())
+            .await
+            .unwrap();
+        assert!(
+            !polled.load(Ordering::SeqCst),
+            "request construction must not buffer the stream"
+        );
+        assert!(!proxied.headers().contains_key(CONTENT_LENGTH));
+        assert!(!proxied.headers().contains_key("transfer-encoding"));
+        assert_eq!(collect_request_body(proxied.into_body()).await, b"streamed");
     }
 
     #[tokio::test]

@@ -12,7 +12,9 @@ use bytes::Bytes;
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
 use http::Extensions;
-use http::header::{ACCEPT, AsHeaderName, CONTENT_TYPE, HeaderMap, HeaderValue, IntoHeaderName};
+use http::header::{
+    ACCEPT, AsHeaderName, CONTENT_LENGTH, CONTENT_TYPE, HeaderMap, HeaderValue, IntoHeaderName,
+};
 use http::method::Method;
 pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
@@ -226,6 +228,9 @@ pub struct Request {
     pub(crate) queries: OnceLock<MultiMap<String, String>>,
     pub(crate) form_data: tokio::sync::OnceCell<FormData>,
     pub(crate) payload: tokio::sync::OnceCell<Bytes>,
+    // Set before a parsing helper takes the stream. A failed or cancelled read
+    // must not be retried as if the remaining ReqBody::None were an empty body.
+    body_consumed: bool,
 
     /// The version of the HTTP protocol used.
     pub(crate) version: Version,
@@ -281,6 +286,7 @@ impl Request {
             queries: OnceLock::new(),
             form_data: tokio::sync::OnceCell::new(),
             payload: tokio::sync::OnceCell::new(),
+            body_consumed: false,
             version: Version::default(),
             scheme: Scheme::HTTP,
             local_addr: SocketAddr::Unknown,
@@ -335,6 +341,7 @@ impl Request {
             params: PathParams::new(),
             form_data: tokio::sync::OnceCell::new(),
             payload: tokio::sync::OnceCell::new(),
+            body_consumed: false,
             // multipart: OnceLock::new(),
             local_addr: SocketAddr::Unknown,
             remote_addr: SocketAddr::Unknown,
@@ -727,6 +734,7 @@ impl Request {
     fn clear_body_cache(&mut self) {
         self.payload = tokio::sync::OnceCell::new();
         self.form_data = tokio::sync::OnceCell::new();
+        self.body_consumed = false;
     }
 
     /// Takes the body from the request, leaving [`ReqBody::None`] in its place.
@@ -749,6 +757,40 @@ impl Request {
         let old_body = std::mem::replace(&mut self.body, ReqBody::None);
         self.clear_body_cache();
         old_body
+    }
+
+    /// Takes the body for forwarding, reusing bytes cached by [`payload()`](Self::payload).
+    ///
+    /// Unread bodies remain streams. This clears the body caches, just like
+    /// [`take_body()`](Self::take_body). If the stream was consumed without
+    /// retaining raw bytes (for example by [`form_data()`](Self::form_data)),
+    /// forwarding fails when the parsing helper consumed the stream or framing
+    /// headers indicate a missing body. Call `payload()` before parsing a form to retain its bytes
+    /// for forwarding. A deliberately empty replacement should use
+    /// `ReqBody::from("")` rather than `ReqBody::None`.
+    /// Direct reads through [`body_mut()`](Self::body_mut) are not cached;
+    /// middleware doing so must replace the body with the bytes to forward.
+    pub fn take_body_for_forwarding(&mut self) -> crate::Result<ReqBody> {
+        if self.body.is_none() {
+            if let Some(bytes) = self.payload.get().cloned() {
+                self.clear_body_cache();
+                return Ok(ReqBody::Once(bytes));
+            }
+            if self.body_consumed
+                || self.form_data.get().is_some()
+                || self.headers.contains_key(http::header::TRANSFER_ENCODING)
+                || self
+                    .headers
+                    .get_all(CONTENT_LENGTH)
+                    .iter()
+                    .any(|value| value != "0")
+            {
+                return Err(crate::Error::other(
+                    "request body was consumed without a cached payload",
+                ));
+            }
+        }
+        Ok(self.take_body())
     }
 
     /// Returns a reference to the associated extensions.
@@ -1320,6 +1362,8 @@ impl Request {
     /// # Errors
     ///
     /// Returns an error if the body exceeds the size limit or if reading fails.
+    /// A failed or cancelled read, or a direct form parse without cached raw
+    /// bytes, consumes the stream; later payload reads return an error too.
     ///
     /// # Examples
     ///
@@ -1357,6 +1401,10 @@ impl Request {
     #[inline]
     pub async fn payload_with_max_size(&mut self, max_size: usize) -> ParseResult<&Bytes> {
         if self.payload.get().is_none() {
+            if self.body_consumed {
+                return Err(ParseError::other("request body has already been consumed"));
+            }
+            self.body_consumed = true;
             let body = std::mem::replace(&mut self.body, ReqBody::None);
             self.payload
                 .get_or_try_init(|| async {
@@ -1463,8 +1511,7 @@ impl Request {
         }
         if let Some(ctype) = self.content_type() {
             if is_form_content_type(&ctype) {
-                let body = std::mem::replace(&mut self.body, ReqBody::None);
-                if body.is_none() {
+                if self.body.is_none() {
                     let bytes = self.payload_with_max_size(max_size).await?.to_owned();
                     let headers = self.headers();
                     self.form_data
@@ -1474,6 +1521,8 @@ impl Request {
                         })
                         .await
                 } else {
+                    self.body_consumed = true;
+                    let body = std::mem::replace(&mut self.body, ReqBody::None);
                     let headers = self.headers();
                     let limited = Limited::new(body, max_size);
                     self.form_data
@@ -2057,6 +2106,117 @@ Hello World\r\n\
         let file = form_data.files.get("file").unwrap();
         assert_eq!(file.name().unwrap(), "test.txt");
         assert_eq!(file.content_type().unwrap(), "text/plain");
+    }
+
+    #[tokio::test]
+    async fn parsed_form_cannot_create_an_empty_payload_cache() {
+        let mut req = TestClient::post("http://localhost/form")
+            .raw_form("field=value")
+            .build();
+        assert_eq!(
+            req.form_data().await.unwrap().fields.get("field").unwrap(),
+            "value"
+        );
+        assert!(req.payload().await.is_err());
+        assert!(req.payload.get().is_none());
+        assert!(req.take_body_for_forwarding().is_err());
+        // The parsed form remains available even though its raw bytes are gone.
+        assert_eq!(
+            req.form_data().await.unwrap().fields.get("field").unwrap(),
+            "value"
+        );
+    }
+
+    async fn assert_consumed_body_cannot_be_retried(req: &mut Request) {
+        assert!(req.payload().await.is_err());
+        assert!(req.form_data().await.is_err());
+        assert!(req.payload.get().is_none());
+        assert!(req.take_body_for_forwarding().is_err());
+        // An explicit replacement starts a new body with fresh caches.
+        req.replace_body(ReqBody::from("field=replaced"));
+        assert_eq!(req.payload().await.unwrap(), "field=replaced");
+        assert_eq!(
+            req.form_data().await.unwrap().fields.get("field").unwrap(),
+            "replaced"
+        );
+        assert!(req.take_body_for_forwarding().is_ok());
+    }
+
+    #[tokio::test]
+    async fn failed_body_helpers_cannot_retry_as_empty() {
+        for parse_form in [false, true] {
+            let mut req = TestClient::post("http://localhost/form")
+                .raw_form("field=value")
+                .build();
+            if parse_form {
+                assert!(matches!(
+                    req.form_data_max_size(2).await,
+                    Err(ParseError::PayloadTooLarge)
+                ));
+            } else {
+                assert!(matches!(
+                    req.payload_with_max_size(2).await,
+                    Err(ParseError::PayloadTooLarge)
+                ));
+            }
+            assert_consumed_body_cannot_be_retried(&mut req).await;
+
+            let mut req = TestClient::post("http://localhost/form")
+                .raw_form("")
+                .build();
+            let stream = futures_util::stream::once(async {
+                Err::<hyper::body::Frame<Bytes>, crate::BoxedError>(
+                    std::io::Error::other("request read failed").into(),
+                )
+            });
+            req.replace_body(ReqBody::Boxed {
+                inner: Box::pin(http_body_util::StreamBody::new(stream)),
+                fuse_config: None,
+            });
+            if parse_form {
+                assert!(req.form_data().await.is_err());
+            } else {
+                assert!(req.payload().await.is_err());
+            }
+            assert_consumed_body_cannot_be_retried(&mut req).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn cancelled_body_helpers_cannot_retry_as_empty() {
+        use futures_util::FutureExt;
+
+        for parse_form in [false, true] {
+            let mut req = TestClient::post("http://localhost/form")
+                .raw_form("")
+                .build();
+            let stream = futures_util::stream::pending::<
+                Result<hyper::body::Frame<Bytes>, crate::BoxedError>,
+            >();
+            req.replace_body(ReqBody::Boxed {
+                inner: Box::pin(http_body_util::StreamBody::new(stream)),
+                fuse_config: None,
+            });
+            if parse_form {
+                assert!(req.form_data().now_or_never().is_none());
+            } else {
+                assert!(req.payload().now_or_never().is_none());
+            }
+            assert_consumed_body_cannot_be_retried(&mut req).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn cached_empty_payload_remains_forwardable_after_form_parsing() {
+        let mut req = TestClient::post("http://localhost/form")
+            .raw_form("")
+            .build();
+        assert!(req.payload().await.unwrap().is_empty());
+        assert!(req.form_data().await.unwrap().fields.is_empty());
+        assert!(req.payload().await.unwrap().is_empty());
+        assert!(
+            matches!(req.take_body_for_forwarding().unwrap(), ReqBody::Once(bytes) if bytes.is_empty())
+        );
     }
 
     #[tokio::test]

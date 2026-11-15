@@ -612,11 +612,10 @@ impl DataStore for DiskStore {
         Self::ensure_safe_upload_id(id)?;
         self.ensure_root().await?;
 
-        let mut meta = self.read_meta(id).await.ok();
-        let data_path = match &mut meta {
-            Some(meta) => self.resolve_meta_data_path(meta).await?,
-            None => self.data_path(id),
-        };
+        // Final filenames can look like another upload's internal payload name.
+        // Only a matching metadata record establishes ownership of the file.
+        let mut meta = self.read_meta(id).await?;
+        let data_path = self.resolve_meta_data_path(&mut meta).await?;
         let meta_path = self.meta_path(id);
         let mut removed = false;
 
@@ -1464,6 +1463,28 @@ mod tests {
         let result = store.remove("non-existent").await;
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), TusError::NotFound));
+    }
+
+    #[tokio::test]
+    async fn remove_requires_valid_matching_metadata() {
+        let (store, _directory) = create_test_store();
+        let id = "untrusted-record";
+        store.ensure_root().await.unwrap();
+        fs::write(store.data_path(id), b"preserve payload")
+            .await
+            .unwrap();
+
+        let mismatched =
+            serde_json::to_vec(&MetaUpload::from(create_test_upload_info("other"))).unwrap();
+        for record in [b"invalid json".as_slice(), mismatched.as_slice()] {
+            fs::write(store.meta_path(id), record).await.unwrap();
+            assert!(store.remove(id).await.is_err());
+            assert_eq!(
+                fs::read(store.data_path(id)).await.unwrap(),
+                b"preserve payload"
+            );
+            assert_eq!(fs::read(store.meta_path(id)).await.unwrap(), record);
+        }
     }
 
     #[tokio::test]

@@ -102,6 +102,22 @@ Client IP forwarding overwrites any inbound `X-Forwarded-For` value with the
 direct client IP from the connection. This avoids trusting a client-supplied
 forwarding chain.
 
+### Request bodies
+
+Unread request bodies are forwarded as streams. If middleware reads `req.payload()`
+first, the proxy reuses those cached bytes. It derives `Content-Length` from the
+forwarded body when its length is known; otherwise the HTTP client chooses the
+stream framing.
+
+Parsing `req.form_data()` directly consumes the raw body without retaining it.
+Read `req.payload()` before parsing forms if the request will be proxied. Requests
+whose body has been consumed by a parsing helper without recoverable bytes are
+rejected, including after a failed or cancelled read. Retrying a parsing helper
+cannot recover the consumed stream. Direct reads through `req.body_mut()` are not
+cached; middleware doing so must replace the body with the bytes to forward.
+To replace a body with an empty one intentionally, use
+`req.replace_body(ReqBody::from(""))`.
+
 ### Timeout phases and streaming
 
 The inbound server fuse, handler deadline, and upstream HTTP client cover different phases.
