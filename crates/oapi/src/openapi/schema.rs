@@ -108,6 +108,7 @@ pub(crate) fn flatten_with_known_properties(
     fn extensions(
         extensions: &mut PropMap<String, serde_json::Value>,
         known: &std::collections::BTreeSet<String>,
+        inject_properties: bool,
     ) {
         let exempt = known
             .iter()
@@ -119,8 +120,9 @@ pub(crate) fn flatten_with_known_properties(
             })
             .cloned()
             .collect::<Vec<_>>();
-        if extensions.contains_key("additionalProperties")
-            || extensions.contains_key("unevaluatedProperties")
+        if inject_properties
+            && (extensions.contains_key("additionalProperties")
+                || extensions.contains_key("unevaluatedProperties"))
         {
             let properties = extensions
                 .entry("properties".into())
@@ -163,7 +165,36 @@ pub(crate) fn flatten_with_known_properties(
                     target.map(|target| prepare(target.clone(), known, components, visiting));
                 visiting.remove(&reference.ref_location);
                 match (target, prepared) {
-                    (Some(target), Some(prepared)) if &prepared != target => prepared,
+                    (Some(target), Some(prepared)) if &prepared != target => {
+                        if reference.extensions.is_empty()
+                            && reference.description.is_empty()
+                            && reference.summary.is_empty()
+                        {
+                            return prepared;
+                        }
+                        let mut combined = AllOf::new().item(prepared);
+                        if !reference.extensions.is_empty() {
+                            let siblings = serde_json::to_value(&reference.extensions)
+                                .expect("reference keywords serialize to JSON");
+                            let siblings = serde_json::from_value::<RefOr<Schema>>(siblings)
+                                .unwrap_or_else(|_| {
+                                    let mut object = Object::with_type(SchemaType::any());
+                                    object.extensions = reference.extensions.clone();
+                                    object.into()
+                                });
+                            combined =
+                                combined.item(prepare(siblings, known, components, visiting));
+                        }
+                        if !reference.description.is_empty() {
+                            combined.description = Some(reference.description);
+                        }
+                        if !reference.summary.is_empty() {
+                            combined
+                                .extensions
+                                .insert("summary".into(), reference.summary.into());
+                        }
+                        combined.into()
+                    }
                     _ => reference.into(),
                 }
             }
@@ -175,13 +206,17 @@ pub(crate) fn flatten_with_known_properties(
                             .filter(|name| !object.properties.contains_key(*name))
                             .cloned()
                             .collect::<Vec<_>>();
-                        if object.additional_properties.is_some() {
+                        if object.additional_properties.is_some()
+                            || object.extensions.contains_key("additionalProperties")
+                            || object.extensions.contains_key("unevaluatedProperties")
+                        {
                             for name in &exempt {
                                 object
                                     .properties
                                     .insert(name.clone(), Schema::Boolean(true).into());
                             }
                         }
+                        let extension_names = exempt.iter().cloned().collect();
                         if !exempt.is_empty()
                             && let Some(names) = object.property_names.take()
                         {
@@ -192,28 +227,30 @@ pub(crate) fn flatten_with_known_properties(
                                     .into(),
                             ));
                         }
-                        extensions(&mut object.extensions, known);
+                        // Object already has a typed properties map. A second
+                        // one in flattened extensions would shadow its fields.
+                        extensions(&mut object.extensions, &extension_names, false);
                     }
                     Schema::AllOf(all) => {
                         all.items = std::mem::take(&mut all.items)
                             .into_iter()
                             .map(|item| prepare(item, known, components, visiting))
                             .collect();
-                        extensions(&mut all.extensions, known);
+                        extensions(&mut all.extensions, known, true);
                     }
                     Schema::AnyOf(any) => {
                         any.items = std::mem::take(&mut any.items)
                             .into_iter()
                             .map(|item| prepare(item, known, components, visiting))
                             .collect();
-                        extensions(&mut any.extensions, known);
+                        extensions(&mut any.extensions, known, true);
                     }
                     Schema::OneOf(one) => {
                         one.items = std::mem::take(&mut one.items)
                             .into_iter()
                             .map(|item| prepare(item, known, components, visiting))
                             .collect();
-                        extensions(&mut one.extensions, known);
+                        extensions(&mut one.extensions, known, true);
                     }
                     _ => {}
                 }
