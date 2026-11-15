@@ -24,12 +24,15 @@ jobs:
       - run: python3 .github/scripts/check_macro_paths.py
       - run: python3 .github/scripts/check_enum_schema_contracts.py
       - run: python3 .github/scripts/check_skipped_enum_newtype_schema_contracts.py
+      - run: python3 .github/scripts/check_closed_tagged_newtype_schema_contracts.py
+      - run: python3 .github/scripts/check_adjacent_unit_schema_contracts.py
       - run: python3 .github/scripts/check_transparent_schema_contracts.py
       - run: python3 .github/scripts/check_tagged_struct_schema_contracts.py
       - run: python3 .github/scripts/check_mixed_flatten_schema_contracts.py
       - run: python3 .github/scripts/check_optional_flatten_schema_contracts.py
       - run: python3 .github/scripts/check_conditional_flatten_names_schema_contracts.py
       - run: python3 .github/scripts/check_tuple_struct_schema_contracts.py
+      - run: python3 .github/scripts/check_conditional_tuple_schema_contracts.py
       - run: python3 .github/scripts/check_fixed_sequence_schema_contracts.py
       - run: python3 .github/scripts/check_serialized_map_key_schema_contracts.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
