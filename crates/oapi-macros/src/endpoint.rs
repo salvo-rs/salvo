@@ -26,58 +26,6 @@ fn type_name_suffix(ty: &Type) -> Ident {
     Ident::new(&encoded, Span::call_site())
 }
 
-/// Metadata is emitted outside the impl, so `Self` types need a concrete owner.
-fn resolve_self_types(block: &mut syn::Block, owner: &Type) {
-    struct Resolver<'a>(&'a Type);
-    impl syn::visit_mut::VisitMut for Resolver<'_> {
-        // A nested item cannot capture its enclosing impl's Self, and may bind
-        // its own Self in a trait or impl.
-        fn visit_item_mut(&mut self, _item: &mut syn::Item) {}
-
-        fn visit_type_mut(&mut self, ty: &mut Type) {
-            syn::visit_mut::visit_type_mut(self, ty);
-            if let Type::Path(path) = ty
-                && path.qself.is_none()
-                && path
-                    .path
-                    .segments
-                    .first()
-                    .is_some_and(|segment| segment.ident == "Self")
-            {
-                let owner = self.0;
-                let suffix: syn::punctuated::Punctuated<syn::PathSegment, syn::Token![::]> =
-                    path.path.segments.iter().skip(1).cloned().collect();
-                *ty = if suffix.is_empty() {
-                    syn::parse_quote!(#owner)
-                } else {
-                    syn::parse_quote!(<#owner>::#suffix)
-                };
-            }
-        }
-
-        fn visit_expr_path_mut(&mut self, expression: &mut syn::ExprPath) {
-            syn::visit_mut::visit_expr_path_mut(self, expression);
-            if expression.qself.is_none()
-                && expression.path.segments.len() > 1
-                && expression
-                    .path
-                    .segments
-                    .first()
-                    .is_some_and(|segment| segment.ident == "Self")
-            {
-                let owner = self.0;
-                let suffix: syn::punctuated::Punctuated<syn::PathSegment, syn::Token![::]> =
-                    expression.path.segments.iter().skip(1).cloned().collect();
-                let mut replacement: syn::ExprPath = syn::parse_quote!(<#owner>::#suffix);
-                replacement.attrs = ::std::mem::take(&mut expression.attrs);
-                *expression = replacement;
-            }
-        }
-    }
-    use syn::visit_mut::VisitMut;
-    Resolver(owner).visit_block_mut(block);
-}
-
 fn metadata(
     salvo: &syn::Path,
     oapi: &syn::Path,
@@ -95,6 +43,15 @@ fn metadata(
     let cfn = Ident::new(
         &format!("__macro_gen_oapi_endpoint_creator_{name}"),
         Span::call_site(),
+    );
+    let owner: Type = syn::parse2(type_path.clone())?;
+    let metadata_trait = Ident::new(
+        &format!("__SalvoEndpointMetadata_{}", type_name_suffix(&owner)),
+        Span::mixed_site(),
+    );
+    let metadata_method = Ident::new(
+        &format!("__salvo_endpoint_create_{}", type_name_suffix(&owner)),
+        Span::mixed_site(),
     );
     let opt = Operation::new(attr);
     modifiers.append(opt.modifiers()?.as_mut());
@@ -135,64 +92,63 @@ fn metadata(
         }
     }
     let status_codes = Array::from_iter(status_code_tokens);
-    let owner: Type = syn::parse2(type_path.clone())?;
-    let mut status_codes: syn::Block = syn::parse2(quote! {{ #status_codes }})?;
-    resolve_self_types(&mut status_codes, &owner);
-    let modifiers = if modifiers.is_empty() {
-        None
-    } else {
-        let mut block: syn::Block = syn::parse2(quote! {{
+    let modifiers = (!modifiers.is_empty()).then(|| {
+        quote! {{
             let components = &mut components;
             let operation = &mut operation;
             #(#modifiers)*
-        }})?;
-        resolve_self_types(&mut block, &owner);
-        Some(quote! { #block })
-    };
+        }}
+    });
     let allow_deprecated = attr
         .deprecated
         .unwrap_or_default()
         .then(|| quote!(#[allow(deprecated)]));
+    let creator_body = quote! {
+        let mut components = #oapi::oapi::Components::new();
+        let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
+        let mut operation = #oapi::oapi::Operation::new();
+        #modifiers
+        if operation.operation_id.is_none() {
+            operation.assign_auto_operation_id(#oapi::oapi::naming::assign_name::<#type_path>(#oapi::oapi::naming::NameRule::Auto));
+        }
+        if !status_codes.is_empty() {
+            let responses = ::std::ops::DerefMut::deref_mut(&mut operation.responses);
+            responses.retain(|k,_| {
+                if let Ok(code) = <#salvo::http::StatusCode as ::std::str::FromStr>::from_str(k) {
+                    status_codes.contains(&code)
+                } else {
+                    true
+                }
+            });
+        }
+        // Keep manual/untyped responses valid without inferring a body shape.
+        if operation.responses.is_empty() {
+            operation.responses.insert("default", #oapi::oapi::Response::new("Response"));
+        }
+        #oapi::oapi::Endpoint { operation, components, }
+    };
     let stream = quote! {
         #(#cfg)*
         #allow_deprecated
-        fn #tfn() -> ::std::any::TypeId {
-            ::std::any::TypeId::of::<#type_path>()
-        }
-        #(#cfg)*
-        #allow_deprecated
-        fn #cfn() -> #oapi::oapi::Endpoint {
-            let mut components = #oapi::oapi::Components::new();
-            let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
-            let mut operation = #oapi::oapi::Operation::new();
-            #modifiers
-            if operation.operation_id.is_none() {
-                operation.assign_auto_operation_id(#oapi::oapi::naming::assign_name::<#type_path>(#oapi::oapi::naming::NameRule::Auto));
+        const _: () = {
+            // Evaluate expressions in the owner's impl scope, where Rust can
+            // expand macros without rewriting their tokens or nested Self scopes.
+            trait #metadata_trait {
+                fn #metadata_method() -> #oapi::oapi::Endpoint;
             }
-            if !status_codes.is_empty() {
-                let responses = ::std::ops::DerefMut::deref_mut(&mut operation.responses);
-                responses.retain(|k,_| {
-                    if let Ok(code) = <#salvo::http::StatusCode as ::std::str::FromStr>::from_str(k) {
-                        status_codes.contains(&code)
-                    } else {
-                        true
-                    }
-                });
+            impl #metadata_trait for #type_path {
+                fn #metadata_method() -> #oapi::oapi::Endpoint { #creator_body }
             }
-            // Untyped/manual responses cannot be inferred from the signature.
-            // Keep the document valid without claiming a status or body shape.
-            if operation.responses.is_empty() {
-                operation.responses.insert("default", #oapi::oapi::Response::new("Response"));
+            fn #tfn() -> ::std::any::TypeId {
+                ::std::any::TypeId::of::<#type_path>()
             }
-            #oapi::oapi::Endpoint{
-                operation,
-                components,
+            fn #cfn() -> #oapi::oapi::Endpoint {
+                <#type_path as #metadata_trait>::#metadata_method()
             }
-        }
-        #(#cfg)*
-        #oapi::oapi::__private::inventory::submit! {
-            #oapi::oapi::EndpointRegistry::save(#tfn, #cfn)
-        }
+            #oapi::oapi::__private::inventory::submit! {
+                #oapi::oapi::EndpointRegistry::save(#tfn, #cfn)
+            }
+        };
     };
     Ok(stream)
 }

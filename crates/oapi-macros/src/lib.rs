@@ -324,12 +324,14 @@ mod tests {
                         Self::hello().await
                     }
                 }
-                fn __macro_gen_oapi_endpoint_type_id_hello() -> ::std::any::TypeId {
-                    ::std::any::TypeId::of::<hello>()
-                }
-                fn __macro_gen_oapi_endpoint_creator_hello() -> ::salvo::oapi::Endpoint {
+                const _: () = {
+                    trait __SalvoEndpointMetadata_type_68656c6c6f {
+                        fn __salvo_endpoint_create_type_68656c6c6f() -> ::salvo::oapi::Endpoint;
+                    }
+                    impl __SalvoEndpointMetadata_type_68656c6c6f for hello {
+                        fn __salvo_endpoint_create_type_68656c6c6f() -> ::salvo::oapi::Endpoint {
                     let mut components = ::salvo::oapi::Components::new();
-                    let status_codes: &[::salvo::http::StatusCode] = &{ [] };
+                    let status_codes: &[::salvo::http::StatusCode] = &[];
                     let mut operation = ::salvo::oapi::Operation::new();
                     if operation.operation_id.is_none() {
                         operation.assign_auto_operation_id(::salvo::oapi::naming::assign_name::<hello>(::salvo::oapi::naming::NameRule::Auto));
@@ -351,10 +353,19 @@ mod tests {
                         operation,
                         components,
                     }
-                }
-                ::salvo::oapi::__private::inventory::submit! {
-                    ::salvo::oapi::EndpointRegistry::save(__macro_gen_oapi_endpoint_type_id_hello, __macro_gen_oapi_endpoint_creator_hello)
-                }
+                        }
+                    }
+                    fn __macro_gen_oapi_endpoint_type_id_hello() -> ::std::any::TypeId {
+                        ::std::any::TypeId::of::<hello>()
+                    }
+                    fn __macro_gen_oapi_endpoint_creator_hello() -> ::salvo::oapi::Endpoint {
+                        <hello as __SalvoEndpointMetadata_type_68656c6c6f>::__salvo_endpoint_create_type_68656c6c6f()
+                    }
+                    ::salvo::oapi::__private::inventory::submit! {
+                        ::salvo::oapi::EndpointRegistry::save(__macro_gen_oapi_endpoint_type_id_hello, __macro_gen_oapi_endpoint_creator_hello)
+                    }
+                };
+
             }
             .to_string()
         );
