@@ -79,6 +79,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Preserve all borrowed lifetimes when deriving request extractors and parameters.
 
+- Skip extension methods in `MethodSkipper::skip_all`, so the default cache skipper
+  stores responses to `GET` requests only.
+
 - Require `Extractible` only for flattened generic child fields, allowing ordinary
   generic request values to use `Deserialize`.
 

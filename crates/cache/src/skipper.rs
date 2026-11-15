@@ -10,6 +10,9 @@ use salvo_core::{Depot, Request};
 #[derive(Default, Clone, Debug)]
 pub struct MethodSkipper {
     skipped_methods: HashSet<Method>,
+    // Set by `skip_all`, so that methods it cannot list are skipped as well.
+    skip_unlisted: bool,
+    unskipped_methods: HashSet<Method>,
 }
 impl MethodSkipper {
     /// Create a new `MethodSkipper`.
@@ -17,6 +20,8 @@ impl MethodSkipper {
     pub fn new() -> Self {
         Self {
             skipped_methods: HashSet::new(),
+            skip_unlisted: false,
+            unskipped_methods: HashSet::new(),
         }
     }
     /// Add the [`Method::GET`] method to skipped methods.
@@ -73,15 +78,22 @@ impl MethodSkipper {
     #[must_use]
     pub fn skip_method(mut self, method: Method, value: bool) -> Self {
         if value {
+            self.unskipped_methods.remove(&method);
             self.skipped_methods.insert(method);
         } else {
             self.skipped_methods.remove(&method);
+            self.unskipped_methods.insert(method);
         }
         self
     }
     /// Add all methods to skipped methods.
+    ///
+    /// This includes extension methods, which stay skipped unless they are
+    /// enabled with [`skip_method`](Self::skip_method).
     #[must_use]
     pub fn skip_all(mut self) -> Self {
+        self.skip_unlisted = true;
+        self.unskipped_methods.clear();
         self.skipped_methods = [
             Method::GET,
             Method::POST,
@@ -102,6 +114,7 @@ impl MethodSkipper {
 impl Skipper for MethodSkipper {
     fn skipped(&self, req: &mut Request, _depot: &Depot) -> bool {
         self.skipped_methods.contains(req.method())
+            || (self.skip_unlisted && !self.unskipped_methods.contains(req.method()))
     }
 }
 
@@ -248,6 +261,40 @@ mod tests {
         assert!(skipper.skipped_methods.contains(&Method::POST));
         assert!(skipper.skipped_methods.contains(&Method::QUERY));
         assert_eq!(skipper.skipped_methods.len(), 9);
+    }
+
+    fn skips(skipper: &MethodSkipper, method: &str) -> bool {
+        let mut req = Request::new();
+        *req.method_mut() = Method::from_bytes(method.as_bytes()).unwrap();
+        skipper.skipped(&mut req, &Depot::new())
+    }
+
+    #[test]
+    fn test_skip_all_covers_extension_methods() {
+        let skipper = MethodSkipper::new().skip_all().skip_get(false);
+        assert!(!skips(&skipper, "GET"));
+        assert!(skips(&skipper, "POST"));
+        assert!(skips(&skipper, "FOO"));
+        assert!(skips(&skipper, "PROPFIND"));
+
+        let skipper = skipper.skip_method(Method::from_bytes(b"FOO").unwrap(), false);
+        assert!(!skips(&skipper, "FOO"));
+        assert!(skips(&skipper, "PROPFIND"));
+
+        let skipper = skipper.skip_all();
+        assert!(skips(&skipper, "FOO"));
+        assert!(skips(&skipper, "GET"));
+    }
+
+    #[test]
+    fn test_listed_methods_do_not_skip_extension_methods() {
+        let skipper = MethodSkipper::new().skip_post(true);
+        assert!(skips(&skipper, "POST"));
+        assert!(!skips(&skipper, "GET"));
+        assert!(!skips(&skipper, "FOO"));
+
+        let skipper = skipper.skip_method(Method::from_bytes(b"FOO").unwrap(), true);
+        assert!(skips(&skipper, "FOO"));
     }
 
     #[test]
