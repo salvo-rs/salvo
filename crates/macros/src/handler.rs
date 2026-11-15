@@ -47,17 +47,15 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
             };
 
             let hfn = handle_fn(&salvo, sig, &reserved)?;
-            let implementation = binding_scope(
-                &hfn,
-                &reserved,
+            let implementations = parameter_binding_scope(
+                sig,
                 quote! {
+                    #inherent
                     #allow_deprecated
                     #[#salvo::async_trait]
                     impl #salvo::Handler for #name { #hfn }
                 },
             );
-            let implementations =
-                parameter_binding_scope(sig, quote! { #inherent #implementation });
             Ok(quote! { #sdef #implementations })
         }
         Item::Impl(item_impl) => {
@@ -85,17 +83,11 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
             for method in methods {
                 let cfg = cfg_attributes(&method.attrs)?;
                 match handle_fn(&salvo, &method.sig, &reserved) {
-                    Ok(hfn) => {
-                        let implementation = binding_scope(
-                            &hfn,
-                            &reserved,
-                            quote! {
-                                #[#salvo::async_trait]
-                                impl #impl_generics #salvo::Handler for #ty #where_clause { #hfn }
-                            },
-                        );
-                        implementations.push(quote! { #(#cfg)* #implementation });
-                    }
+                    Ok(hfn) => implementations.push(quote! {
+                        #(#cfg)*
+                        #[#salvo::async_trait]
+                        impl #impl_generics #salvo::Handler for #ty #where_clause { #hfn }
+                    }),
                     Err(error) if !cfg.is_empty() => {
                         let error = error.into_compile_error();
                         implementations.push(quote! { #(#cfg)* const _: () = { #error }; });
@@ -150,7 +142,7 @@ fn handle_fn(
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
     let mut needs_conn = false;
-    for (input_index, input) in sig.inputs.iter().enumerate() {
+    for input in &sig.inputs {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
                 call_args.push(__macro_gen_req.clone());
@@ -178,8 +170,7 @@ fn handle_fn(
                 if let (Pat::Ident(pat_ident), Type::Path(ty)) =
                     (&*pat.pat, unwrapped_type(&pat.ty))
                 {
-                    let id =
-                        fresh_binding(&format!("__macro_gen_arg_{input_index}"), &mut reserved);
+                    let id = pat_ident.ident.clone();
                     call_args.push(id.clone());
                     let ty = omit_type_path_lifetimes(ty);
                     // Derive the extractor arg name from the parsed identifier

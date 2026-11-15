@@ -5,7 +5,7 @@ use syn::spanned::Spanned;
 use syn::{Expr, Ident, ImplItem, Item, Lit, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
-use crate::shared::{binding_scope, cfg_attributes, fresh_binding, reserved_identifiers};
+use crate::shared::{cfg_attributes, fresh_binding, reserved_identifiers};
 use crate::{
     Array, DiagLevel, DiagResult, Diagnostic, InputType, Operation, omit_type_path_lifetimes,
     parse_input_type, unwrapped_type,
@@ -262,17 +262,15 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 modifiers,
                 &[],
             )?;
-            let implementation = binding_scope(
-                &hfn,
-                &reserved,
+            let implementations = parameter_binding_scope(
+                sig,
                 quote! {
+                    #inherent
                     #allow_deprecated
                     #[#salvo::async_trait]
                     impl #salvo::Handler for #name { #hfn }
                 },
             );
-            let implementations =
-                parameter_binding_scope(sig, quote! { #inherent #implementation });
             Ok(quote! { #sdef #implementations #meta })
         }
         Item::Impl(item_impl) => {
@@ -342,15 +340,12 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                     modifiers,
                     &cfg,
                 )?;
-                let implementation = binding_scope(
-                    &hfn,
-                    &reserved,
-                    quote! {
-                        #[#salvo::async_trait]
-                        impl #impl_generics #salvo::Handler for #ty #where_clause { #hfn }
-                    },
-                );
-                implementations.push(quote! { #(#cfg)* #implementation #meta });
+                implementations.push(quote! {
+                    #(#cfg)*
+                    #[#salvo::async_trait]
+                    impl #impl_generics #salvo::Handler for #ty #where_clause { #hfn }
+                    #meta
+                });
             }
             Ok(quote! { #item_impl #(#implementations)* })
         }
@@ -397,7 +392,7 @@ fn handle_fn(
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
     let mut modifiers = Vec::new();
-    for (input_index, input) in sig.inputs.iter().enumerate() {
+    for input in &sig.inputs {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
                 call_args.push(__macro_gen_req.clone());
@@ -419,8 +414,7 @@ fn handle_fn(
             }
             InputType::NoReference(pat) => {
                 if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, unwrapped_type(&pat.ty)) {
-                    let id =
-                        fresh_binding(&format!("__macro_gen_arg_{input_index}"), &mut reserved);
+                    let id = ident.ident.clone();
                     call_args.push(id.clone());
                     let ty = omit_type_path_lifetimes(ty);
                     let idv = ident.ident.unraw().to_string();
@@ -521,7 +515,7 @@ mod tests {
         let (hfn, modifiers) = handle_fn(&salvo, &oapi, &sig, &Default::default()).unwrap();
         let expected_hfn = quote! {
             async fn handle(&self, __macro_gen_req: &mut salvo::Request, __macro_gen_depot: &mut salvo::Depot, __macro_gen_res: &mut salvo::Response, __macro_gen_ctrl: &mut salvo::FlowCtrl) {
-                let __macro_gen_arg_0: String = match <String as salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, "name").await {
+                let name: String = match <String as salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, "name").await {
                     Ok(__macro_gen_data) => {
                         __macro_gen_data
                     },
@@ -535,7 +529,7 @@ mod tests {
                         return;
                     }
                 };
-                Self::hello(__macro_gen_arg_0)
+                Self::hello(name)
             }
         };
         assert_eq!(hfn.to_string(), expected_hfn.to_string());

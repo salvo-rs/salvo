@@ -302,24 +302,3 @@ pub(crate) fn reserved_identifiers(
     collect(tokens, &mut names);
     names
 }
-
-/// Functions shadow same-named constant constructors in the value namespace,
-/// while still allowing the generated method's local variables to bind.
-pub(crate) fn binding_scope(
-    generated: &proc_macro2::TokenStream,
-    reserved: &::std::collections::HashSet<String>,
-    implementation: proc_macro2::TokenStream,
-) -> proc_macro2::TokenStream {
-    let names = reserved_identifiers(generated.clone())
-        .into_iter()
-        .filter(|name| name.starts_with("__macro_gen_") && !reserved.contains(name))
-        .collect::<::std::collections::BTreeSet<_>>()
-        .into_iter()
-        .map(|name| Ident::new(&name, Span::mixed_site()));
-    quote::quote! {
-        const _: () = {
-            #(#[allow(dead_code, non_snake_case)] fn #names() {})*
-            #implementation
-        };
-    }
-}

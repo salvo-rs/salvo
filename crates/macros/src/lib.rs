@@ -169,12 +169,7 @@ mod tests {
                         }
                     }
                 }
-                const _: () = {
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_ctrl() {}
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_depot() {}
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_req() {}
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_res() {}
-#[::salvo::async_trait]
+                #[::salvo::async_trait]
                 impl ::salvo::Handler for hello {
                     async fn handle(
                         &self,
@@ -186,7 +181,6 @@ mod tests {
                         Self::hello(__macro_gen_req, __macro_gen_depot, __macro_gen_res, __macro_gen_ctrl).await
                     }
                 }
-                };
             }
             .to_string()
         );
@@ -213,12 +207,7 @@ mod tests {
                         {Ok(())}
                     }
                 }
-                const _: () = {
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_ctrl() {}
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_depot() {}
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_req() {}
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_res() {}
-#[::salvo::async_trait]
+                #[::salvo::async_trait]
                 impl ::salvo::Handler for hello {
                     async fn handle(
                         &self,
@@ -230,7 +219,6 @@ mod tests {
                         ::salvo::Writer::write(Self::hello(__macro_gen_req, __macro_gen_depot, __macro_gen_res, __macro_gen_ctrl).await, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                     }
                 }
-                };
             }
             .to_string()
         );
@@ -256,12 +244,7 @@ mod tests {
                         res.render_plain_text("Hello World");
                     }
                 }
-                const _: () = {
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_ctrl() {}
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_depot() {}
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_req() {}
-                    #[allow(dead_code, non_snake_case)] fn __macro_gen_res() {}
-#[::salvo::async_trait]
+                #[::salvo::async_trait]
                 impl ::salvo::Handler for Hello {
                     async fn handle(
                         &self,
@@ -273,7 +256,6 @@ mod tests {
                         Self::handle(__macro_gen_req, __macro_gen_depot, __macro_gen_res)
                     }
                 }
-                };
             }
             .to_string()
         );
