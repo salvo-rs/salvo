@@ -6,6 +6,63 @@ use syn::{Error, Ident, LitStr, Path};
 
 use crate::{DiagLevel, DiagResult, Diagnostic, TryToTokens};
 
+/// A qualified user path must not be classified by its last identifier alone.
+/// Unknown aliases still work through their actual ToSchema implementation.
+pub(crate) fn is_known_type_path(path: &Path) -> bool {
+    if path.segments.len() == 1 && path.leading_colon.is_none() {
+        return true;
+    }
+    let names: Vec<_> = path
+        .segments
+        .iter()
+        .map(|segment| segment.ident.to_string())
+        .collect();
+    let names: Vec<_> = names.iter().map(String::as_str).collect();
+    match names.as_slice() {
+        ["std" | "core", "primitive", name] => is_primitive(name),
+        ["std" | "alloc", "string", "String"]
+        | ["std" | "alloc", "vec", "Vec"]
+        | ["std" | "alloc", "boxed", "Box"]
+        | ["std" | "alloc", "borrow", "Cow"]
+        | ["std" | "alloc", "rc", "Rc"]
+        | ["std" | "alloc", "sync", "Arc"]
+        | ["std" | "core", "cell", "RefCell"]
+        | ["std" | "core", "option", "Option"]
+        | ["std" | "core", "result", "Result"]
+        | ["std", "ffi", "OsStr" | "OsString"]
+        | ["std", "path", "Path" | "PathBuf"]
+        | ["std", "net", "Ipv4Addr" | "Ipv6Addr"] => true,
+        [
+            "std" | "alloc",
+            "collections",
+            "HashMap" | "BTreeMap" | "HashSet" | "BTreeSet" | "LinkedList",
+        ]
+        | [
+            "std" | "alloc",
+            "collections",
+            "hash_map" | "btree_map" | "hash_set" | "btree_set" | "linked_list",
+            _,
+        ] => true,
+        ["serde_json", "Value" | "Map"] | ["serde_json", "value", "Value" | "Map"] => true,
+        [
+            "chrono",
+            "DateTime" | "NaiveDate" | "Duration" | "NaiveDateTime",
+        ]
+        | [
+            "time",
+            "Date" | "PrimitiveDateTime" | "OffsetDateTime" | "Duration",
+        ]
+        | ["rust_decimal", "Decimal"]
+        | ["url", "Url"]
+        | ["uuid", "Uuid"]
+        | ["ulid", "Ulid"]
+        | ["compact_str", "CompactString"]
+        | ["smallvec", "SmallVec"]
+        | ["indexmap", "IndexMap"] => true,
+        _ => false,
+    }
+}
+
 /// Represents data type of [`Schema`].
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 #[allow(dead_code)]
@@ -59,12 +116,15 @@ impl SchemaType<'_> {
     }
 
     pub(crate) fn is_value(&self) -> bool {
-        matches!(&*self.last_segment_to_string(), "Value")
+        is_known_type_path(self.path) && matches!(&*self.last_segment_to_string(), "Value")
     }
 
     /// Check whether type is known to be primitive in which case returns true.
     pub(crate) fn is_primitive(&self) -> bool {
         let SchemaType { path, .. } = self;
+        if !is_known_type_path(path) {
+            return false;
+        }
         let Some(last_segment) = path.segments.last() else {
             return false;
         };

@@ -245,7 +245,9 @@ impl<'t> TypeTree<'t> {
     }
 
     fn convert(path: &'t Path, last_segment: &'t PathSegment) -> Self {
-        let generic_type = Self::get_generic_type(last_segment);
+        let generic_type = crate::schema_type::is_known_type_path(path)
+            .then(|| Self::get_generic_type(last_segment))
+            .flatten();
         let schema_type = SchemaType {
             path,
             nullable: matches!(generic_type, Some(GenericType::Option)),
