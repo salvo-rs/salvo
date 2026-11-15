@@ -700,7 +700,7 @@ pub(crate) fn decode_jwk(
             }
             // RFC 7518 section 6.4.1 encodes `k` as unpadded base64url.
             // from_base64_secret instead expects standard, padded base64.
-            Some(DecodingKey::from_secret(&b64_decode(&params.value)?))
+            DecodingKey::from_secret(&b64_decode(&params.value)?).ok()
         }
         jsonwebtoken::jwk::AlgorithmParameters::OctetKeyPair(ref params) => {
             let der = b64_decode(&params.x)?;
@@ -789,7 +789,7 @@ mod tests {
             let token = jsonwebtoken::encode(
                 &jsonwebtoken::Header::new(algorithm),
                 &json!({"sub": "local-user", "exp": current_time() + 300}),
-                &jsonwebtoken::EncodingKey::from_secret(&secret),
+                &jsonwebtoken::EncodingKey::from_secret(&secret).unwrap(),
             ).unwrap();
             let validation = Validation::new(algorithm);
             assert!(matches!(decode_jwk(&jwk, &validation, false), Err(JwtAuthError::InvalidJwk)));
@@ -801,7 +801,7 @@ mod tests {
 
     #[test]
     fn symmetric_jwk_rejects_non_base64url_key_material() {
-        for key in ["A", "AA==", "AA+A", "AA/A", "not base64url"] {
+        for key in ["", "A", "AA==", "AA+A", "AA/A", "not base64url"] {
             let jwk: Jwk = serde_json::from_value(json!({
                 "kty": "oct", "kid": "local-test", "alg": "HS256", "k": key,
             })).unwrap();
@@ -955,7 +955,7 @@ mod tests {
         let token = jsonwebtoken::encode(
             &header,
             &json!({"iss":issuer,"aud":"test-client","exp":current_time()+3600}),
-            &jsonwebtoken::EncodingKey::from_secret(b"secret"),
+            &jsonwebtoken::EncodingKey::from_secret(b"secret").unwrap(),
         )
         .unwrap();
         for expire_initial_cache in [false, true] {
@@ -1068,7 +1068,7 @@ mod tests {
     fn jwk_accepts_missing_or_consistent_verification_purposes() {
         let _ = crate::install_crypto_provider();
         let token = jsonwebtoken::encode(&jsonwebtoken::Header::new(Algorithm::HS256),
-            &json!({"exp": current_time() + 3600}), &jsonwebtoken::EncodingKey::from_secret(b"secret")).unwrap();
+            &json!({"exp": current_time() + 3600}), &jsonwebtoken::EncodingKey::from_secret(b"secret").unwrap()).unwrap();
         for usage in [json!({}), json!({"use":"sig"}), json!({"key_ops":["verify"]}),
             json!({"key_ops":["sign", "verify"]}), json!({"use":"sig", "key_ops":["verify"]})] {
             let mut key = json!({"kty":"oct", "kid":"test", "alg":"HS256", "k":"c2VjcmV0"});
@@ -1105,26 +1105,26 @@ mod tests {
         let token = jsonwebtoken::encode(
             &jsonwebtoken::Header::new(Algorithm::HS512),
             &claims,
-            &jsonwebtoken::EncodingKey::from_secret(secret),
+            &jsonwebtoken::EncodingKey::from_secret(secret).unwrap(),
         )
         .unwrap();
 
         let denied = DecodingInfo::new(
-            DecodingKey::from_secret(secret),
+            DecodingKey::from_secret(secret).unwrap(),
             Some(Algorithm::HS512),
             &Validation::new(Algorithm::HS256),
         );
         assert!(denied.decode::<serde_json::Value>(&token).is_err());
 
         let allowed = DecodingInfo::new(
-            DecodingKey::from_secret(secret),
+            DecodingKey::from_secret(secret).unwrap(),
             Some(Algorithm::HS512),
             &Validation::new(Algorithm::HS512),
         );
         assert!(allowed.decode::<serde_json::Value>(&token).is_ok());
 
         let default = DecodingInfo::new(
-            DecodingKey::from_secret(secret),
+            DecodingKey::from_secret(secret).unwrap(),
             Some(Algorithm::HS512),
             &default_oidc_validation(),
         );
@@ -1133,7 +1133,7 @@ mod tests {
         let mut validation = Validation::new(Algorithm::HS512);
         validation.algorithms.clear();
         let info = DecodingInfo::new(
-            DecodingKey::from_secret(secret),
+            DecodingKey::from_secret(secret).unwrap(),
             Some(Algorithm::HS512),
             &validation,
         );
