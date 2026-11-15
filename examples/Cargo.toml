@@ -29,7 +29,7 @@ anyhow = "1.0.100"
 diesel = { version = "2.3.5" }
 r2d2 = "0.8.10"
 rbatis = "4.8"
-rbdc = "4.7"
+rbdc = "4.9.11"
 rbdc-mysql = "4.7"
 rbs = "4.5"
 async-trait = "0.1.89"
@@ -82,6 +82,8 @@ toasty = { version = "0.8.0", default-features = false }
 jiff = "0.2.23"
 
 [patch.crates-io]
+# Upstream rbdc still requires unsound lru and unmaintained PEM dependencies.
+rbdc = { path = "vendor/rbdc" }
 # SQLx 0.9 still caps libsqlite3-sys below its patched SQLite release.
 sqlx-sqlite = { path = "vendor/sqlx-sqlite" }
 # Published Toasty PostgreSQL drivers still depend on unmaintained rustls-pemfile.

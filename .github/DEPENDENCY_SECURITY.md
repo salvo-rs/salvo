@@ -105,10 +105,21 @@ opening a less-trusted database and sibling WAL file with mismatched page sizes.
 System SQLite and SQLCipher have their own version/exposure conditions.
 [Advisory](https://rustsec.org/advisories/RUSTSEC-2026-0459.html).
 
-The resolution also retains `rbdc 4.9.10 -> lru 0.14.0`. Its requirement cannot
-select the fixed lru releases for RUSTSEC-2026-0002 (`>=0.16.3`) and
-RUSTSEC-2026-0253 (`>=0.18.2`). rustls-pemfile 2.2.0 remains an unmaintained
-warning through rbdc. The Toasty PostgreSQL driver is now explicitly patched
+The RBatis example now explicitly patches rbdc 4.9.11. Upstream 4.9.11 and
+its HEAD still require lru 0.14 and rustls-pemfile 2; the local compatibility
+patch requires lru >=0.18.2 and parses PEM through maintained rustls-pki-types.
+This removes its paths to RUSTSEC-2026-0002, RUSTSEC-2026-0253 and unmaintained
+RUSTSEC-2025-0134. Explicit empty or invalid custom CA input is rejected before
+a handshake. [Patch notes](../examples/vendor/rbdc/LOCAL_PATCH.md) preserve the
+published source commit, version, license, exact diff, and removal conditions.
+Upstream statement-cache tests and local TLS handshakes pass, including invalid
+roots and missing/malformed key fixtures; the RBatis example compiles.
+
+The RBatis refresh removes lru 0.14. Its dated
+[RBatis evidence](security-audits/2026-11-15-rbdc.json) was generated on the
+independent branch and records the then-remaining Toasty PEM path.
+
+The Toasty PostgreSQL driver is now explicitly patched
 in the examples workspace to use maintained rustls-pki-types PEM APIs; its
 published 0.8 version is retained because latest 0.11 also uses the old parser.
 The [patch notes](../examples/vendor/toasty-driver-postgresql/LOCAL_PATCH.md)
@@ -117,11 +128,12 @@ record source, full MIT license, exact diff, tests and removal conditions.
 Sixteen isolated driver tests pass, including valid client identities and
 rejection of empty/malformed certificates, missing/invalid keys and mismatched
 keys. The Toasty example compiles. The dated
-[Toasty evidence](security-audits/2026-11-15-toasty.json) records that rbdc is
-the remaining rustls-pemfile referrer on this independent branch. No advisory
+[Toasty evidence](security-audits/2026-11-15-toasty.json) records the
+then-remaining rbdc PEM path in its independent snapshot. No advisory
 exception has been added. Owner: Salvo maintainers; recheck when a supported
 upstream driver migrates away from the unmaintained parser.
 Actual iterator/panic-unwind reachability must be assessed in each application.
+
 
 The direct rustls/quinn minimums and isolated downstream TLS checks remain in
 place. They exclude known affected direct releases, but do not prove every
