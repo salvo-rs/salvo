@@ -170,6 +170,8 @@ pub enum SerdeEnumRepr {
 #[derive(Default, Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct SerdeContainer {
+    /// Serialize the container as its one non-skipped field.
+    pub transparent: bool,
     /// Rename all fields.
     pub rename_all: Option<RenameRule>,
     /// Enum repr.
@@ -194,6 +196,7 @@ impl SerdeContainer {
         deserializing: bool,
     ) -> syn::Result<()> {
         match ident.to_string().as_str() {
+            "transparent" => self.transparent = true,
             "rename_all" => {
                 if let Some((literal, span)) = parse_rename(next, deserializing)? {
                     self.rename_all = Some(
@@ -381,6 +384,7 @@ fn parse_container_with_direction(
                         if value.deny_unknown_fields {
                             acc.deny_unknown_fields = value.deny_unknown_fields;
                         }
+                        acc.transparent |= value.transparent;
                         match value.enum_repr {
                             SerdeEnumRepr::ExternallyTagged => {}
                             SerdeEnumRepr::Untagged

@@ -64,6 +64,30 @@ pub(crate) fn effective_schema_data(
         Ok(())
     }
     let mut data = data.clone();
+    if let syn::Data::Struct(data) = &mut data
+        && serde_util::parse_container(attributes)
+            .map_err(Diagnostic::from)?
+            .is_some_and(|rules| rules.transparent)
+    {
+        let fields = match &data.fields {
+            syn::Fields::Named(fields) => &fields.named,
+            syn::Fields::Unnamed(fields) => &fields.unnamed,
+            syn::Fields::Unit => {
+                return Err(Diagnostic::new(
+                    crate::DiagLevel::Error,
+                    "serde transparent requires a field",
+                ));
+            }
+        };
+        let (_, selected) = crate::schema::transparent_field(fields)?;
+        let mut field = selected.clone();
+        field.ident = None;
+        field.colon_token = None;
+        data.fields = syn::Fields::Unnamed(syn::FieldsUnnamed {
+            paren_token: Default::default(),
+            unnamed: std::iter::once(field).collect(),
+        });
+    }
     match &mut data {
         syn::Data::Struct(data) => {
             if matches!(&data.fields, syn::Fields::Unnamed(_)) {

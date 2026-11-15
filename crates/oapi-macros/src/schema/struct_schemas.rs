@@ -50,6 +50,80 @@ struct NamedStructFieldOptions<'a> {
     ignore: Option<crate::parse_utils::LitBoolOrExprPath>,
 }
 
+pub(crate) fn transparent_field(
+    fields: &Punctuated<Field, Token![,]>,
+) -> DiagResult<(usize, &Field)> {
+    let mut selected = None;
+    for (index, field) in fields.iter().enumerate() {
+        let rules = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
+        if is_not_skipped(rules.as_ref()) {
+            if selected.is_some() {
+                return Err(Diagnostic::spanned(
+                    fields.span(),
+                    DiagLevel::Error,
+                    "serde transparent requires exactly one serialized field",
+                ));
+            }
+            selected = Some((index, field));
+        }
+    }
+    selected.ok_or_else(|| {
+        Diagnostic::spanned(
+            fields.span(),
+            DiagLevel::Error,
+            "serde transparent requires a serialized field",
+        )
+    })
+}
+
+fn transparent_schema(
+    fields: &Punctuated<Field, Token![,]>,
+    attributes: &[Attribute],
+    mut features: Option<Vec<Feature>>,
+    description: Option<&Description>,
+    struct_name: &str,
+    compose_context: Option<&crate::component::ComposeContext>,
+) -> DiagResult<TokenStream> {
+    let (index, field) = transparent_field(fields)?;
+    let value_type = features
+        .as_mut()
+        .and_then(|features| features.pop_value_type_feature());
+    let type_tree = value_type
+        .as_ref()
+        .map(|value| value.as_type_tree())
+        .transpose()?
+        .unwrap_or(TypeTree::from_type(&field.ty)?);
+    let member = field
+        .ident
+        .clone()
+        .map(syn::Member::Named)
+        .unwrap_or_else(|| syn::Member::Unnamed(index.into()));
+    let features = features.get_or_insert_with(Vec::new);
+    if pop_feature!(features => Feature::Default(Default(None))).is_some() {
+        features.push(Feature::Default(Default::new_default_trait(member)));
+    }
+    features.extend(
+        parse_schema_features_with(&field.attrs, |input| {
+            Ok(parse_features!(input as attributes::Inline))
+        })?
+        .unwrap_or_default(),
+    );
+    let comments = CommentAttributes::from_attributes(attributes);
+    let description = description
+        .map(ComponentDescription::Description)
+        .unwrap_or(ComponentDescription::CommentAttributes(&comments));
+    let deprecated = crate::get_deprecated(attributes);
+    Ok(ComponentSchema::new(ComponentSchemaProps {
+        type_tree: &type_tree,
+        features: Some(features.clone()),
+        description: Some(&description),
+        deprecated: deprecated.as_ref(),
+        object_name: struct_name,
+        compose_context,
+    })?
+    .to_token_stream())
+}
+
 impl NamedStructSchema<'_> {
     pub(crate) fn pop_skip_bound(&mut self) -> Option<SkipBound> {
         pop_feature_as_inner!(self.features => Feature::SkipBound(_v))
@@ -183,6 +257,20 @@ impl TryToTokens for NamedStructSchema<'_> {
         let oapi = crate::oapi_crate();
         let container_rules =
             serde_util::parse_container(self.attributes).map_err(Diagnostic::from)?;
+        if container_rules
+            .as_ref()
+            .is_some_and(|rules| rules.transparent)
+        {
+            tokens.extend(transparent_schema(
+                self.fields,
+                self.attributes,
+                self.features.clone(),
+                self.description.as_ref(),
+                &self.struct_name,
+                self.compose_context.as_ref(),
+            )?);
+            return Ok(());
+        }
         let schema_default = self
             .features
             .as_ref()
@@ -611,6 +699,20 @@ impl UnnamedStructSchema<'_> {
 
 impl TryToTokens for UnnamedStructSchema<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
+        if serde_util::parse_container(self.attributes)
+            .map_err(Diagnostic::from)?
+            .is_some_and(|rules| rules.transparent)
+        {
+            tokens.extend(transparent_schema(
+                self.fields,
+                self.attributes,
+                self.features.clone(),
+                self.description.as_ref(),
+                &self.struct_name,
+                self.compose_context.as_ref(),
+            )?);
+            return Ok(());
+        }
         let oapi = crate::oapi_crate();
         let fields_len = self.fields.len();
         let first_field = self.fields.first().ok_or_else(|| {
