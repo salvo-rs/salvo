@@ -145,14 +145,15 @@ impl Metadata {
 
     /// Check is this type has body required.
     pub(crate) fn has_body_required(&self) -> bool {
-        if self
-            .default_sources
-            .iter()
-            .any(|s| s.from == SourceFrom::Body)
-        {
-            return true;
-        }
-        self.fields.iter().any(|f| f.has_body_required())
+        self.fields.iter().any(|field| {
+            field.has_body_required()
+                || (field.sources.is_empty()
+                    && !field.flatten
+                    && self
+                        .default_sources
+                        .iter()
+                        .any(|source| source.from == SourceFrom::Body))
+        })
     }
 }
 

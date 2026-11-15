@@ -54,6 +54,7 @@ impl<'t> TypeTree<'t> {
             }
             Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref())?,
             Type::Group(group) => Self::get_type_paths(group.elem.as_ref())?,
+            Type::Paren(paren) => Self::get_type_paths(paren.elem.as_ref())?,
             Type::Slice(slice) => vec![TypeTreeValue::Array(
                 Self::get_type_paths(&slice.elem)?,
                 slice.bracket_token.span.join(),
@@ -330,7 +331,11 @@ impl<'t> TypeTree<'t> {
     /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically
     /// used with `value_type` attribute to hinder the actual type.
     pub(crate) fn is_object(&self) -> bool {
-        self.is("Object")
+        self.path.as_ref().is_some_and(|path| {
+            path.leading_colon.is_none()
+                && path.segments.len() == 1
+                && path.segments[0].ident == "Object"
+        })
     }
 
     /// `Value` virtual type is used when any JSON value is required in OpenAPI spec. Typically used

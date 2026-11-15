@@ -145,6 +145,10 @@ impl TryToTokens for ToParameters {
             .enumerate()
             .map(|(index, field)| {
                 let field_serde_params = serde_util::parse_value_for_deserialize(&field.attrs).map_err(Diagnostic::from)?;
+                if field_serde_params.as_ref().is_some_and(|params| params.flatten && !params.skip) {
+                    return Err(Diagnostic::spanned(field.span(), DiagLevel::Error,
+                        "serde(flatten) is not supported by ToParameters; list named parameters explicitly or use a custom extractor"));
+                }
                 if matches!(&field_serde_params, Some(params) if !params.skip) {
                     Ok(Some(Parameter {
                         field,
@@ -834,6 +838,18 @@ mod tests {
             }
         };
         assert!(crate::parameter::to_parameters(input).is_err());
+    }
+
+    #[test]
+    fn serde_flatten_is_rejected_before_building_an_unusable_extractor() {
+        let input = parse_quote! { struct Params { #[serde(flatten)] nested: Nested } };
+        let error = crate::parameter::to_parameters(input).unwrap_err();
+        assert!(
+            error
+                .emit_as_item_tokens()
+                .to_string()
+                .contains("serde(flatten)")
+        );
     }
 
     #[test]

@@ -211,6 +211,11 @@ impl ExtractibleArgs {
         };
         let mut fields = Vec::with_capacity(data.fields.len());
         for field in data.fields.iter() {
+            if serde_util::parse_value_for_deserialize(&field.attrs)?
+                .is_some_and(|value| value.skip)
+            {
+                continue;
+            }
             fields.push(field.try_into()?);
         }
         let mut default_sources = Vec::new();

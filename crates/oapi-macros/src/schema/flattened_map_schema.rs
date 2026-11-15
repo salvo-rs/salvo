@@ -7,6 +7,7 @@ use crate::{ComponentSchema, ComponentSchemaProps, DiagResult, TryToTokens};
 #[derive(Debug)]
 pub(crate) struct FlattenedMapSchema {
     tokens: TokenStream,
+    pub(crate) key_schema: TokenStream,
 }
 
 impl FlattenedMapSchema {
@@ -39,6 +40,15 @@ impl FlattenedMapSchema {
         // additionalProperties denoting the type
         // maps have 2 child schemas and we are interested the second one of them
         // which is used to determine the additional properties
+        let key_schema = ComponentSchema::new(ComponentSchemaProps {
+            type_tree: &type_tree.children.as_ref().expect("map children")[0],
+            features: None,
+            description: None,
+            deprecated: None,
+            object_name,
+            compose_context,
+        })?
+        .to_token_stream();
         let schema_property = ComponentSchema::new(ComponentSchemaProps {
             type_tree: type_tree
                 .children
@@ -63,7 +73,7 @@ impl FlattenedMapSchema {
         example.to_tokens(&mut tokens);
         nullable.to_tokens(&mut tokens);
 
-        Ok(Self { tokens })
+        Ok(Self { tokens, key_schema })
     }
 }
 
