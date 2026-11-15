@@ -84,12 +84,23 @@ let router = Router::with_path("api/{**rest}").goal(
 );
 ```
 
+The default path getter re-escapes literal percent signs in the already-decoded
+route tail, preserving a client path such as `/files/50%25off.txt` on the upstream
+request. This also applies when strict normalization is disabled.
+
 Strict path normalization rejects literal parent-directory components and
-percent-encoded `.`, `/`, `\`, and `%` characters in the proxied path tail,
-including cases such as `..`, `%2e%2e`, `%2f`, `%5c`, and double-encoded forms
-that remain percent-encoded after Salvo routing extracts the tail. Backends
-should still validate and normalize their own routes and file paths; this option
-only prevents common proxy/backend path interpretation mismatches.
+remaining escapes for `.`, `/`, `\`, and unreserved characters (letters, digits,
+`-`, `_`, `~`). A percent sign that could introduce another escape is also
+rejected: `/files/a%2541.txt`, `/%2572eport_note/secret.txt`, and `/files/x%2500y`
+return `400`. Literal percent signs without two following hex digits remain
+usable, as in `/files/50%25off.txt` and `/files/100%25`.
+
+A custom `url_path_getter` still supplies the path with any intended escapes
+already present; the proxy leaves its `%` characters unchanged. Return a literal
+percent sign as `%25`. The same strict checks apply to custom getters, and
+`strict_path_normalization(false)` allows their escapes to pass through.
+Backends should still validate and normalize their own routes and file paths;
+this option only prevents common proxy/backend path interpretation mismatches.
 
 ### Forwarded headers
 

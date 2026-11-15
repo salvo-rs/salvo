@@ -213,8 +213,12 @@ pub type HostHeaderGetter =
 ///
 /// This getter gets the last param as the rest URL path from the request.
 /// In most cases you should use a wildcard param, like `{**rest}`, `{*+rest}`.
+///
+/// The router has already decoded that param, so a `%` in it is a literal percent
+/// sign. It is returned as `%25`, which the upstream decodes back to the same
+/// path instead of reading the following characters as an escape.
 pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> {
-    req.params().tail().map(str::to_owned)
+    req.params().tail().map(|tail| tail.replace('%', "%25"))
 }
 
 fn contains_ambiguous_path_escape(path: &str) -> bool {
@@ -226,7 +230,21 @@ fn contains_ambiguous_path_escape(path: &str) -> bool {
                 (hex_value(bytes[index + 1]), hex_value(bytes[index + 2]))
         {
             let decoded = high << 4 | low;
-            if matches!(decoded, b'.' | b'/' | b'\\' | b'%') {
+            // An escaped percent sign is only ambiguous when a second decode
+            // would read it as the start of another escape.
+            if decoded == b'%' {
+                if index + 4 < bytes.len()
+                    && hex_value(bytes[index + 3]).is_some()
+                    && hex_value(bytes[index + 4]).is_some()
+                {
+                    return true;
+                }
+            // An escaped unreserved character is equivalent to the character
+            // itself (RFC 3986 section 2.3), so an upstream that decodes again
+            // sees a different path than the one Salvo routed.
+            } else if matches!(decoded, b'.' | b'/' | b'\\' | b'-' | b'_' | b'~')
+                || decoded.is_ascii_alphanumeric()
+            {
                 return true;
             }
             index += 3;
@@ -409,6 +427,10 @@ where
     }
 
     /// Set URL path getter.
+    ///
+    /// The proxy percent-encodes the returned path but leaves `%` alone, so escapes in it are
+    /// forwarded as they are. Return a literal percent sign as `%25`, as
+    /// [`default_url_path_getter`] does.
     #[inline]
     #[must_use]
     pub fn url_path_getter<G>(mut self, url_path_getter: G) -> Self
@@ -444,9 +466,11 @@ where
     /// Enable or disable strict path normalization.
     ///
     /// When enabled, the proxy rejects literal parent-directory (`..`) path components and paths
-    /// that still contain percent-encoded `.`, `/`, `\`, or `%` characters after Salvo routing has
-    /// extracted the path tail. This is useful when the proxy is used as a security boundary and
-    /// the upstream server may perform another decode or normalization pass.
+    /// that still contain percent-encoded `.`, `/`, `\`, or unreserved characters (letters,
+    /// digits, `-`, `_`, `~`), or a percent sign followed by two hex digits, after Salvo routing
+    /// has extracted the path tail. This is useful when
+    /// the proxy is used as a security boundary and the upstream server may perform another decode
+    /// or normalization pass.
     #[inline]
     #[must_use]
     pub fn strict_path_normalization(mut self, enable: bool) -> Self {
@@ -1015,6 +1039,16 @@ mod tests {
         assert!(contains_ambiguous_path_escape("api%2Fadmin"));
         assert!(contains_ambiguous_path_escape("api%5cadmin"));
         assert!(contains_ambiguous_path_escape("%252e%252e/admin"));
+        assert!(contains_ambiguous_path_escape("%72eport_note/secret.txt"));
+        assert!(contains_ambiguous_path_escape("files/a%41.txt"));
+        assert!(contains_ambiguous_path_escape("files/a%7Eb"));
+        assert!(contains_ambiguous_path_escape("files/a%2541.txt"));
+        assert!(contains_ambiguous_path_escape("files/a%2525"));
+        assert!(!contains_ambiguous_path_escape("files/50%off"));
+        assert!(!contains_ambiguous_path_escape("files/50%25off"));
+        assert!(!contains_ambiguous_path_escape("files/100%25"));
+        assert!(!contains_ambiguous_path_escape("files/100%254"));
+        assert!(!contains_ambiguous_path_escape("files/a%3Fb%23c"));
         assert!(!contains_ambiguous_path_escape("guide.v1/index.html"));
         assert!(!contains_ambiguous_path_escape("files/%20space"));
     }
@@ -1663,9 +1697,11 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
             .build_proxied_request(&mut request, &depot)
             .await
             .unwrap();
+        // The routed tail holds these characters literally, so the upstream
+        // must receive them as escaped percent signs to see the same path.
         assert_eq!(
             proxied_request.uri().to_string(),
-            "http://example.com/api/%2e%2e/secrets/.env"
+            "http://example.com/api/%252e%252e/secrets/.env"
         );
     }
 
@@ -1676,6 +1712,7 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
             "api%2fadmin",
             "api%5cadmin",
             "%252e%252e/secrets/.env",
+            "%72eport_note/secret.txt",
         ] {
             let mut request = Request::new();
             request.params_mut().insert("**rest", path.to_owned());
