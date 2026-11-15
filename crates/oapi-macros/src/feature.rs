@@ -31,7 +31,7 @@ where
         let minus = input.parse::<Option<syn::Token![-]>>()?;
         let lit = input.parse::<LitInt>()?;
         if minus.is_some() {
-            let value_str = format!("-{lit}");
+            let value_str = format!("-{}", lit.base10_digits());
             value_str
                 .parse::<T>()
                 .map_err(|e| syn::Error::new(lit.span(), e))
@@ -54,7 +54,7 @@ where
         if lookup.peek(LitInt) {
             let lit = input.parse::<LitInt>()?;
             if minus.is_some() {
-                let value_str = format!("-{lit}");
+                let value_str = format!("-{}", lit.base10_digits());
                 value_str
                     .parse::<T>()
                     .map_err(|e| syn::Error::new(lit.span(), e))
@@ -64,7 +64,7 @@ where
         } else if lookup.peek(LitFloat) {
             let lit = input.parse::<LitFloat>()?;
             if minus.is_some() {
-                let value_str = format!("-{lit}");
+                let value_str = format!("-{}", lit.base10_digits());
                 value_str
                     .parse::<T>()
                     .map_err(|e| syn::Error::new(lit.span(), e))
@@ -476,5 +476,36 @@ impl Merge<Self> for Vec<Feature> {
     fn merge(mut self, mut from: Self) -> Self {
         self.append(&mut from);
         self
+    }
+}
+
+#[cfg(test)]
+mod negative_literal_tests {
+    use syn::parse::Parser;
+
+    use super::{parse_integer, parse_number};
+
+    #[test]
+    fn negative_numbers_normalize_rust_literal_spelling() {
+        for (source, expected) in [
+            ("-1_000", -1000.0),
+            ("-0x10", -16.0),
+            ("-10i32", -10.0),
+            ("-1_000.25f64", -1000.25),
+        ] {
+            assert_eq!(
+                parse_number::<f64>
+                    .parse_str(&format!("= {source}"))
+                    .unwrap(),
+                expected
+            );
+        }
+        assert_eq!(
+            parse_integer::<i64>
+                .parse_str("= -9_223_372_036_854_775_808i64")
+                .unwrap(),
+            i64::MIN
+        );
+        assert!(parse_integer::<usize>.parse_str("= -1_000").is_err());
     }
 }
