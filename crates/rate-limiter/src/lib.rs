@@ -293,14 +293,21 @@ impl TrustedProxyIssuer {
         A: Into<IpAddr>,
     {
         Self {
-            trusted_proxies: trusted_proxies.into_iter().map(Into::into).collect(),
+            // A dual-stack listener reports an IPv4 peer as an IPv4-mapped
+            // IPv6 address, so addresses are compared in canonical form.
+            trusted_proxies: trusted_proxies
+                .into_iter()
+                .map(|addr| addr.into().to_canonical())
+                .collect(),
         }
     }
 
     /// Returns true if the given IP is one of the configured proxies.
+    ///
+    /// An IPv4-mapped IPv6 address is treated as the IPv4 address it maps.
     #[must_use]
     pub fn is_trusted(&self, addr: &IpAddr) -> bool {
-        self.trusted_proxies.contains(addr)
+        self.trusted_proxies.contains(&addr.to_canonical())
     }
 }
 
@@ -310,7 +317,7 @@ impl RateIssuer for TrustedProxyIssuer {
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
         let remote_ip = req.remote_addr().ip();
         if let Some(remote_ip) = remote_ip
-            && self.trusted_proxies.contains(&remote_ip)
+            && self.is_trusted(&remote_ip)
             && let Some(forwarded) =
                 extract_client_ip_via_trusted_proxies(req, &self.trusted_proxies)
         {
@@ -340,7 +347,7 @@ fn extract_client_ip_via_trusted_proxies(
             // Never cross an unknown hop to select a spoofable value further
             // left, or fall back to another forwarded header after a broken chain.
             let ip = part.trim().parse::<IpAddr>().ok()?;
-            if !trusted.contains(&ip) {
+            if !trusted.contains(&ip.to_canonical()) {
                 return Some(ip);
             }
         }

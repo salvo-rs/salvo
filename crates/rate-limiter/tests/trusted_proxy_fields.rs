@@ -129,3 +129,38 @@ async fn spoofed_first_field_cannot_create_fresh_rate_limit_keys() {
         assert_eq!(response.status_code, Some(expected));
     }
 }
+
+#[tokio::test]
+async fn ipv4_proxy_is_trusted_through_a_dual_stack_listener() {
+    let client = "198.51.100.7".parse::<IpAddr>().unwrap();
+    for (configured, peer, forwarded) in [
+        ("10.0.0.6", "[::ffff:10.0.0.6]:443", "198.51.100.7"),
+        ("::ffff:10.0.0.6", "10.0.0.6:443", "198.51.100.7"),
+        (
+            "10.0.0.6",
+            "[::ffff:10.0.0.6]:443",
+            "198.51.100.7, ::ffff:10.0.0.6",
+        ),
+    ] {
+        let issuer = TrustedProxyIssuer::new([configured.parse::<IpAddr>().unwrap()]);
+        let mut req = request(&[forwarded]);
+        *req.remote_addr_mut() = peer.parse::<SocketAddr>().unwrap().into();
+        assert_eq!(
+            issuer.issue(&mut req, &Depot::new()).await,
+            Some(client),
+            "{configured} {peer} {forwarded}"
+        );
+    }
+
+    // A mapped address of an untrusted peer stays untrusted.
+    let issuer = issuer();
+    let mut req = request(&["198.51.100.7"]);
+    *req.remote_addr_mut() = "[::ffff:10.0.0.9]:443"
+        .parse::<SocketAddr>()
+        .unwrap()
+        .into();
+    assert_eq!(
+        issuer.issue(&mut req, &Depot::new()).await,
+        Some("::ffff:10.0.0.9".parse::<IpAddr>().unwrap())
+    );
+}

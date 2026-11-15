@@ -60,6 +60,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Preserve service `Self` and `Arc<Self>` receiver semantics in crafted method bodies.
 
+- Recognize a trusted proxy in `TrustedProxyIssuer` when a dual-stack listener reports
+  its IPv4 address as an IPv4-mapped IPv6 address.
+
 - Preserve generic schema composition in every enum representation without
   requiring `ToSchema` on composition-only type arguments.
 
