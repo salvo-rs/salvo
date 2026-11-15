@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Include serde struct tags and serialized type names in generated schemas.
+
 - Preserve flattened map key constraints alongside conditional flattened fields,
   including nested schemas, without exempting inactive fields or map values.
 
