@@ -554,6 +554,63 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn blank_token_does_not_hide_a_later_finder() {
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        let auth: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(b"secret"))
+            .finders(vec![
+                Box::new(QueryFinder::new("jwt")),
+                Box::new(CookieFinder::new("jwt")),
+                Box::new(HeaderFinder::new()),
+            ]);
+        let service = Service::new(Router::new().hoop(auth).goal(hello));
+        let token = create_test_token(b"secret", 1);
+
+        for (url, cookie, bearer, expected) in [
+            ("http://localhost/", None, true, StatusCode::OK),
+            ("http://localhost/?jwt=", None, true, StatusCode::OK),
+            ("http://localhost/", Some("jwt="), true, StatusCode::OK),
+            // Without any token the request is unauthenticated, not forbidden.
+            (
+                "http://localhost/?jwt=",
+                None,
+                false,
+                StatusCode::UNAUTHORIZED,
+            ),
+            (
+                "http://localhost/",
+                Some("jwt="),
+                false,
+                StatusCode::UNAUTHORIZED,
+            ),
+            ("http://localhost/", None, false, StatusCode::UNAUTHORIZED),
+            // A non-blank value is still a token and is not retried elsewhere.
+            (
+                "http://localhost/?jwt=invalid",
+                None,
+                true,
+                StatusCode::FORBIDDEN,
+            ),
+        ] {
+            let mut request = TestClient::get(url);
+            if let Some(cookie) = cookie {
+                request = request.add_header("cookie", cookie, true);
+            }
+            if bearer {
+                request = request.add_header("authorization", format!("Bearer {token}"), true);
+            }
+            assert_eq!(
+                request.send(&service).await.status_code,
+                Some(expected),
+                "{url} cookie={cookie:?} bearer={bearer}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn repeated_authentication_replaces_all_depot_state() {
         #[handler]
         async fn inspect(depot: &mut Depot) -> String {
