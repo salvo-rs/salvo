@@ -45,6 +45,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Extract tuple `ToParameters` fields in declaration order and honor field sources
   and renames, including serde defaults for absent tuple fields.
 - Restore stateless crafted handlers and endpoints in generic service impls.
+
+- Skip blank values in the form, query and cookie JWT finders, so they no longer hide a
+  token that a later finder would return.
 - Serve only the committed TUS upload prefix and retain read locks while
   streamed downloads use the file.
 
