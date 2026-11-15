@@ -107,6 +107,7 @@ assert-json-diff = { workspace = true }
 salvo_core = { workspace = true, default-features = false, features = [
     "cookie",
     "test",
+    "catcher-json",
 ] }
 serde_json = { workspace = true }
 serde = { workspace = true }
