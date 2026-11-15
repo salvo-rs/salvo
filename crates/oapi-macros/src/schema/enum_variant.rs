@@ -325,7 +325,7 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for Adjacentl
         let items = iter
             .into_iter()
             .enumerate()
-            .map(|(index, (tag, content, variant))| {
+            .map(|(index, (tag, _content, variant))| {
                 len = index + 1;
 
                 let (schema_type, enum_type) = variant.get_type();
@@ -336,17 +336,10 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for Adjacentl
                             .property(
                                 #tag,
                                 #oapi::oapi::schema::Object::new()
-                                    .schema_type(#oapi::oapi::schema::BasicType::String)
-                                    .enum_values::<[#enum_type; 1], #enum_type>([#content])
-                            )
-                            .required(#tag)
-                            .property(
-                                #content,
-                                #oapi::oapi::schema::Object::new()
                                     .schema_type(#schema_type)
                                     .enum_values::<[#enum_type; 1], #enum_type>([#item])
                             )
-                            .required(#content)
+                            .required(#tag)
                     )
                 }
             })
