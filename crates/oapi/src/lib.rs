@@ -931,42 +931,49 @@ impl ComposeSchema for salvo_core::Error {
     }
 }
 
-impl<T, E> ToSchema for Result<T, E>
-where
-    T: ToSchema,
-    E: ToSchema,
-{
+// This describes a Result serialized as data; HTTP Result writing is handled
+// separately by EndpointOutRegister and must not affect these serde tags.
+fn result_data_schema(
+    ok: RefOr<schema::Schema>,
+    err: RefOr<schema::Schema>,
+) -> RefOr<schema::Schema> {
+    OneOf::new()
+        .item(
+            schema::Object::new()
+                .property("Ok", ok)
+                .required("Ok")
+                .max_properties(1),
+        )
+        .item(
+            schema::Object::new()
+                .property("Err", err)
+                .required("Err")
+                .max_properties(1),
+        )
+        .into()
+}
+
+impl<T: ToSchema, E: ToSchema> ToSchema for Result<T, E> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        let name = crate::naming::assign_name::<StatusError>(Default::default());
-        let ref_or = crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{name}")));
-        if !components.schemas.contains_key(&name) {
-            components.schemas.insert(name.clone(), ref_or.clone());
-            let schema = OneOf::new()
-                .item(T::to_schema(components))
-                .item(E::to_schema(components));
-            components.schemas.insert(name, schema);
-        }
-        ref_or
+        // Like Option and other containers, keep the wrapper inline. This also
+        // preserves support for borrowed types without a TypeId/'static bound.
+        result_data_schema(T::to_schema(components), E::to_schema(components))
     }
 }
-impl<T, E> ComposeSchema for Result<T, E>
-where
-    T: ComposeSchema,
-    E: ComposeSchema,
-{
+impl<T: ComposeSchema, E: ComposeSchema> ComposeSchema for Result<T, E> {
     fn compose(
         components: &mut Components,
         generics: Vec<RefOr<schema::Schema>>,
     ) -> RefOr<schema::Schema> {
-        let t_schema = generics
+        let ok = generics
             .first()
             .cloned()
             .unwrap_or_else(|| T::compose(components, vec![]));
-        let e_schema = generics
+        let err = generics
             .get(1)
             .cloned()
             .unwrap_or_else(|| E::compose(components, vec![]));
-        OneOf::new().item(t_schema).item(e_schema).into()
+        result_data_schema(ok, err)
     }
 }
 
