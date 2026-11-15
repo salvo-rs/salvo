@@ -168,7 +168,7 @@ impl TryToTokens for RequestBodyAttr<'_> {
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree()?;
                     if body_type.is_inline {
-                        crate::component::build_inline_compose_block(&type_tree, &oapi)
+                        crate::component::build_inline_compose_block(&body_type.ty, &oapi)
                     } else {
                         ComponentSchema::new(crate::component::ComponentSchemaProps {
                             type_tree: &type_tree,

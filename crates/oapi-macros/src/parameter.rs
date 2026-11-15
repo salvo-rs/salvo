@@ -121,7 +121,7 @@ impl TryToTokens for ParameterSchema<'_> {
                 if inline_type.is_inline {
                     let oapi = crate::oapi_crate();
                     let inline_call =
-                        crate::component::build_inline_compose_block(&type_tree, &oapi);
+                        crate::component::build_inline_compose_block(&inline_type.ty, &oapi);
                     tokens.extend(quote! { .schema(#inline_call).required(#required) });
                 } else {
                     let mut schema_features = Vec::<Feature>::new();

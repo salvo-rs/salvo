@@ -335,7 +335,7 @@ impl TryToTokens for ResponseTuple<'_> {
                                 // `ComposeSchema::compose` call instead so the body is
                                 // rendered inline, with generic arguments recursively
                                 // inlined too.
-                                crate::component::build_inline_compose_block(&type_tree, &oapi)
+                                crate::component::build_inline_compose_block(&path_type.ty, &oapi)
                             } else {
                                 ComponentSchema::new(crate::component::ComponentSchemaProps {
                                     type_tree: &type_tree,
@@ -920,7 +920,7 @@ impl TryToTokens for Header {
             let type_tree = header_type.as_type_tree()?;
 
             let media_type_schema = if header_type.is_inline {
-                crate::component::build_inline_compose_block(&type_tree, &oapi)
+                crate::component::build_inline_compose_block(&header_type.ty, &oapi)
             } else {
                 ComponentSchema::new(crate::component::ComponentSchemaProps {
                     type_tree: &type_tree,

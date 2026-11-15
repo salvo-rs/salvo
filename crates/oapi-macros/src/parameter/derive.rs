@@ -666,7 +666,13 @@ impl TryToTokens for Parameter<'_> {
                 .any(|f| matches!(f, Feature::Inline(Inline(true))));
             let schema = if user_explicit_inline {
                 let oapi = crate::oapi_crate();
-                crate::component::build_inline_compose_block(&component, &oapi)
+                crate::component::build_inline_compose_block(
+                    value_type
+                        .as_ref()
+                        .map(|value_type| &value_type.0)
+                        .unwrap_or(&field.ty),
+                    &oapi,
+                )
             } else {
                 ComponentSchema::for_params(component::ComponentSchemaProps {
                     type_tree: &component,
