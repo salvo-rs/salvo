@@ -16,6 +16,6 @@ pub struct Model {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     #[sea_orm(belongs_to, from = "user_id", to = "id")]
-    pub user: Option<super::users::Entity>,
+    pub user: BelongsTo<super::users::Entity>,
 }
 impl ActiveModelBehavior for ActiveModel {}

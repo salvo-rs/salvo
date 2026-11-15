@@ -33,8 +33,8 @@ rbdc = "4.9.11"
 rbdc-mysql = "4.7"
 rbs = "4.5"
 async-trait = "0.1.89"
-sea-orm = "1.1.19"
-sea-orm-migration = "1.1.19"
+sea-orm = "2.0.4"
+sea-orm-migration = "2.0.4"
 eyre = "0.6.12"
 tera = "1.20.1"
 futures = "0.3.31"
@@ -50,7 +50,7 @@ dotenvy = "0.15.6"
 tokio-stream = "0.1.14"
 async-stream = "0.3.5"
 futures-util = { version = "0.3.31", default-features = true }
-jsonwebtoken = "10.2.0"
+jsonwebtoken = "12"
 parking_lot = "0.12.5"
 password-hash = "0.5.0"
 reqwest = "0.13.1"
@@ -65,7 +65,7 @@ tracing-subscriber = "0.3.22"
 tracing-test = "0.2.5"
 url = "2.5.7"
 chrono = "0.4"
-sqlx = "0.8"
+sqlx = "0.9"
 rust-embed = "8.9.0"
 time = "0.3.44"
 uuid = "1.19.0"
@@ -84,3 +84,7 @@ jiff = "0.2.23"
 [patch.crates-io]
 # Upstream rbdc still requires unsound lru and unmaintained PEM dependencies.
 rbdc = { path = "vendor/rbdc" }
+# SQLx 0.9 still caps libsqlite3-sys below its patched SQLite release.
+sqlx-sqlite = { path = "vendor/sqlx-sqlite" }
+# Published Toasty PostgreSQL drivers still depend on unmaintained rustls-pemfile.
+toasty-driver-postgresql = { path = "vendor/toasty-driver-postgresql" }

@@ -227,7 +227,13 @@ where
         let Some(tls_acceptor) = self.current_acceptor.load_full() else {
             return Err(IoError::other("native_tls: no active tls config"));
         };
-        let conn = async move { tls_acceptor.accept(stream).await.map_err(IoError::other) };
+        let tls_conn_ctrl = conn_ctrl.clone();
+        let conn = async move {
+            let stream = tls_acceptor.accept(stream).await.map_err(IoError::other)?;
+            let protocol = stream.get_ref().negotiated_alpn().map_err(IoError::other)?;
+            tls_conn_ctrl.set_tls_protocol(protocol.as_deref());
+            Ok(stream)
+        };
         Ok(Accepted {
             coupler: TcpCoupler::new(),
             stream: HandshakeStream::new(conn, fuse_config),

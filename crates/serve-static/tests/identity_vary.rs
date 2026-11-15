@@ -46,7 +46,7 @@ async fn static_identity_and_compressed_variants_share_vary_policy() {
 }
 
 #[tokio::test]
-async fn disabled_variants_do_not_add_vary() {
+async fn disabled_variants_still_vary_on_whether_identity_is_acceptable() {
     let mut directory = StaticDir::new("test/static");
     directory.compressed_variations.clear();
     let service = Service::new(Router::with_path("{**path}").goal(directory));
@@ -56,7 +56,13 @@ async fn disabled_variants_do_not_add_vary() {
             .send(&service)
             .await;
         assert_eq!(response.status_code, Some(StatusCode::OK));
-        assert!(!response.headers().contains_key("vary"));
+        assert_eq!(response.headers()["vary"], "accept-encoding");
         assert!(!response.headers().contains_key("content-encoding"));
     }
+    let response = TestClient::get("http://localhost/test1.txt")
+        .add_header("accept-encoding", "identity;q=0, *;q=0", true)
+        .send(&service)
+        .await;
+    assert_eq!(response.status_code, Some(StatusCode::NOT_ACCEPTABLE));
+    assert_eq!(response.headers()["vary"], "accept-encoding");
 }

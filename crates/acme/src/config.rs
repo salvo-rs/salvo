@@ -186,7 +186,7 @@ impl AcmeConfigBuilder {
 
     /// Sets the cache path for caching certificates.
     ///
-    /// This is not a necessary option. If you do not configure the cache path,
+    /// This is not a necessary option. Without a cache path or custom storage,
     /// the obtained certificate will be stored in memory and will need to be
     /// obtained again when the server is restarted next time.
     #[inline]
@@ -199,6 +199,8 @@ impl AcmeConfigBuilder {
     }
 
     /// Sets the duration before expiry to start certificate renewal.
+    /// The window is capped at half the certificate lifetime. Upstream ARI,
+    /// revocation and emergency renewal can run earlier.
     #[inline]
     #[must_use]
     pub fn before_expired(self, before_expired: Duration) -> Self {

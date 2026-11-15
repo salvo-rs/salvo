@@ -209,8 +209,8 @@ pub fn set_name_type_info(
 pub fn assign_name<T: 'static>(rule: NameRule) -> String {
     let type_id = TypeId::of::<T>();
     let type_name = std::any::type_name::<T>();
-    for (name, (exist_id, _)) in NAME_TYPES.read().iter() {
-        if *exist_id == type_id {
+    for (name, (exist_id, exist_type_name)) in NAME_TYPES.read().iter() {
+        if *exist_id == type_id && *exist_type_name == type_name {
             return name.clone();
         }
     }
@@ -239,8 +239,9 @@ pub fn response_component_name<T: ?Sized>() -> String {
 /// Get the name of the type. Panic if the name is not exist.
 pub fn get_name<T: 'static>() -> String {
     let type_id = TypeId::of::<T>();
-    for (name, (exist_id, _)) in NAME_TYPES.read().iter() {
-        if *exist_id == type_id {
+    let type_name = std::any::type_name::<T>();
+    for (name, (exist_id, exist_type_name)) in NAME_TYPES.read().iter() {
+        if *exist_id == type_id && *exist_type_name == type_name {
             return name.clone();
         }
     }
@@ -279,6 +280,9 @@ fn resolve_and_format_generic_part(type_name: &str, short_mode: bool) -> String 
 /// Namer is used to assign names to types.
 pub trait Namer: Sync + Send + 'static {
     /// Assign name to type.
+    ///
+    /// The pair `(type_id, type_name)` identifies the owner. Erased endpoint
+    /// wrappers can share a type ID while supplying distinct concrete names.
     fn assign_name(&self, type_id: TypeId, type_name: &'static str, rule: NameRule) -> String;
 }
 
@@ -330,62 +334,43 @@ fn component_key(value: &str) -> String {
 
 impl Namer for FlexNamer {
     fn assign_name(&self, type_id: TypeId, type_name: &'static str, rule: NameRule) -> String {
-        let name = match rule {
+        // Resolving generic names reads the registry. Do this before taking the
+        // allocation lock, so nested schemas and custom namers can re-enter.
+        let mut base = match rule {
             NameRule::Auto => {
-                // First resolve any registered names in generic parameters
-                let resolved_type_name = resolve_generic_names(type_name);
-
-                let mut base = if self.short_mode {
+                let resolved = resolve_generic_names(type_name);
+                if self.short_mode {
                     let re = Regex::new(r"([^<>, ]*::)+").expect("Invalid regex");
-                    re.replace_all(&resolved_type_name, "").into_owned()
+                    re.replace_all(&resolved, "").into_owned()
                 } else {
-                    resolved_type_name.replace("::", ".")
-                };
-                if let Some((open, close)) = &self.generic_delimiter {
-                    base = base.replace('<', open).replace('>', close);
+                    resolved.replace("::", ".")
                 }
-                let base = component_key(&base);
-                let mut name = base.clone();
-                let mut count = 1;
-                while let Some(exist_id) = type_info_by_name(&name).map(|t| t.0) {
-                    if exist_id != type_id {
-                        count += 1;
-                        name = format!("{base}{count}");
-                    } else {
-                        break;
-                    }
-                }
-                name
             }
             NameRule::Force(force_name) => {
-                // Resolve registered names in generic parameters
-                let resolved_generic = resolve_and_format_generic_part(type_name, self.short_mode);
-
-                let mut base = if self.short_mode {
-                    // In short mode with Force, use the forced name + resolved generics
-                    format!("{force_name}{resolved_generic}")
-                } else {
-                    format!("{force_name}{resolved_generic}")
-                };
-                if let Some((open, close)) = &self.generic_delimiter {
-                    base = base.replace('<', open).replace('>', close);
-                }
-                let base = component_key(&base);
-                let mut name = base.clone();
-                let mut count = 1;
-                while let Some((exist_id, exist_name)) = type_info_by_name(&name) {
-                    if exist_id != type_id {
-                        count += 1;
-                        tracing::error!("Duplicate name for types: {}, {}", exist_name, type_name);
-                        name = format!("{base}{count}");
-                    } else {
-                        break;
-                    }
-                }
-                name
+                let generic = resolve_and_format_generic_part(type_name, self.short_mode);
+                format!("{force_name}{generic}")
             }
         };
-        set_name_type_info(name.clone(), type_id, type_name);
+        if let Some((open, close)) = &self.generic_delimiter {
+            base = base.replace('<', open).replace('>', close);
+        }
+        let base = component_key(&base);
+        let mut registry = NAME_TYPES.write();
+        // Erased endpoint wrappers can share a TypeId while passing distinct
+        // concrete endpoint names. Reuse only the complete owner identity.
+        if let Some((name, _)) = registry
+            .iter()
+            .find(|(_, (id, name))| *id == type_id && *name == type_name)
+        {
+            return name.clone();
+        }
+        let mut name = base.clone();
+        let mut count = 1;
+        while registry.contains_key(&name) {
+            count += 1;
+            name = format!("{base}{count}");
+        }
+        registry.insert(name.clone(), (type_id, type_name));
         name
     }
 }
@@ -393,6 +378,120 @@ impl Namer for FlexNamer {
 #[cfg(test)]
 mod tests {
     use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn erased_type_ids_keep_distinct_concrete_name_owners() {
+        use super::*;
+        reset_global_state();
+        let erased_id = TypeId::of::<()>();
+        let namer = FlexNamer::new();
+        let left = namer.assign_name(erased_id, "endpoint::Number", NameRule::Force("Shared"));
+        let right = namer.assign_name(erased_id, "endpoint::Text", NameRule::Force("Shared"));
+        assert_ne!(left, right);
+        assert_eq!(
+            type_info_by_name(&left),
+            Some((erased_id, "endpoint::Number"))
+        );
+        assert_eq!(
+            type_info_by_name(&right),
+            Some((erased_id, "endpoint::Text"))
+        );
+        assert_eq!(
+            namer.assign_name(erased_id, "endpoint::Number", NameRule::Force("Changed")),
+            left
+        );
+        assert_eq!(
+            namer.assign_name(erased_id, "endpoint::Text", NameRule::Auto),
+            right
+        );
+        // The generic convenience APIs also distinguish a real type from an
+        // erased identity registered under that same TypeId.
+        let unit = assign_name::<()>(NameRule::Auto);
+        assert_ne!(unit, left);
+        assert_ne!(unit, right);
+        assert_eq!(get_name::<()>(), unit);
+        assert_eq!(NAME_TYPES.read().len(), 3);
+        reset_global_state();
+    }
+
+    #[test]
+    #[serial]
+    fn concurrent_component_names_keep_distinct_type_owners() {
+        use std::sync::{Arc, Barrier, mpsc};
+
+        use super::*;
+        struct Left;
+        struct Right;
+        let barrier = Arc::new(Barrier::new(3));
+        let (tx, rx) = mpsc::channel();
+        std::thread::scope(|scope| {
+            for left in [true, false] {
+                let barrier = barrier.clone();
+                let tx = tx.clone();
+                scope.spawn(move || {
+                    for _ in 0..500 {
+                        barrier.wait();
+                        let name = if left {
+                            assign_name::<Left>(NameRule::Force("Shared"))
+                        } else {
+                            assign_name::<Right>(NameRule::Force("Shared"))
+                        };
+                        tx.send((
+                            name,
+                            if left {
+                                TypeId::of::<Left>()
+                            } else {
+                                TypeId::of::<Right>()
+                            },
+                        ))
+                        .unwrap();
+                    }
+                });
+            }
+            for _ in 0..500 {
+                reset_global_state();
+                barrier.wait();
+                let (left, left_id) = rx.recv().unwrap();
+                let (right, right_id) = rx.recv().unwrap();
+                assert_ne!(left, right);
+                assert_eq!(type_info_by_name(&left).unwrap().0, left_id);
+                assert_eq!(type_info_by_name(&right).unwrap().0, right_id);
+            }
+        });
+        reset_global_state();
+    }
+
+    #[test]
+    #[serial]
+    fn racing_rules_for_one_type_reuse_one_allocation() {
+        use super::*;
+        reset_global_state();
+        struct OneType;
+        let barrier = std::sync::Barrier::new(8);
+        let names = std::thread::scope(|scope| {
+            let tasks: Vec<_> = (0..8)
+                .map(|index| {
+                    let barrier = &barrier;
+                    scope.spawn(move || {
+                        barrier.wait();
+                        assign_name::<OneType>(NameRule::Force(if index % 2 == 0 {
+                            "First"
+                        } else {
+                            "Second"
+                        }))
+                    })
+                })
+                .collect();
+            tasks
+                .into_iter()
+                .map(|task| task.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        assert!(names.iter().all(|name| name == &names[0]));
+        assert_eq!(NAME_TYPES.read().len(), 1);
+        reset_global_state();
+    }
 
     #[test]
     #[serial]

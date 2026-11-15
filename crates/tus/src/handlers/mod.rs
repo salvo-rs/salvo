@@ -120,7 +120,7 @@ fn apply_cors_headers(req: &Request, opts: &TusOptions, headers: &mut HeaderMap)
         }
     }
     if opts.allowed_credentials || !opts.allowed_origins.is_empty() {
-        headers.insert("vary", HeaderValue::from_static("Origin"));
+        salvo_core::http::append_vary_header(headers, "Origin");
     }
     insert_joined_header(
         headers,

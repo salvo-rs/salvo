@@ -53,6 +53,7 @@ sse = [
 trailing-slash = ["dep:tracing"]
 timeout = ["tokio/macros"]
 websocket = [
+    "dep:base64",
     "dep:futures-util",
     "dep:hyper",
     "tokio",

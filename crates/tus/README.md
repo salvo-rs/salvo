@@ -232,3 +232,17 @@ storage/operational design; they are not implied by a successful PATCH response.
 - [API Documentation](https://docs.rs/salvo-tus)
 - [Example Projects](https://github.com/salvo-rs/salvo/tree/main/examples)
 - [TUS Protocol Specification](https://tus.io/protocols/resumable-upload)
+
+## Complete configuration
+
+Use `Tus::with_options(TusOptions { ..Default::default() })` or `options_mut()`
+before `into_router()` to configure every supported policy. Paths are normalized
+once for both mounting and generated URLs. Direct absolute URLs use the trusted
+connection scheme and HTTP authority; forwarded values apply only when explicitly
+trusted. Prefer a fixed canonical origin for public absolute URLs.
+
+`lock_drain_timeout` now bounds acquisition of read/write upload locks and returns
+503 when elapsed; `None` keeps an unbounded wait subject to request cancellation.
+It does not truncate an acquired streaming download's lock lifetime. The unused
+`post_receive_interval` field has been removed: there is no receive-progress
+notification API, and configuring that field never delivered notifications.

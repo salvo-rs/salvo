@@ -1,0 +1,59 @@
+{
+  "date": "2026-11-15",
+  "source_base": "e8128e21bd54ba737300f39754ab8160b607074a",
+  "scope": "examples workspace after SQLite dependency refresh, independent of other audit fixes",
+  "command": "cargo generate-lockfile --manifest-path examples/Cargo.toml; cargo audit --file examples/Cargo.lock --json",
+  "lockfile_sha256": "aba33265329aa311392f768eb36e75d751cc7cbb52c4e0d2612d6894d5e74df6",
+  "database": {
+    "advisory-count": 1509,
+    "last-commit": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
+    "last-updated": "2026-11-15T10:59:21+01:00"
+  },
+  "vulnerabilities": [],
+  "remaining_warnings": {
+    "unmaintained": [
+      {
+        "advisory": "RUSTSEC-2025-0134",
+        "package": "rustls-pemfile",
+        "version": "2.2.0"
+      }
+    ],
+    "unsound": [
+      {
+        "advisory": "RUSTSEC-2026-0002",
+        "package": "lru",
+        "version": "0.14.0"
+      },
+      {
+        "advisory": "RUSTSEC-2026-0253",
+        "package": "lru",
+        "version": "0.14.0"
+      }
+    ]
+  },
+  "resolved_versions": [
+    {
+      "name": "libsqlite3-sys",
+      "version": "0.39.1"
+    },
+    {
+      "name": "sea-orm",
+      "version": "2.0.4"
+    },
+    {
+      "name": "sqlx",
+      "version": "0.9.0"
+    }
+  ],
+  "vendored_sqlx_sqlite": {
+    "version": "0.9.0",
+    "source_commit": "003b698e99e024f3621b8043a2426fde5b741171",
+    "production_rust_sources_unchanged": true,
+    "manifest_change": "libsqlite3-sys >=0.30.1,<0.38 -> 0.39"
+  },
+  "validation": [
+    "All targets checked for PostgreSQL SQLx, SQLite SeaORM, PostgreSQL SeaORM and migration examples.",
+    "In-memory SQLite version >=3.54.0, migration and insert/update/read/delete smoke test passed."
+  ],
+  "new_advisory_exceptions": []
+}
