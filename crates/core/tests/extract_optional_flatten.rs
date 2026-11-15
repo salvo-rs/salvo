@@ -94,3 +94,64 @@ async fn nested_flatten_metadata_does_not_make_an_absent_child_present() {
         7
     );
 }
+
+#[derive(Debug, Deserialize, salvo_core::macros::Extractible)]
+#[salvo(extract(default_source(from = "header")))]
+struct HeaderChild {
+    #[serde(rename = "x-name")]
+    name: String,
+}
+
+#[derive(Debug, Deserialize, salvo_core::macros::Extractible)]
+struct OptionalHeader {
+    #[salvo(extract(flatten))]
+    child: Option<HeaderChild>,
+}
+
+#[derive(Debug, Deserialize, salvo_core::macros::Extractible)]
+struct NestedHeader {
+    #[salvo(extract(flatten))]
+    input: Option<OptionalHeader>,
+}
+
+#[tokio::test]
+async fn invalid_text_propagates_through_optional_and_recursive_flatten() {
+    let invalid = salvo_core::http::HeaderValue::from_bytes(&[0xff]).unwrap();
+    let mut req = TestClient::get("http://localhost/")
+        .add_header("x-name", invalid.clone(), true)
+        .build();
+    assert!(
+        OptionalHeader::extract(&mut req, &mut Depot::new())
+            .await
+            .is_err()
+    );
+    let mut req = TestClient::get("http://localhost/")
+        .add_header("x-name", invalid, true)
+        .build();
+    assert!(
+        NestedHeader::extract(&mut req, &mut Depot::new())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn optional_header_children_distinguish_absent_empty_and_text() {
+    let mut req = TestClient::get("http://localhost/").build();
+    assert!(
+        NestedHeader::extract(&mut req, &mut Depot::new())
+            .await
+            .unwrap()
+            .input
+            .is_none()
+    );
+    for text in ["", "hello"] {
+        let mut req = TestClient::get("http://localhost/")
+            .add_header("x-name", text, true)
+            .build();
+        let value = NestedHeader::extract(&mut req, &mut Depot::new())
+            .await
+            .unwrap();
+        assert_eq!(value.input.unwrap().child.unwrap().name, text);
+    }
+}
