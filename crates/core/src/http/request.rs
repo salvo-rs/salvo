@@ -42,21 +42,9 @@ fn cookies_from_headers(headers: &HeaderMap) -> CookieJar {
     for header in headers.get_all(http::header::COOKIE) {
         if let Ok(header) = header.to_str() {
             for pair in header.split(';').map(str::trim) {
-                let Ok(mut cookie) = Cookie::parse(pair).map(Cookie::into_owned) else {
+                let Some(cookie) = crate::http::parse_cookie_with_raw_name(pair) else {
                     continue;
                 };
-                // Cookie names are wire identifiers, including the browser-enforced
-                // prefixes. Decode values for compatibility with encoded cookies,
-                // but never turn an encoded name into another cookie's identity.
-                if cookie.value().contains('%') {
-                    let Ok(value) = percent_encoding::percent_decode_str(cookie.value())
-                        .decode_utf8()
-                        .map(|value| value.into_owned())
-                    else {
-                        continue;
-                    };
-                    cookie.set_value(value);
-                }
                 cookies.add_original(cookie);
             }
         }
@@ -1085,6 +1073,8 @@ impl Request {
             &mut self.cookies
         }
         /// Get `Cookie` from cookies.
+        /// Names match the original wire identifier without percent-decoding;
+        /// values retain percent-decoding for compatibility.
         #[inline]
         pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
         where
