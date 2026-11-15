@@ -318,7 +318,7 @@ mod tests {
                 }
                 fn __macro_gen_oapi_endpoint_creator_hello() -> salvo::oapi::Endpoint {
                     let mut components = salvo::oapi::Components::new();
-                    let status_codes: &[salvo::http::StatusCode] = &[];
+                    let status_codes: &[salvo::http::StatusCode] = &{ [] };
                     let mut operation = salvo::oapi::Operation::new();
                     if operation.operation_id.is_none() {
                         operation.operation_id = Some(salvo::oapi::naming::assign_name::<hello>(salvo::oapi::naming::NameRule::Auto));
