@@ -5,7 +5,7 @@ use syn::spanned::Spanned;
 use syn::{Expr, Ident, ImplItem, Item, Lit, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
-use crate::shared::cfg_attributes;
+use crate::shared::{binding_scope, cfg_attributes, fresh_binding, reserved_identifiers};
 use crate::{
     Array, DiagLevel, DiagResult, Diagnostic, InputType, Operation, omit_type_path_lifetimes,
     parse_input_type, unwrapped_type,
@@ -199,6 +199,7 @@ fn metadata(
 pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<TokenStream> {
     let salvo = crate::salvo_crate();
     let oapi = crate::oapi_crate();
+    let reserved = reserved_identifiers(input.to_token_stream());
     match input {
         Item::Fn(mut item_fn) => {
             let attrs = item_fn
@@ -251,7 +252,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 None
             };
 
-            let (hfn, modifiers) = handle_fn(&salvo, &oapi, sig)?;
+            let (hfn, modifiers) = handle_fn(&salvo, &oapi, sig, &reserved)?;
             let meta = metadata(
                 &salvo,
                 &oapi,
@@ -261,17 +262,17 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 modifiers,
                 &[],
             )?;
-            let implementations = parameter_binding_scope(
-                sig,
+            let implementation = binding_scope(
+                &hfn,
+                &reserved,
                 quote! {
-                    #inherent
                     #allow_deprecated
                     #[#salvo::async_trait]
-                    impl #salvo::Handler for #name {
-                        #hfn
-                    }
+                    impl #salvo::Handler for #name { #hfn }
                 },
             );
+            let implementations =
+                parameter_binding_scope(sig, quote! { #inherent #implementation });
             Ok(quote! { #sdef #implementations #meta })
         }
         Item::Impl(item_impl) => {
@@ -323,7 +324,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             let mut implementations = Vec::new();
             for method in methods {
                 let cfg = cfg_attributes(&method.attrs)?;
-                let (hfn, modifiers) = match handle_fn(&salvo, &oapi, &method.sig) {
+                let (hfn, modifiers) = match handle_fn(&salvo, &oapi, &method.sig, &reserved) {
                     Ok(result) => result,
                     Err(error) if !cfg.is_empty() => {
                         let error = error.into_compile_error();
@@ -341,12 +342,15 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                     modifiers,
                     &cfg,
                 )?;
-                implementations.push(quote! {
-                    #(#cfg)*
-                    #[#salvo::async_trait]
-                    impl #impl_generics #salvo::Handler for #ty #where_clause { #hfn }
-                    #meta
-                });
+                let implementation = binding_scope(
+                    &hfn,
+                    &reserved,
+                    quote! {
+                        #[#salvo::async_trait]
+                        impl #impl_generics #salvo::Handler for #ty #where_clause { #hfn }
+                    },
+                );
+                implementations.push(quote! { #(#cfg)* #implementation #meta });
             }
             Ok(quote! { #item_impl #(#implementations)* })
         }
@@ -378,24 +382,34 @@ fn handle_fn(
     salvo: &syn::Path,
     oapi: &syn::Path,
     sig: &Signature,
+    reserved: &::std::collections::HashSet<String>,
 ) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
+    let mut reserved = reserved.clone();
     let name = &sig.ident;
+    let __macro_gen_ctrl = fresh_binding("__macro_gen_ctrl", &mut reserved);
+    let __macro_gen_data = fresh_binding("__macro_gen_data", &mut reserved);
+    let __macro_gen_depot = fresh_binding("__macro_gen_depot", &mut reserved);
+    let __macro_gen_err = fresh_binding("__macro_gen_err", &mut reserved);
+    let __macro_gen_req = fresh_binding("__macro_gen_req", &mut reserved);
+    let __macro_gen_res = fresh_binding("__macro_gen_res", &mut reserved);
+    let __macro_gen_status_code = fresh_binding("__macro_gen_status_code", &mut reserved);
+
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
     let mut modifiers = Vec::new();
-    for input in &sig.inputs {
+    for (input_index, input) in sig.inputs.iter().enumerate() {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
-                call_args.push(Ident::new("__macro_gen_req", Span::call_site()));
+                call_args.push(__macro_gen_req.clone());
             }
             InputType::Depot(_pat) => {
-                call_args.push(Ident::new("__macro_gen_depot", Span::call_site()));
+                call_args.push(__macro_gen_depot.clone());
             }
             InputType::Response(_pat) => {
-                call_args.push(Ident::new("__macro_gen_res", Span::call_site()));
+                call_args.push(__macro_gen_res.clone());
             }
             InputType::FlowCtrl(_pat) => {
-                call_args.push(Ident::new("__macro_gen_ctrl", Span::call_site()));
+                call_args.push(__macro_gen_ctrl.clone());
             }
             InputType::Unknown => {
                 return Err(syn::Error::new_spanned(
@@ -405,22 +419,23 @@ fn handle_fn(
             }
             InputType::NoReference(pat) => {
                 if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, unwrapped_type(&pat.ty)) {
-                    call_args.push(ident.ident.clone());
+                    let id =
+                        fresh_binding(&format!("__macro_gen_arg_{input_index}"), &mut reserved);
+                    call_args.push(id.clone());
                     let ty = omit_type_path_lifetimes(ty);
-                    let id = ident.ident.clone();
-                    let idv = id.unraw().to_string();
+                    let idv = ident.ident.unraw().to_string();
                     let idv = idv.trim_start_matches('_');
                     extract_ts.push(quote!{
-                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, #idv).await {
-                            Ok(__macro_gen_data) => {
-                                __macro_gen_data
+                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(#__macro_gen_req, #__macro_gen_depot, #idv).await {
+                            Ok(#__macro_gen_data) => {
+                                #__macro_gen_data
                             },
-                            Err(__macro_gen_err) => {
-                                #salvo::Writer::write(__macro_gen_err, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                            Err(#__macro_gen_err) => {
+                                #salvo::Writer::write(#__macro_gen_err, #__macro_gen_req, #__macro_gen_depot, #__macro_gen_res).await;
                                 // If status code is not set or is not error, set it to 400.
-                                let __macro_gen_status_code = __macro_gen_res.status_code.unwrap_or_default();
-                                if !__macro_gen_status_code.is_client_error() && !__macro_gen_status_code.is_server_error() {
-                                    __macro_gen_res.status_code(#salvo::http::StatusCode::BAD_REQUEST);
+                                let #__macro_gen_status_code = #__macro_gen_res.status_code.unwrap_or_default();
+                                if !#__macro_gen_status_code.is_client_error() && !#__macro_gen_status_code.is_server_error() {
+                                    #__macro_gen_res.status_code(#salvo::http::StatusCode::BAD_REQUEST);
                                 }
                                 return;
                             }
@@ -443,14 +458,14 @@ fn handle_fn(
         ReturnType::Default => {
             if sig.asyncness.is_none() {
                 quote! {
-                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*)
                     }
                 }
             } else {
                 quote! {
-                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*).await
                     }
@@ -473,16 +488,16 @@ fn handle_fn(
             }
             if sig.asyncness.is_none() {
                 quote! {
-                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
-                        #salvo::Writer::write(Self::#name(#(#call_args),*), __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                        #salvo::Writer::write(Self::#name(#(#call_args),*), #__macro_gen_req, #__macro_gen_depot, #__macro_gen_res).await;
                     }
                 }
             } else {
                 quote! {
-                    async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, #__macro_gen_req: &mut #salvo::Request, #__macro_gen_depot: &mut #salvo::Depot, #__macro_gen_res: &mut #salvo::Response, #__macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
-                        #salvo::Writer::write(Self::#name(#(#call_args),*).await, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                        #salvo::Writer::write(Self::#name(#(#call_args),*).await, #__macro_gen_req, #__macro_gen_depot, #__macro_gen_res).await;
                     }
                 }
             }
@@ -503,10 +518,10 @@ mod tests {
         let salvo: syn::Path = syn::parse_quote!(salvo);
         let oapi: syn::Path = syn::parse_quote!(salvo_oapi);
         let sig: Signature = parse_str("fn hello(name: String)").unwrap();
-        let (hfn, modifiers) = handle_fn(&salvo, &oapi, &sig).unwrap();
+        let (hfn, modifiers) = handle_fn(&salvo, &oapi, &sig, &Default::default()).unwrap();
         let expected_hfn = quote! {
             async fn handle(&self, __macro_gen_req: &mut salvo::Request, __macro_gen_depot: &mut salvo::Depot, __macro_gen_res: &mut salvo::Response, __macro_gen_ctrl: &mut salvo::FlowCtrl) {
-                let name: String = match <String as salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, "name").await {
+                let __macro_gen_arg_0: String = match <String as salvo::Extractible>::extract_with_arg(__macro_gen_req, __macro_gen_depot, "name").await {
                     Ok(__macro_gen_data) => {
                         __macro_gen_data
                     },
@@ -520,7 +535,7 @@ mod tests {
                         return;
                     }
                 };
-                Self::hello(name)
+                Self::hello(__macro_gen_arg_0)
             }
         };
         assert_eq!(hfn.to_string(), expected_hfn.to_string());

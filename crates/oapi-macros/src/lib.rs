@@ -308,7 +308,12 @@ mod tests {
                         {res.render_plain_text("Hello World");}
                     }
                 }
-                #[::salvo::async_trait]
+                const _: () = {
+                    #[allow(dead_code, non_snake_case)] fn __macro_gen_ctrl() {}
+                    #[allow(dead_code, non_snake_case)] fn __macro_gen_depot() {}
+                    #[allow(dead_code, non_snake_case)] fn __macro_gen_req() {}
+                    #[allow(dead_code, non_snake_case)] fn __macro_gen_res() {}
+#[::salvo::async_trait]
                 impl ::salvo::Handler for hello {
                     async fn handle(
                         &self,
@@ -320,6 +325,7 @@ mod tests {
                         Self::hello().await
                     }
                 }
+                };
                 fn __macro_gen_oapi_endpoint_type_id_hello() -> ::std::any::TypeId {
                     ::std::any::TypeId::of::<hello>()
                 }

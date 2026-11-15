@@ -267,3 +267,59 @@ mod cfg_attribute_tests {
         );
     }
 }
+
+/// Allocate local bindings outside every identifier supplied by the caller.
+/// Mixed-site spans protect lexical bindings; checking the input also avoids
+/// constants and unit constructors, which cannot be shadowed by a pattern.
+pub(crate) fn fresh_binding(
+    base: &str,
+    reserved: &mut ::std::collections::HashSet<String>,
+) -> Ident {
+    let mut name = base.to_owned();
+    let mut suffix = 0;
+    while !reserved.insert(name.clone()) {
+        suffix += 1;
+        name = format!("{base}_{suffix}");
+    }
+    Ident::new(&name, Span::mixed_site())
+}
+
+pub(crate) fn reserved_identifiers(
+    tokens: proc_macro2::TokenStream,
+) -> ::std::collections::HashSet<String> {
+    fn collect(tokens: proc_macro2::TokenStream, names: &mut ::std::collections::HashSet<String>) {
+        for token in tokens {
+            match token {
+                proc_macro2::TokenTree::Ident(ident) => {
+                    names.insert(ident.to_string().trim_start_matches("r#").to_owned());
+                }
+                proc_macro2::TokenTree::Group(group) => collect(group.stream(), names),
+                _ => {}
+            }
+        }
+    }
+    let mut names = ::std::collections::HashSet::new();
+    collect(tokens, &mut names);
+    names
+}
+
+/// Functions shadow same-named constant constructors in the value namespace,
+/// while still allowing the generated method's local variables to bind.
+pub(crate) fn binding_scope(
+    generated: &proc_macro2::TokenStream,
+    reserved: &::std::collections::HashSet<String>,
+    implementation: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    let names = reserved_identifiers(generated.clone())
+        .into_iter()
+        .filter(|name| name.starts_with("__macro_gen_") && !reserved.contains(name))
+        .collect::<::std::collections::BTreeSet<_>>()
+        .into_iter()
+        .map(|name| Ident::new(&name, Span::mixed_site()));
+    quote::quote! {
+        const _: () = {
+            #(#[allow(dead_code, non_snake_case)] fn #names() {})*
+            #implementation
+        };
+    }
+}
