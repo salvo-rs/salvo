@@ -66,7 +66,7 @@ pub(crate) struct ComponentSchema {
 
 impl ComponentSchema {
     pub(crate) fn new(schema_props: ComponentSchemaProps) -> DiagResult<Self> {
-        Self::new_inner(schema_props, true)
+        Self::new_inner(schema_props, true, None)
     }
 
     /// Create a `ComponentSchema` for use in parameter contexts.
@@ -74,8 +74,15 @@ impl ComponentSchema {
     /// When used for parameters, `Option<T>` means the parameter is optional (not required),
     /// NOT that the parameter value is nullable. The `required` status is handled separately
     /// by the parameter derive code.
-    pub(crate) fn for_params(schema_props: ComponentSchemaProps) -> DiagResult<Self> {
-        Self::new_inner(schema_props, false)
+    pub(crate) fn for_params(
+        schema_props: ComponentSchemaProps,
+        ty: &syn::Type,
+    ) -> DiagResult<Self> {
+        let force_inline = schema_props
+            .features
+            .as_ref()
+            .is_some_and(|features| features.is_inline());
+        Self::new_inner(schema_props, false, force_inline.then_some(ty))
     }
 
     fn new_inner(
@@ -88,6 +95,7 @@ impl ComponentSchema {
             compose_context,
         }: ComponentSchemaProps,
         option_is_nullable: bool,
+        inline_type: Option<&syn::Type>,
     ) -> DiagResult<Self> {
         let mut tokens = TokenStream::new();
         let mut features = features.unwrap_or_default();
@@ -102,6 +110,7 @@ impl ComponentSchema {
                 description,
                 deprecated_stream,
                 compose_context,
+                inline_type,
             )?,
             Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => {
                 Self::vec_to_tokens(
@@ -112,6 +121,7 @@ impl ComponentSchema {
                     description,
                     deprecated_stream,
                     compose_context,
+                    inline_type,
                 )?
             }
             #[cfg(feature = "smallvec")]
@@ -123,6 +133,7 @@ impl ComponentSchema {
                 description,
                 deprecated_stream,
                 compose_context,
+                inline_type,
             )?,
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
@@ -151,6 +162,7 @@ impl ComponentSchema {
                         compose_context,
                     },
                     option_is_nullable,
+                    inline_type.and_then(|ty| inline_child_type(ty, 0)),
                 )?
                 .to_tokens(&mut tokens);
             }
@@ -177,6 +189,7 @@ impl ComponentSchema {
                         compose_context,
                     },
                     option_is_nullable,
+                    inline_type.and_then(|ty| inline_child_type(ty, 0)),
                 )?
                 .to_tokens(&mut tokens);
             }
@@ -188,6 +201,7 @@ impl ComponentSchema {
                 description,
                 deprecated_stream,
                 compose_context,
+                inline_type,
             )?,
         }
 
@@ -225,6 +239,7 @@ impl ComponentSchema {
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
         compose_context: Option<&ComposeContext>,
+        inline_type: Option<&syn::Type>,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
@@ -245,14 +260,18 @@ impl ComponentSchema {
             .expect("ComponentSchema Map type should have 2 children, getting first");
         let mut property_name_features = features.clone();
         property_name_features.push(Feature::Inline(Inline(true)));
-        let property_names_schema = Self::new(ComponentSchemaProps {
-            type_tree: key_type,
-            features: Some(property_name_features),
-            description: None,
-            deprecated: None,
-            object_name,
-            compose_context,
-        })?
+        let property_names_schema = Self::new_inner(
+            ComponentSchemaProps {
+                type_tree: key_type,
+                features: Some(property_name_features),
+                description: None,
+                deprecated: None,
+                object_name,
+                compose_context,
+            },
+            true,
+            inline_type.and_then(|ty| inline_child_type(ty, 0)),
+        )?
         .to_token_stream();
 
         let additional_properties =
@@ -263,16 +282,20 @@ impl ComponentSchema {
                 // additionalProperties denoting the type.
                 // Maps have 2 child schemas and we are interested in the second one of them
                 // which is used to determine the additional properties.
-                let schema_property = Self::new(ComponentSchemaProps {
-                    type_tree: children
-                        .get(1)
-                        .expect("ComponentSchema Map type should have 2 children"),
-                    features: Some(features),
-                    description: None,
-                    deprecated: None,
-                    object_name,
-                    compose_context,
-                })?
+                let schema_property = Self::new_inner(
+                    ComponentSchemaProps {
+                        type_tree: children
+                            .get(1)
+                            .expect("ComponentSchema Map type should have 2 children"),
+                        features: Some(features),
+                        description: None,
+                        deprecated: None,
+                        object_name,
+                        compose_context,
+                    },
+                    true,
+                    inline_type.and_then(|ty| inline_child_type(ty, 1)),
+                )?
                 .to_token_stream();
 
                 Some(quote! { .additional_properties(#schema_property) })
@@ -304,6 +327,7 @@ impl ComponentSchema {
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
         compose_context: Option<&ComposeContext>,
+        inline_type: Option<&syn::Type>,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let examples: Vec<_> = features
@@ -330,14 +354,18 @@ impl ComponentSchema {
 
         let unique = matches!(type_tree.generic_type, Some(GenericType::Set));
 
-        let component_schema = Self::new(ComponentSchemaProps {
-            type_tree: child,
-            features: Some(features),
-            description: None,
-            deprecated: None,
-            object_name,
-            compose_context,
-        })?
+        let component_schema = Self::new_inner(
+            ComponentSchemaProps {
+                type_tree: child,
+                features: Some(features),
+                description: None,
+                deprecated: None,
+                object_name,
+                compose_context,
+            },
+            true,
+            inline_type.and_then(|ty| inline_child_type(ty, 0)),
+        )?
         .to_token_stream();
 
         let unique = match unique {
@@ -388,6 +416,10 @@ impl ComponentSchema {
         for example in examples {
             example.try_to_tokens(tokens)?;
         }
+        if let Some(syn::Type::Array(array)) = inline_type.map(unwrapped_type) {
+            let len = &array.len;
+            tokens.extend(quote! { .min_items(#len).max_items(#len) });
+        }
         if let Some(xml) = xml {
             xml.try_to_tokens(tokens)?;
         }
@@ -402,6 +434,7 @@ impl ComponentSchema {
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
         compose_context: Option<&ComposeContext>,
+        inline_type: Option<&syn::Type>,
     ) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
         let nullable_feat: Option<Nullable> =
@@ -571,17 +604,15 @@ impl ComponentSchema {
                         };
                         schema.to_tokens(tokens);
                     } else {
-                        // Only inline primitive types (String, i32, bool, etc.) here.
-                        // Non-primitive types fall through to the `$ref` branch below to
-                        // avoid duplicating user-defined schemas. User-explicit
-                        // `inline(...)` syntax bypasses `ComponentSchema` entirely (see
-                        // [`build_inline_compose_block`]), so this override does not
-                        // affect those cases.
+                        // Parameter contexts preserve explicit inlining, including
+                        // non-primitive generic arguments. Other schema contexts
+                        // keep their existing component-reference behavior.
                         let schema_type = SchemaType {
                             path: type_path,
                             nullable,
                         };
-                        let is_inline = is_inline && schema_type.is_primitive();
+                        let is_inline =
+                            is_inline && (inline_type.is_some() || schema_type.is_primitive());
                         if is_inline {
                             let default = pop_feature!(features => Feature::Default(_))
                                 .map(|feature| feature.try_to_token_stream())
@@ -592,16 +623,21 @@ impl ComponentSchema {
                             let description_tokens = description_stream.to_token_stream();
                             let has_description = !description_tokens.is_empty();
 
+                            let inline_schema = if let Some(ty) = inline_type {
+                                build_inline_compose_block(ty, &oapi)
+                            } else {
+                                quote! { <#type_path as #oapi::oapi::ToSchema>::to_schema(components) }
+                            };
                             let schema = if default.is_some() || nullable {
                                 quote_spanned! {type_path.span()=>
                                     #oapi::oapi::schema::OneOf::new()
                                         #nullable_item
-                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
+                                        .item(#inline_schema)
                                     #default
                                 }
                             } else {
                                 quote_spanned! {type_path.span() =>
-                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
+                                    #inline_schema
                                 }
                             };
 
@@ -678,26 +714,31 @@ impl ComponentSchema {
                     .map(|children| {
                         children
                             .iter()
-                            .map(|child| {
+                            .enumerate()
+                            .map(|(index, child)| {
                                 let features = if child.is_option() {
                                     Some(vec![Feature::Nullable(Nullable::new())])
                                 } else {
                                     None
                                 };
 
-                                Self::new(ComponentSchemaProps {
+                                let mut features = features.unwrap_or_default();
+                                if inline_type.is_some() { features.push(Feature::Inline(Inline(true))); }
+                                Self::new_inner(ComponentSchemaProps {
                                     type_tree: child,
-                                    features,
+                                    features: Some(features),
                                     description: None,
                                     deprecated: None,
                                     object_name,
                                     compose_context,
-                                })
+                                }, true, inline_type.and_then(|ty| inline_child_type(ty, index)))
                             })
                             .collect::<DiagResult<Vec<_>>>()
                     })
                     .transpose()?
                     .map(|children| {
+                        let len = children.len();
+                        let fixed_len = inline_type.map(|_| quote! { .min_items(#len).max_items(#len) });
                         let prefix_items = children.into_iter().collect::<Vec<_>>();
                         let nullable_schema_type =
                             Self::get_schema_type_override(nullable_feat, SchemaTypeInner::Array);
@@ -707,12 +748,19 @@ impl ComponentSchema {
                                 .prefix_items([#(
                                     Into::<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>::into(#prefix_items)
                                 ),*])
+                                #fixed_len
                                 #nullable_schema_type
                                 #description_stream
                                 #deprecated_stream
                         }
                     })
-                    .unwrap_or_else(|| quote!(#oapi::oapi::schema::empty()))
+                    .unwrap_or_else(|| {
+                        if inline_type.is_some() {
+                            quote!(#oapi::oapi::Object::new().schema_type(#oapi::oapi::BasicType::Null))
+                        } else {
+                            quote!(#oapi::oapi::schema::empty())
+                        }
+                    })
                     .to_tokens(tokens);
                 tokens.extend(features.try_to_token_stream()?);
             }
@@ -735,6 +783,42 @@ impl ToTokens for ComponentSchema {
 fn p_is_single_segment(path: Option<&std::borrow::Cow<'_, syn::Path>>) -> bool {
     path.map(|p| p.segments.len() == 1 && p.leading_colon.is_none())
         .unwrap_or(false)
+}
+
+// Keep structural syntax alongside TypeTree while recursively generating
+// explicitly inline parameter schemas and their validation features.
+fn unwrapped_type(ty: &syn::Type) -> &syn::Type {
+    match ty {
+        syn::Type::Reference(reference) => unwrapped_type(&reference.elem),
+        syn::Type::Paren(paren) => unwrapped_type(&paren.elem),
+        syn::Type::Group(group) => unwrapped_type(&group.elem),
+        _ => ty,
+    }
+}
+
+fn inline_child_type(ty: &syn::Type, index: usize) -> Option<&syn::Type> {
+    match unwrapped_type(ty) {
+        syn::Type::Array(array) => (index == 0).then_some(&*array.elem),
+        syn::Type::Slice(slice) => (index == 0).then_some(&*slice.elem),
+        syn::Type::Tuple(tuple) => tuple.elems.iter().nth(index),
+        syn::Type::Path(path) => {
+            path.path
+                .segments
+                .last()
+                .and_then(|segment| match &segment.arguments {
+                    syn::PathArguments::AngleBracketed(args) => args
+                        .args
+                        .iter()
+                        .filter_map(|arg| match arg {
+                            syn::GenericArgument::Type(ty) => Some(ty),
+                            _ => None,
+                        })
+                        .nth(index),
+                    _ => None,
+                })
+        }
+        _ => None,
+    }
 }
 
 /// Compose an explicitly inline Rust type without losing its structural syntax.
