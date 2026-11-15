@@ -104,6 +104,7 @@ impl EndpointOutRegister for StatusCode {
             Self::CONTINUE,
             Self::SWITCHING_PROTOCOLS,
             Self::PROCESSING,
+            Self::EARLY_HINTS,
             Self::OK,
             Self::CREATED,
             Self::ACCEPTED,
@@ -122,6 +123,7 @@ impl EndpointOutRegister for StatusCode {
             Self::USE_PROXY,
             Self::TEMPORARY_REDIRECT,
             Self::PERMANENT_REDIRECT,
+            Self::TOO_EARLY,
         ] {
             operation.responses.insert(
                 code.as_str(),
