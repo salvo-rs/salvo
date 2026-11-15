@@ -80,7 +80,7 @@ fn all_enum_representations_use_supplied_generic_schemas() {
         .unwrap();
     assert_eq!(variants[0]["type"], "integer");
     assert_eq!(
-        variants[1]["properties"]["value"]["oneOf"][1]["type"],
+        variants[1]["properties"]["value"]["anyOf"][1]["type"],
         "integer"
     );
 }

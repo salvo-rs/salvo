@@ -444,6 +444,13 @@ impl ComponentSchema {
         let nullable = nullable_feat
             .map(|nullable| nullable.value())
             .unwrap_or_default();
+        // Nullable children can already accept null (for example nested Option).
+        // Such alternatives form an inclusive union, not an exclusive oneOf.
+        let union = if nullable {
+            quote! { #oapi::oapi::schema::AnyOf }
+        } else {
+            quote! { #oapi::oapi::schema::OneOf }
+        };
 
         // In compose mode, check if this type is a generic param that should
         // be looked up from the compose generics vector.
@@ -481,7 +488,7 @@ impl ComponentSchema {
 
             let schema = if default.is_some() || nullable {
                 quote! {
-                    #oapi::oapi::schema::OneOf::new()
+                    #union::new()
                         #nullable_item
                         .item(#schema)
                         #default
@@ -596,7 +603,7 @@ impl ComponentSchema {
 
                         let schema = if default.is_some() || nullable {
                             quote! {
-                                #oapi::oapi::schema::OneOf::new()
+                                #union::new()
                                     #nullable_item
                                     .item(#schema)
                                     #default
@@ -632,7 +639,7 @@ impl ComponentSchema {
                             };
                             let schema = if default.is_some() || nullable {
                                 quote_spanned! {type_path.span()=>
-                                    #oapi::oapi::schema::OneOf::new()
+                                    #union::new()
                                         #nullable_item
                                         .item(#inline_schema)
                                     #default
@@ -676,7 +683,7 @@ impl ComponentSchema {
                             // `description` of the ref. Should we consider supporting the summary?
                             let schema = if default.is_some() || nullable {
                                 let schema = quote! {
-                                    #oapi::oapi::schema::OneOf::new()
+                                    #union::new()
                                         #nullable_item
                                         .item(#schema)
                                         #default
