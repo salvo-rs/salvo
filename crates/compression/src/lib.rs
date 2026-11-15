@@ -67,6 +67,11 @@
 //!
 //! Small responses may not benefit from compression. Use `.min_length(bytes)`
 //! to skip compression for responses smaller than the specified size.
+//! This is an optimization, not permission to send an explicitly rejected
+//! identity representation. If identity is forbidden, eligible small bodies
+//! are encoded; when no acceptable representation can be supplied the response
+//! is `406 Not Acceptable`. Transformed digest fields are removed, including
+//! their trailer declarations, because they describe different bytes.
 //!
 //! Read more: <https://salvo.rs>
 
@@ -499,30 +504,62 @@ impl Compression {
     }
 }
 
-#[async_trait]
-impl Handler for Compression {
-    async fn handle(
-        &self,
-        req: &mut Request,
-        depot: &mut Depot,
-        res: &mut Response,
-        ctrl: &mut FlowCtrl,
-    ) {
-        ctrl.call_next(req, depot, res).await;
+impl Compression {
+    fn compress_response(&self, req: &Request, res: &mut Response, ceased: bool, finalized: bool) {
+        // Informational, 204 and 205 responses have no representation body to
+        // negotiate. In particular identity;q=0 must not turn them into 406.
+        if res.status_code.is_some_and(|status| {
+            status.is_informational()
+                || matches!(status, StatusCode::NO_CONTENT | StatusCode::RESET_CONTENT)
+        }) {
+            return;
+        }
+        // Even an identity response below the size threshold (or protected by
+        // no-transform/range) can become encoded or 406 when identity is rejected.
+        // Mark that dependency before any identity-preserving early return.
+        if !ceased
+            && !res.headers().contains_key(CONTENT_ENCODING)
+            && res.status_code != Some(StatusCode::NOT_MODIFIED)
+        {
+            append_vary_header(res.headers_mut(), "accept-encoding");
+        }
         // A range describes bytes of the selected representation. Re-encoding its
         // body would invalidate those offsets, including representation headers
         // synthesized for HEAD. Leave the body and headers together untouched.
-        if ctrl.is_ceased()
+        if ceased
             || no_transform(req.headers())
             || no_transform(res.headers())
             || res.headers().contains_key(CONTENT_ENCODING)
             || res.headers().contains_key(CONTENT_RANGE)
             || res.status_code == Some(StatusCode::PARTIAL_CONTENT)
         {
+            if !ceased
+                && !res.headers().contains_key(CONTENT_ENCODING)
+                && !matches!(
+                    res.status_code,
+                    Some(
+                        StatusCode::SWITCHING_PROTOCOLS
+                            | StatusCode::NO_CONTENT
+                            | StatusCode::NOT_MODIFIED
+                    )
+                )
+                && !identity_acceptable(req)
+            {
+                self.reject_encoding(res, finalized);
+            }
             return;
         }
 
         if let Some(StatusCode::SWITCHING_PROTOCOLS | StatusCode::NO_CONTENT) = res.status_code {
+            return;
+        }
+
+        let force_encoding = !identity_acceptable(req);
+        if force_encoding
+            && res.status_code != Some(StatusCode::NOT_MODIFIED)
+            && self.negotiate(req, res).is_none()
+        {
+            self.reject_encoding(res, finalized);
             return;
         }
 
@@ -535,8 +572,10 @@ impl Handler for Compression {
             } else {
                 self.negotiate_encoding(req)
             };
-            if encoding.is_some() && !self.content_length_is_below_minimum(res) {
+            if encoding.is_some() && (force_encoding || !self.content_length_is_below_minimum(res))
+            {
                 weaken_etag(res);
+                strip_digests(res.headers_mut());
             }
             append_vary_header(res.headers_mut(), "accept-encoding");
             return;
@@ -550,10 +589,10 @@ impl Handler for Compression {
                 if req.method() != Method::HEAD {
                     return;
                 }
-                if res.headers().typed_get::<ContentLength>().is_none() {
+                if !force_encoding && res.headers().typed_get::<ContentLength>().is_none() {
                     return;
                 }
-                if self.content_length_is_below_minimum(res) {
+                if !force_encoding && self.content_length_is_below_minimum(res) {
                     return;
                 }
                 if let Some((algo, _level)) = self.negotiate(req, res) {
@@ -563,7 +602,7 @@ impl Handler for Compression {
                 }
             }
             ResBody::Once(bytes) => {
-                if self.min_length > 0 && bytes.len() < self.min_length {
+                if !force_encoding && self.min_length > 0 && bytes.len() < self.min_length {
                     res.body(ResBody::Once(bytes));
                     return;
                 }
@@ -576,7 +615,7 @@ impl Handler for Compression {
                 }
             }
             ResBody::Chunks(chunks) => {
-                if self.min_length > 0 {
+                if !force_encoding && self.min_length > 0 {
                     let len: usize = chunks.iter().map(|c| c.len()).sum();
                     if len < self.min_length {
                         res.body(ResBody::Chunks(chunks));
@@ -592,7 +631,7 @@ impl Handler for Compression {
                 }
             }
             ResBody::Hyper(body) => {
-                if self.content_length_is_below_minimum(res) {
+                if !force_encoding && self.content_length_is_below_minimum(res) {
                     res.body(ResBody::Hyper(body));
                     return;
                 }
@@ -606,7 +645,7 @@ impl Handler for Compression {
             }
             ResBody::Stream(body) => {
                 let body = body.into_inner();
-                if self.content_length_is_below_minimum(res) {
+                if !force_encoding && self.content_length_is_below_minimum(res) {
                     res.body(ResBody::stream(body));
                     return;
                 }
@@ -619,7 +658,7 @@ impl Handler for Compression {
                 }
             }
             body @ (ResBody::Boxed(_) | ResBody::Channel(_)) => {
-                if self.content_length_is_below_minimum(res) {
+                if !force_encoding && self.content_length_is_below_minimum(res) {
                     res.body(body);
                     return;
                 }
@@ -637,7 +676,110 @@ impl Handler for Compression {
             }
         }
         res.headers_mut().remove(CONTENT_LENGTH);
+        strip_digests(res.headers_mut());
         weaken_etag(res);
+    }
+
+    fn defer_compression(&self, res: &mut Response) {
+        let compression = self.clone();
+        res.after_response_hook(move |req, res| {
+            // A catcher may deliberately leave an error bodyless. HEAD can also
+            // reach this stage without rendering an error representation.
+            if res.body.is_none() || res.body.is_error() {
+                return;
+            }
+            compression.compress_response(req, res, false, true);
+        });
+    }
+
+    fn reject_encoding(&self, res: &mut Response, finalized: bool) {
+        strip_digests(res.headers_mut());
+        res.render(salvo_core::http::StatusError::not_acceptable());
+        append_vary_header(res.headers_mut(), "accept-encoding");
+        if finalized {
+            // The catcher already ran. Do not recursively render another error
+            // page using the identity representation the client prohibited.
+            res.body(ResBody::None);
+            for name in [
+                CONTENT_LENGTH,
+                CONTENT_TYPE,
+                CONTENT_ENCODING,
+                CONTENT_RANGE,
+                ETAG,
+            ] {
+                res.headers_mut().remove(name);
+            }
+        } else {
+            self.defer_compression(res);
+        }
+    }
+}
+
+#[async_trait]
+impl Handler for Compression {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
+        ctrl.call_next(req, depot, res).await;
+        if !ctrl.is_ceased()
+            && (res.body.is_error()
+                || (res.body.is_none()
+                    && res.status_code.is_some_and(|status| {
+                        status.is_client_error() || status.is_server_error()
+                    })))
+        {
+            self.defer_compression(res);
+        } else {
+            self.compress_response(req, res, ctrl.is_ceased(), false);
+        }
+    }
+}
+
+fn identity_acceptable(req: &Request) -> bool {
+    let mut preferences = Vec::new();
+    for value in req.headers().get_all(ACCEPT_ENCODING) {
+        if let Ok(value) = value.to_str() {
+            preferences.extend(http::parse_accept_encoding_with_quality(value));
+        }
+    }
+    let quality = |name| {
+        preferences
+            .iter()
+            .filter(|(coding, _)| coding == name)
+            .map(|(_, quality)| *quality)
+            .max()
+    };
+    quality("identity").map_or(quality("*") != Some(0), |quality| quality > 0)
+}
+
+fn strip_digests(headers: &mut http::HeaderMap) {
+    const DIGESTS: [&str; 4] = ["content-digest", "repr-digest", "content-md5", "digest"];
+    for name in DIGESTS {
+        headers.remove(name);
+    }
+    let names: Vec<_> = headers
+        .get_all("trailer")
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .map(str::trim)
+        .filter(|name| {
+            !DIGESTS
+                .iter()
+                .any(|digest| name.eq_ignore_ascii_case(digest))
+        })
+        .filter(|name| !name.is_empty())
+        .collect();
+    let declaration = names.join(", ");
+    headers.remove("trailer");
+    if !declaration.is_empty() {
+        if let Ok(value) = HeaderValue::from_str(&declaration) {
+            headers.insert("trailer", value);
+        }
     }
 }
 
