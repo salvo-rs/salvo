@@ -764,7 +764,17 @@ impl ComponentSchema {
                             let description_tokens = description_stream.to_token_stream();
                             let has_description = !description_tokens.is_empty();
 
-                            let schema = if let Some(context) = compose_context
+                            let schema = if type_path.is_ident("Self") && compose_context.is_some()
+                            {
+                                let generics = &compose_context
+                                    .expect("checked compose context")
+                                    .generics_ident;
+                                quote! {{
+                                    let __salvo_self_arguments = #generics.iter().map(|schema| schema.clone()
+                                        .unwrap_or_else(|| #oapi::oapi::RefOr::from(true))).collect();
+                                    <Self as #oapi::oapi::ComposeSchema>::compose(components, __salvo_self_arguments)
+                                }}
+                            } else if let Some(context) = compose_context
                                 .filter(|context| contains_compose_parameter(type_tree, context))
                             {
                                 let children = type_path

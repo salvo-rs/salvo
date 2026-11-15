@@ -17,9 +17,13 @@ use crate::{
 ///
 /// [components]: https://spec.openapis.org/oas/latest.html#components-object
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Components {
+    // Construction state is owned by this document and is not an OpenAPI field.
+    #[serde(skip)]
+    pub(crate) composition: crate::schema::CompositionState,
+
     /// Map of reusable [OpenAPI Schema Object][schema]s.
     ///
     /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
@@ -98,6 +102,28 @@ pub struct Components {
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "PropMap::is_empty", flatten)]
     pub extensions: PropMap<String, serde_json::Value>,
+}
+
+impl Clone for Components {
+    fn clone(&self) -> Self {
+        Self {
+            // A clone is a separate document construction. Do not copy active
+            // recursion markers or definitions depending on unfinished parents.
+            composition: Default::default(),
+            schemas: self.composition.clone_schemas(&self.schemas),
+            responses: self.responses.clone(),
+            parameters: self.parameters.clone(),
+            examples: self.examples.clone(),
+            request_bodies: self.request_bodies.clone(),
+            headers: self.headers.clone(),
+            security_schemes: self.security_schemes.clone(),
+            links: self.links.clone(),
+            callbacks: self.callbacks.clone(),
+            path_items: self.path_items.clone(),
+            media_types: self.media_types.clone(),
+            extensions: self.extensions.clone(),
+        }
+    }
 }
 
 impl Components {

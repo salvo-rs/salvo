@@ -746,6 +746,222 @@ pub fn flatten_all_of_schema(schema: AllOf, components: &crate::Components) -> A
     schema
 }
 
+#[derive(Debug, Default)]
+pub(crate) struct CompositionState {
+    active: Vec<ActiveComposition>,
+    completed: Vec<(CompositionKey, String)>,
+    provisional: Vec<String>,
+    transactions: usize,
+}
+
+impl CompositionState {
+    pub(crate) fn clone_schemas(&self, schemas: &Schemas) -> Schemas {
+        let mut schemas = schemas.clone();
+        if !self.provisional.is_empty() {
+            schemas.retain(|name, _| !self.provisional.contains(name));
+        }
+        schemas
+    }
+}
+
+// Construction caches do not participate in the document's value equality.
+impl PartialEq for CompositionState {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct CompositionKey {
+    declaration: std::any::TypeId,
+    owner: &'static str,
+    arguments: Vec<Option<serde_json::Value>>,
+}
+
+#[derive(Clone, Debug)]
+struct ActiveComposition {
+    key: CompositionKey,
+    reference: Option<String>,
+    checkpoint: usize,
+}
+
+/// Bound recursive generated composition to references owned by this document.
+#[doc(hidden)]
+pub fn compose_schema<T: ?Sized>(
+    components: &mut crate::Components,
+    declaration: std::any::TypeId,
+    generics: &[Option<RefOr<Schema>>],
+    build: impl FnOnce(&mut crate::Components) -> RefOr<Schema>,
+) -> RefOr<Schema> {
+    use std::hash::{Hash, Hasher};
+
+    let key = CompositionKey {
+        declaration,
+        owner: std::any::type_name::<T>(),
+        arguments: generics
+            .iter()
+            .map(|schema| {
+                schema
+                    .as_ref()
+                    .map(|schema| serde_json::to_value(schema).expect("schema serializes to JSON"))
+            })
+            .collect(),
+    };
+    let schemas = &components.schemas;
+    components
+        .composition
+        .completed
+        .retain(|(_, name)| match schemas.get(name) {
+            Some(RefOr::Ref(reference)) => reference
+                .ref_location
+                .strip_prefix("#/components/schemas/")
+                .is_none_or(|target| {
+                    schemas.contains_key(&target.replace("~1", "/").replace("~0", "~"))
+                }),
+            Some(_) => true,
+            None => false,
+        });
+    if let Some((_, name)) = components
+        .composition
+        .completed
+        .iter()
+        .find(|(entry, _)| entry == &key)
+    {
+        return components
+            .schemas
+            .get(name)
+            .expect("retained component exists")
+            .clone();
+    }
+    if let Some(index) = components
+        .composition
+        .active
+        .iter()
+        .position(|entry| entry.key == key)
+    {
+        let reference = if let Some(name) = &components.composition.active[index].reference {
+            name.clone()
+        } else {
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            key.declaration.hash(&mut hasher);
+            key.owner.hash(&mut hasher);
+            serde_json::to_string(&key.arguments)
+                .expect("schema serializes to JSON")
+                .hash(&mut hasher);
+            let base = format!(
+                "__salvo_compose_{}_{:016x}",
+                crate::naming::response_component_name::<T>(),
+                hasher.finish()
+            );
+            let mut name = base.clone();
+            let mut counter = 1;
+            while components.schemas.contains_key(&name)
+                || components
+                    .composition
+                    .active
+                    .iter()
+                    .any(|entry| entry.reference.as_deref() == Some(&name))
+            {
+                counter += 1;
+                name = format!("{base}_{counter}");
+            }
+            components
+                .schemas
+                .insert(name.clone(), Ref::from_schema_name(&name));
+            components.composition.provisional.push(name.clone());
+            components.composition.active[index].reference = Some(name.clone());
+            name
+        };
+        return Ref::from_schema_name(reference).into();
+    }
+    components.composition.active.push(ActiveComposition {
+        key: key.clone(),
+        reference: None,
+        checkpoint: components.composition.provisional.len(),
+    });
+    components.composition.transactions += 1;
+    // A caller may catch a schema_with panic and reuse the document. Remove the
+    // in-progress marker on unwind as well as on success, then preserve the panic.
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| build(components)));
+    let active = components
+        .composition
+        .active
+        .iter()
+        .rposition(|entry| entry.key == key)
+        .map(|index| components.composition.active.remove(index));
+    match result {
+        Ok(schema) => {
+            if let Some(name) = active.and_then(|entry| entry.reference) {
+                components.schemas.insert(name.clone(), schema.clone());
+                components.composition.completed.push((key, name));
+            }
+            components.composition.transactions -= 1;
+            if components.composition.transactions == 0 {
+                components.composition.provisional.clear();
+            }
+            schema
+        }
+        Err(error) => {
+            if let Some(entry) = active {
+                rollback_composition(components, entry.checkpoint);
+            }
+            components.composition.transactions =
+                components.composition.transactions.saturating_sub(1);
+            std::panic::resume_unwind(error)
+        }
+    }
+}
+
+fn rollback_composition(components: &mut crate::Components, checkpoint: usize) {
+    let removed = components.composition.provisional.split_off(checkpoint);
+    components.schemas.retain(|name, _| !removed.contains(name));
+    components
+        .composition
+        .completed
+        .retain(|(_, name)| !removed.contains(name));
+    for entry in &mut components.composition.active {
+        if entry
+            .reference
+            .as_ref()
+            .is_some_and(|name| removed.contains(name))
+        {
+            entry.reference = None;
+        }
+    }
+}
+
+/// Register a named schema transactionally, keeping its recursive placeholder local.
+#[doc(hidden)]
+pub fn register_schema(
+    components: &mut crate::Components,
+    name: String,
+    build: impl FnOnce(&mut crate::Components) -> RefOr<Schema>,
+) {
+    if components.schemas.contains_key(&name) {
+        return;
+    }
+    let checkpoint = components.composition.provisional.len();
+    components.composition.transactions += 1;
+    components
+        .schemas
+        .insert(name.clone(), Ref::from_schema_name(&name));
+    components.composition.provisional.push(name.clone());
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| build(components)));
+    components.composition.transactions = components.composition.transactions.saturating_sub(1);
+    match result {
+        Ok(schema) => {
+            components.schemas.insert(name, schema);
+            if components.composition.transactions == 0 {
+                components.composition.provisional.clear();
+            }
+        }
+        Err(error) => {
+            rollback_composition(components, checkpoint);
+            std::panic::resume_unwind(error)
+        }
+    }
+}
+
 /// Resolve generated generic overrides without guessing a type alias's order.
 #[doc(hidden)]
 pub fn resolve_compose_bindings(

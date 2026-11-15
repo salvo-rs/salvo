@@ -188,6 +188,12 @@ impl TryToTokens for ToSchema<'_> {
         let generic_type_registrations: TokenStream =
             bound::relevant_types(&effective_data, self.generics)
                 .iter()
+                .filter(|ty| {
+                    !self
+                        .generics
+                        .type_params()
+                        .any(|param| ty.qself.is_none() && ty.path.is_ident(&param.ident))
+                })
                 .map(|ty| {
                     quote! {
                         let _ = <#ty as #oapi::oapi::ToSchema>::to_schema(components);
@@ -196,15 +202,41 @@ impl TryToTokens for ToSchema<'_> {
                 .collect();
 
         // Generate ComposeSchema impl
+        let relevant = bound::relevant_types(&effective_data, self.generics);
+        let to_schema_arguments = self.generics.type_params().map(|param| {
+            let ident = &param.ident;
+            if relevant.iter().any(|ty| ty.qself.is_none() && ty.path.is_ident(ident)) {
+                quote!(::std::option::Option::Some(<#ident as #oapi::oapi::ToSchema>::to_schema(components)))
+            } else { quote!(::std::option::Option::None) }
+        }).collect::<Vec<_>>();
+        let normalize_generics = self.generics.type_params().enumerate().map(|(index, param)| {
+            let ident = &param.ident;
+            if relevant.iter().any(|ty| ty.qself.is_none() && ty.path.is_ident(ident)) { quote! {
+                if __compose_generics.len() <= #index {
+                    __compose_generics.resize_with(#index + 1, || ::std::option::Option::None);
+                }
+                if __compose_generics[#index].is_none() {
+                    __compose_generics[#index] = ::std::option::Option::Some(
+                        <#ident as #oapi::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new()));
+                }
+            }} else { quote! {
+                if __compose_generics.len() <= #index {
+                    __compose_generics.resize_with(#index + 1, || ::std::option::Option::None);
+                }
+                __compose_generics[#index] = ::std::option::Option::None;
+            }}
+        }).collect::<TokenStream>();
+        let declaration = quote!(<Self as #oapi::oapi::ComposeSchema>::__compose_declaration_id());
         let compose_body = quote! {
-            #compose_variant_tokens.into()
+            #normalize_generics
+            #oapi::oapi::schema::compose_schema::<Self>(components, #declaration, &__compose_generics, |components| {
+                #compose_variant_tokens.into()
+            })
         };
-        let prepare_generics = has_generics.then(|| {
-            quote! {
-                let __compose_generics = __compose_generics.into_iter()
-                    .map(::std::option::Option::Some).collect::<::std::vec::Vec<_>>();
-            }
-        });
+        let prepare_generics = quote! {
+            let mut __compose_generics = __compose_generics.into_iter()
+                .map(::std::option::Option::Some).collect::<::std::vec::Vec<_>>();
+        };
         let compose_with_bindings = has_generics.then(|| {
             let params = self.generics.type_params().map(|param| &param.ident);
             quote! {
@@ -214,7 +246,7 @@ impl TryToTokens for ToSchema<'_> {
                     source_path: &[&str],
                     arguments: ::std::vec::Vec<::std::option::Option<(&'static str, #oapi::oapi::RefOr<#oapi::oapi::schema::Schema>)>>,
                 ) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
-                    let __compose_generics = #oapi::oapi::schema::resolve_compose_bindings(
+                    let mut __compose_generics = #oapi::oapi::schema::resolve_compose_bindings(
                         ::std::concat!(::std::module_path!(), "::", ::std::stringify!(#ident)),
                         caller_module, source_path,
                         &[#(::std::any::type_name::<#params>()),*], arguments,
@@ -226,6 +258,10 @@ impl TryToTokens for ToSchema<'_> {
 
         tokens.extend(quote! {
             impl #compose_impl_generics #oapi::oapi::ComposeSchema for #ident #ty_generics #compose_where_clause {
+                fn __compose_declaration_id() -> ::std::any::TypeId {
+                    struct DeclarationMarker;
+                    ::std::any::TypeId::of::<DeclarationMarker>()
+                }
                 fn compose(
                     components: &mut #oapi::oapi::Components,
                     __compose_generics: ::std::vec::Vec<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>,
@@ -238,6 +274,15 @@ impl TryToTokens for ToSchema<'_> {
         });
 
         // Generate ToSchema impl
+        let to_schema_declaration = if name_rule.is_some() {
+            // Named registration already requires Self: 'static.
+            quote!(::std::any::TypeId::of::<Self>())
+        } else {
+            quote!({
+                struct DeclarationMarker;
+                ::std::any::TypeId::of::<DeclarationMarker>()
+            })
+        };
         let body = match name_rule {
             None => {
                 quote! {
@@ -261,9 +306,9 @@ impl TryToTokens for ToSchema<'_> {
                     #name_tokens
                     let ref_or = #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", name)));
                     if !components.schemas.contains_key(&name) {
-                        components.schemas.insert(name.clone(), ref_or.clone());
-                        let schema = #variant_tokens;
-                        components.schemas.insert(name, schema);
+                        #oapi::oapi::schema::register_schema(components, name, |components| {
+                            (#variant_tokens).into()
+                        });
                     }
                     ref_or
                 }
@@ -272,7 +317,9 @@ impl TryToTokens for ToSchema<'_> {
         tokens.extend(quote!{
             impl #impl_generics #oapi::oapi::ToSchema for #ident #ty_generics #where_clause {
                 fn to_schema(components: &mut #oapi::oapi::Components) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
-                    #body
+                    let __salvo_type_arguments = ::std::vec![#(#to_schema_arguments),*];
+                    #oapi::oapi::schema::compose_schema::<Self>(components, #to_schema_declaration,
+                        &__salvo_type_arguments, |components| { #body })
                 }
             }
         });

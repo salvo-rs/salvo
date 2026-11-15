@@ -177,6 +177,13 @@ pub trait ToSchema {
 /// }
 /// ```
 pub trait ComposeSchema {
+    /// Declaration identity used by generated recursive composition guards.
+    #[doc(hidden)]
+    fn __compose_declaration_id() -> std::any::TypeId {
+        struct ManualDeclaration;
+        std::any::TypeId::of::<ManualDeclaration>()
+    }
+
     /// Compose a schema using the provided generic parameter schemas.
     ///
     /// The `components` parameter allows registering nested schemas.
