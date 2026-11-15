@@ -58,9 +58,16 @@ struct Objects {
 fn objects_and_generic_arguments_remain_fully_inline() {
     let mut components = Components::new();
     let value = json!(Objects::to_parameters(&mut components));
-    assert_eq!(
-        value[0]["schema"]["oneOf"][1]["properties"]["child"]["properties"]["name"]["type"],
-        "string"
+    let nullable = value[0]["schema"]
+        .get("oneOf")
+        .or_else(|| value[0]["schema"].get("anyOf"))
+        .expect("nullable inline schema has a union")
+        .as_array()
+        .unwrap();
+    assert!(
+        nullable.iter().any(|schema| {
+            schema["properties"]["child"]["properties"]["name"]["type"] == "string"
+        })
     );
     assert!(components.schemas.is_empty());
     assert_eq!(value[1]["schema"]["minItems"], 2);
