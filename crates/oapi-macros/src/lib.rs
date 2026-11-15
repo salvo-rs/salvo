@@ -646,9 +646,35 @@ mod tests {
                         operation: &mut salvo::oapi::Operation,
                         _arg: &str
                     ) {
-                        for parameter in <Self as salvo::oapi::ToParameters>::to_parameters(components) {
-                            operation.parameters.insert(parameter);
-                        }
+                        operation.parameters.extend(salvo::oapi::Parameters(
+                            [
+                                salvo::oapi::parameter::Parameter::new("name")
+                                    .location(salvo::oapi::parameter::ParameterIn::Query)
+                                    .description("Name of pet")
+                                    .required(salvo::oapi::Required::False)
+                                    .schema(
+                                        salvo::oapi::Object::new()
+                                            .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
+                                    ),
+                                salvo::oapi::parameter::Parameter::new("age")
+                                    .location(salvo::oapi::parameter::ParameterIn::Query)
+                                    .description("Age of pet")
+                                    .required(salvo::oapi::Required::False)
+                                    .schema(
+                                        salvo::oapi::Object::new()
+                                            .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::Integer))
+                                            .format(salvo::oapi::SchemaFormat::KnownFormat(
+                                                salvo::oapi::KnownFormat::Int32
+                                            ))
+                                    ),
+                                salvo::oapi::parameter::Parameter::new("kind")
+                                    .location(salvo::oapi::parameter::ParameterIn::Query)
+                                    .description("Kind of pet")
+                                    .required(salvo::oapi::Required::True)
+                                    .schema(<PetKind as salvo::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())),
+                            ]
+                            .into_iter().map(salvo::oapi::RefOr::Type).collect()
+                        ));
                     }
                 }
                 impl<'__macro_gen_ex> salvo::Extractible<'__macro_gen_ex> for PetQuery {
