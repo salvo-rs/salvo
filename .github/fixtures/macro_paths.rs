@@ -66,6 +66,31 @@ impl Service {
     fn handler(&self) {}
 }
 
+struct GenericService<T, const N: usize>(::std::marker::PhantomData<T>);
+
+#[renamed_craft::craft]
+impl<T, const N: usize> GenericService<T, N> {
+    const LABEL: &'static str = "generic";
+    const WIDTH: usize = N;
+
+    #[craft(handler)]
+    fn handler() -> String {
+        ::std::format!("{}:{}:{}", Self::LABEL, ::std::any::type_name::<T>(), N)
+    }
+
+    #[craft(endpoint(tags(::std::format!("{}-{N}", Self::LABEL))))]
+    fn endpoint(value: api::extract::QueryParam<T>) -> framework::writing::Json<[T; N]>
+    where
+        T: serde::de::DeserializeOwned + serde::Serialize + api::ToSchema + Clone + Send,
+        [T; N]: serde::Serialize,
+    {
+        let value = value.into_inner();
+        let values = ::std::array::from_fn(|_| value.clone());
+        assert_eq!(values.len(), Self::WIDTH);
+        framework::writing::Json(values)
+    }
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     use framework::test::ResponseExt;
@@ -78,7 +103,15 @@ async fn main() {
         .push(framework::Router::with_path("inferred").post(inferred))
         .push(framework::Router::with_path("craft").post(Service.endpoint()))
         .push(framework::Router::with_path("static").get(Service::static_endpoint()))
-        .push(framework::Router::with_path("handler").get(Service.handler()));
+        .push(framework::Router::with_path("handler").get(Service.handler()))
+        .push(
+            framework::Router::with_path("generic-handler")
+                .get(GenericService::<u32, 3>::handler()),
+        )
+        .push(
+            framework::Router::with_path("generic-endpoint")
+                .get(GenericService::<u32, 3>::endpoint()),
+        );
     let router = router.push(framework::Router::with_path("parameters").get(parameters));
     let document =
         serde_json::to_value(api::OpenApi::new("paths", "1").merge_router(&router)).unwrap();
@@ -102,6 +135,14 @@ async fn main() {
         document["paths"]["/parameters"]["get"]["parameters"][0]["name"],
         "type"
     );
+    let generic_operation = &document["paths"]["/generic-endpoint"]["get"];
+    assert_eq!(generic_operation["tags"], serde_json::json!(["generic-3"]));
+    let generic_schema =
+        &generic_operation["responses"]["200"]["content"]["application/json"]["schema"];
+    assert_eq!(generic_schema["type"], "array");
+    assert_eq!(generic_schema["minItems"], 3);
+    assert_eq!(generic_schema["maxItems"], 3);
+    assert_eq!(generic_schema["items"]["type"], "integer");
     let service = framework::Service::new(router);
     let response = framework::test::TestClient::get("http://localhost/plain")
         .send(&service)
@@ -125,4 +166,13 @@ async fn main() {
         .send(&service)
         .await;
     assert_eq!(response.take_string().await.unwrap(), "hello");
+    let mut response = framework::test::TestClient::get("http://localhost/generic-handler")
+        .send(&service)
+        .await;
+    assert_eq!(response.take_string().await.unwrap(), "generic:u32:3");
+    let mut response =
+        framework::test::TestClient::get("http://localhost/generic-endpoint?value=7")
+            .send(&service)
+            .await;
+    assert_eq!(response.take_string().await.unwrap(), "[7,7,7]");
 }
