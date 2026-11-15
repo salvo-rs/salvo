@@ -30,7 +30,7 @@ pub async fn auth_user(
     // ✅ Decode the JWT
     let decoded = match decode::<JwtClaims>(
         authentication.clone(),
-        &DecodingKey::from_secret(SECRET_KEY.as_ref()),
+        &DecodingKey::from_secret(SECRET_KEY.as_ref()).expect("JWT secret must not be empty"),
         &Validation::default(),
     ) {
         Ok(data) => data,

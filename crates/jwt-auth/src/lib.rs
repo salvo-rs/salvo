@@ -23,11 +23,11 @@
 //!
 //! # Security Considerations
 //!
-//! The `ring` feature selects jsonwebtoken's RustCrypto backend, which currently
-//! depends on crypto-bigint affected by RUSTSEC-2026-0387. Salvo uses it for
-//! public-key verification. Applications signing JWTs with EC private keys
-//! should use the default `aws-lc-rs` provider until upstream dependencies are
-//! fixed. See the repository's `.github/DEPENDENCY_SECURITY.md` for the review.
+//! This crate uses jsonwebtoken 12. Raw HMAC secret constructors, including
+//! [`ConstDecoder::from_secret`], now return a `Result` and reject empty secrets.
+//! Handle this result when upgrading, for example with
+//! `ConstDecoder::from_secret(secret)?`. The `ring` feature selects the
+//! RustCrypto backend; `aws-lc-rs` selects AWS-LC.
 //!
 //! **Warning: avoid passing JWT tokens in URL query parameters in production.**
 //!
@@ -68,7 +68,7 @@
 //!     install_crypto_provider()
 //!         .expect("install the JWT crypto provider before first use");
 //!
-//!     let auth_handler: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(SECRET_KEY.as_bytes()))
+//!     let auth_handler: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(SECRET_KEY.as_bytes()).unwrap())
 //!         .finders(vec![Box::new(HeaderFinder::new())])
 //!         .force_passed(true);
 //!
@@ -96,7 +96,7 @@
 //!         let token = jsonwebtoken::encode(
 //!             &jsonwebtoken::Header::default(),
 //!             &claim,
-//!             &EncodingKey::from_secret(SECRET_KEY.as_bytes()),
+//!             &EncodingKey::from_secret(SECRET_KEY.as_bytes()).unwrap(),
 //!         )?;
 //!         res.render(Text::Plain(format!(
 //!             "Use this token as `Authorization: Bearer {token}`"
@@ -550,7 +550,7 @@ mod tests {
             user: "test_user".into(),
             exp: (OffsetDateTime::now_utc() + Duration::days(exp_days)).unix_timestamp(),
         };
-        encode_test_token(&claim, &EncodingKey::from_secret(secret))
+        encode_test_token(&claim, &EncodingKey::from_secret(secret).unwrap())
     }
 
     #[tokio::test]
@@ -560,8 +560,8 @@ mod tests {
             "hello"
         }
 
-        let auth: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(b"secret"))
-            .finders(vec![
+        let auth: JwtAuth<JwtClaims, _> =
+            JwtAuth::new(ConstDecoder::from_secret(b"secret").unwrap()).finders(vec![
                 Box::new(QueryFinder::new("jwt")),
                 Box::new(CookieFinder::new("jwt")),
                 Box::new(HeaderFinder::new()),
@@ -623,16 +623,18 @@ mod tests {
             .to_string()
         }
 
-        let outer: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(b"outer"))
-            .finders(vec![Box::new(
-                HeaderFinder::new().header_names(vec!["x-outer-token".parse().unwrap()]),
-            )])
-            .force_passed(true);
-        let inner: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(b"inner"))
-            .finders(vec![Box::new(
-                HeaderFinder::new().header_names(vec!["x-inner-token".parse().unwrap()]),
-            )])
-            .force_passed(true);
+        let outer: JwtAuth<JwtClaims, _> =
+            JwtAuth::new(ConstDecoder::from_secret(b"outer").unwrap())
+                .finders(vec![Box::new(
+                    HeaderFinder::new().header_names(vec!["x-outer-token".parse().unwrap()]),
+                )])
+                .force_passed(true);
+        let inner: JwtAuth<JwtClaims, _> =
+            JwtAuth::new(ConstDecoder::from_secret(b"inner").unwrap())
+                .finders(vec![Box::new(
+                    HeaderFinder::new().header_names(vec!["x-inner-token".parse().unwrap()]),
+                )])
+                .force_passed(true);
         let service = Service::new(Router::new().hoop(outer).hoop(inner).goal(inspect));
         let outer_token = create_test_token(b"outer", 1);
         let inner_token = create_test_token(b"inner", 1);
@@ -713,7 +715,7 @@ mod tests {
         }
 
         let auth: JwtAuth<JwtClaims, _> =
-            JwtAuth::new(ConstDecoder::from_secret(b"inner")).force_passed(true);
+            JwtAuth::new(ConstDecoder::from_secret(b"inner").unwrap()).force_passed(true);
         let service = Service::new(Router::new().hoop(seed_state).hoop(auth).goal(inspect));
         let mut response = TestClient::get("http://localhost/").send(&service).await;
         assert_eq!(response.take_string().await.unwrap(), "anonymous");
@@ -723,14 +725,14 @@ mod tests {
 
     #[test]
     fn test_const_decoder_new() {
-        let key = DecodingKey::from_secret(b"test_secret");
+        let key = DecodingKey::from_secret(b"test_secret").unwrap();
         let decoder = ConstDecoder::new(key);
         assert!(format!("{decoder:?}").contains("ConstDecoder"));
     }
 
     #[test]
     fn test_const_decoder_with_validation() {
-        let key = DecodingKey::from_secret(b"test_secret");
+        let key = DecodingKey::from_secret(b"test_secret").unwrap();
         let mut validation = Validation::default();
         validation.validate_exp = false;
         let decoder = ConstDecoder::with_validation(key, validation);
@@ -739,7 +741,7 @@ mod tests {
 
     #[test]
     fn test_const_decoder_from_secret() {
-        let decoder = ConstDecoder::from_secret(b"my_secret_key");
+        let decoder = ConstDecoder::from_secret(b"my_secret_key").unwrap();
         assert!(format!("{decoder:?}").contains("ConstDecoder"));
     }
 
@@ -757,7 +759,7 @@ mod tests {
     #[tokio::test]
     async fn test_const_decoder_decode_valid_token() {
         let secret = b"test_secret_key";
-        let decoder = ConstDecoder::from_secret(secret);
+        let decoder = ConstDecoder::from_secret(secret).unwrap();
         let token = create_test_token(secret, 1);
 
         let mut depot = Depot::new();
@@ -770,7 +772,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_const_decoder_decode_invalid_token() {
-        let decoder = ConstDecoder::from_secret(b"correct_secret");
+        let decoder = ConstDecoder::from_secret(b"correct_secret").unwrap();
         let token = create_test_token(b"wrong_secret", 1);
 
         let mut depot = Depot::new();
@@ -781,7 +783,7 @@ mod tests {
     #[tokio::test]
     async fn test_const_decoder_decode_expired_token() {
         let secret = b"test_secret_key";
-        let decoder = ConstDecoder::from_secret(secret);
+        let decoder = ConstDecoder::from_secret(secret).unwrap();
         let token = create_test_token(secret, -1); // Expired
 
         let mut depot = Depot::new();
@@ -991,7 +993,7 @@ mod tests {
 
     #[test]
     fn test_jwt_auth_new() {
-        let decoder = ConstDecoder::from_secret(b"secret");
+        let decoder = ConstDecoder::from_secret(b"secret").unwrap();
         let auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder);
         assert!(!auth.force_passed);
         assert_eq!(auth.finders.len(), 1); // Default HeaderFinder
@@ -999,14 +1001,14 @@ mod tests {
 
     #[test]
     fn test_jwt_auth_force_passed() {
-        let decoder = ConstDecoder::from_secret(b"secret");
+        let decoder = ConstDecoder::from_secret(b"secret").unwrap();
         let auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder).force_passed(true);
         assert!(auth.force_passed);
     }
 
     #[test]
     fn test_jwt_auth_finders() {
-        let decoder = ConstDecoder::from_secret(b"secret");
+        let decoder = ConstDecoder::from_secret(b"secret").unwrap();
         let auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder).finders(vec![
             Box::new(HeaderFinder::new()),
             Box::new(QueryFinder::new("token")),
@@ -1016,7 +1018,7 @@ mod tests {
 
     #[test]
     fn test_jwt_auth_finders_mut() {
-        let decoder = ConstDecoder::from_secret(b"secret");
+        let decoder = ConstDecoder::from_secret(b"secret").unwrap();
         let mut auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder);
         auth.finders_mut().push(Box::new(CookieFinder::new("jwt")));
         assert_eq!(auth.finders.len(), 2);
@@ -1024,14 +1026,14 @@ mod tests {
 
     #[test]
     fn test_jwt_auth_decoder_mut() {
-        let decoder = ConstDecoder::from_secret(b"secret");
+        let decoder = ConstDecoder::from_secret(b"secret").unwrap();
         let mut auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder);
         let _ = auth.decoder_mut(); // Just verify it compiles and returns
     }
 
     #[test]
     fn test_jwt_auth_debug() {
-        let decoder = ConstDecoder::from_secret(b"secret");
+        let decoder = ConstDecoder::from_secret(b"secret").unwrap();
         let auth: JwtAuth<JwtClaims, _> = JwtAuth::new(decoder);
         let debug_str = format!("{auth:?}");
         assert!(debug_str.contains("JwtAuth"));
@@ -1043,7 +1045,7 @@ mod tests {
     #[tokio::test]
     async fn test_jwt_auth_header_authorization() {
         let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
-            JwtAuth::new(ConstDecoder::from_secret(b"ABCDEF")).finders(vec![
+            JwtAuth::new(ConstDecoder::from_secret(b"ABCDEF").unwrap()).finders(vec![
                 Box::new(HeaderFinder::new()),
                 Box::new(QueryFinder::new("jwt_token")),
                 Box::new(CookieFinder::new("jwt_token")),
@@ -1074,7 +1076,7 @@ mod tests {
             exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
         };
 
-        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"ABCDEF"));
+        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"ABCDEF").unwrap());
         let content = access(&service, &token).await;
         assert!(content.contains("hello"));
 
@@ -1094,7 +1096,7 @@ mod tests {
             .unwrap();
         assert!(content.contains("hello"));
 
-        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"ABCDEFG"));
+        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"ABCDEFG").unwrap());
         let content = access(&service, &token).await;
         assert!(content.contains("Forbidden"));
     }
@@ -1102,7 +1104,7 @@ mod tests {
     #[tokio::test]
     async fn test_jwt_auth_unauthorized_no_token() {
         let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
-            JwtAuth::new(ConstDecoder::from_secret(b"SECRET"));
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET").unwrap());
 
         #[handler]
         async fn hello() -> &'static str {
@@ -1126,7 +1128,7 @@ mod tests {
     #[tokio::test]
     async fn test_jwt_auth_force_passed_no_token() {
         let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
-            JwtAuth::new(ConstDecoder::from_secret(b"SECRET")).force_passed(true);
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET").unwrap()).force_passed(true);
 
         #[handler]
         async fn hello(depot: &mut Depot) -> String {
@@ -1150,7 +1152,7 @@ mod tests {
     #[tokio::test]
     async fn test_jwt_auth_force_passed_invalid_token() {
         let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
-            JwtAuth::new(ConstDecoder::from_secret(b"SECRET")).force_passed(true);
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET").unwrap()).force_passed(true);
 
         #[handler]
         async fn hello(depot: &mut Depot) -> String {
@@ -1175,7 +1177,7 @@ mod tests {
     #[tokio::test]
     async fn test_jwt_auth_depot_data_access() {
         let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
-            JwtAuth::new(ConstDecoder::from_secret(b"SECRET"));
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET").unwrap());
 
         #[handler]
         async fn hello(depot: &mut Depot) -> String {
@@ -1194,7 +1196,7 @@ mod tests {
             user: "admin".into(),
             exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
         };
-        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"SECRET"));
+        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"SECRET").unwrap());
 
         let content = TestClient::get("http://127.0.0.1:5801/hello")
             .add_header("Authorization", format!("Bearer {token}"), true)
@@ -1211,7 +1213,7 @@ mod tests {
         use salvo_core::http::header::{AUTHORIZATION, PROXY_AUTHORIZATION};
 
         let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
-            JwtAuth::new(ConstDecoder::from_secret(b"SECRET"));
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET").unwrap());
 
         #[handler]
         async fn hello() -> &'static str {
@@ -1227,7 +1229,7 @@ mod tests {
             user: "proxy_user".into(),
             exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
         };
-        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"SECRET"));
+        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"SECRET").unwrap());
 
         let content = TestClient::get("http://127.0.0.1:5801/hello")
             .add_header("Proxy-Authorization", format!("Bearer {token}"), true)
@@ -1239,7 +1241,7 @@ mod tests {
         assert!(content.contains("Unauthorized"));
 
         let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
-            JwtAuth::new(ConstDecoder::from_secret(b"SECRET")).finders(vec![Box::new(
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET").unwrap()).finders(vec![Box::new(
                 HeaderFinder::new().header_names(vec![AUTHORIZATION, PROXY_AUTHORIZATION]),
             )]);
         let router = Router::new()
@@ -1260,7 +1262,7 @@ mod tests {
     #[tokio::test]
     async fn test_header_finder_non_bearer_ignored() {
         let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
-            JwtAuth::new(ConstDecoder::from_secret(b"SECRET"));
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET").unwrap());
 
         #[handler]
         async fn hello() -> &'static str {
@@ -1286,7 +1288,7 @@ mod tests {
     #[tokio::test]
     async fn test_header_finder_method_filtering() {
         let auth_handler: JwtAuth<JwtClaims, ConstDecoder> =
-            JwtAuth::new(ConstDecoder::from_secret(b"SECRET")).finders(vec![Box::new(
+            JwtAuth::new(ConstDecoder::from_secret(b"SECRET").unwrap()).finders(vec![Box::new(
                 HeaderFinder::new().allowed_methods(vec![Method::POST]),
             )]);
 
@@ -1304,7 +1306,7 @@ mod tests {
             user: "test".into(),
             exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
         };
-        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"SECRET"));
+        let token = encode_test_token(&claim, &EncodingKey::from_secret(b"SECRET").unwrap());
 
         // GET should not find token because the method is not allowed.
         let content = TestClient::get("http://127.0.0.1:5801/hello")

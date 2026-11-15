@@ -31,6 +31,12 @@
 //! To build an HTTP/1-only server, disable default features and enable `server`
 //! and `http1`. Other dependencies can still enable Hyper's HTTP/2 support through
 //! Cargo feature unification.
+//!
+//! `http2` enables HTTP/2 over TLS negotiated with ALPN `h2`. Cleartext TCP and
+//! Unix listeners additionally require `http2-cleartext` for HTTP/2 prior
+//! knowledge, including when HTTP/1 is disabled. For example, a cleartext
+//! HTTP/2-only server uses `server,http2-cleartext` without default features;
+//! a TLS HTTP/2-only server uses `server,http2` and a TLS backend/crypto provider.
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]

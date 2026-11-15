@@ -185,6 +185,15 @@ infers the socket from the first complete path component ending in `.sock`.
 Both clients validate Upgrade selections and retain bidirectional tunnels in the
 server's connection lifecycle, including forceful and graceful shutdown.
 
+### Response header ownership
+
+The upstream response body replaces any prepared body. Its representation fields
+(including length, type, encoding, validators and digests) replace old metadata;
+fields absent from the upstream are cleared. Other upstream fields replace
+prepared values of the same name. Set-Cookie and Vary remain additive, and
+unrelated outer headers are preserved. Apply an outer policy after the proxy
+returns when it must override upstream response fields.
+
 ### Failure logging
 
 Upstream request failures log the request method, path, and client error type.

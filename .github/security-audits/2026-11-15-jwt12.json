@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-15",
+  "source_base": "e8128e21bd54ba737300f39754ab8160b607074a",
+  "change": "Upgrade root and examples JWT to jsonwebtoken 12",
+  "scope": "root workspace, including optional RustCrypto JWT dependencies",
+  "command": "cargo generate-lockfile; cargo audit --json",
+  "toolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "cargo_audit": "0.22.0",
+  "lockfile_sha256": "478ce1b8f78448c5d9fdf8563266b2ad97e42053bab1b8e4875a6576f317fc10",
+  "database": {
+    "advisory-count": 1509,
+    "last-commit": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
+    "last-updated": "2026-11-15T10:59:21+01:00"
+  },
+  "outcome": "clean",
+  "vulnerabilities": [],
+  "warnings": {},
+  "existing_ignored_advisories": [
+    "RUSTSEC-2023-0071"
+  ],
+  "resolved_versions": [
+    {
+      "name": "crypto-bigint",
+      "version": "0.7.11"
+    },
+    {
+      "name": "elliptic-curve",
+      "version": "0.14.3"
+    },
+    {
+      "name": "jsonwebtoken",
+      "version": "12.0.0"
+    },
+    {
+      "name": "p256",
+      "version": "0.14.0"
+    },
+    {
+      "name": "p384",
+      "version": "0.14.0"
+    },
+    {
+      "name": "rsa",
+      "version": "0.9.10"
+    },
+    {
+      "name": "rsa",
+      "version": "0.10.0"
+    }
+  ],
+  "notes": [
+    "The existing RSA exception still applies to certon 0.4 -> rsa 0.9; this JWT change does not remove or broaden it.",
+    "This is a dated resolution; refresh application lockfiles and audit them.",
+    "Raw-secret constructors are fallible in jsonwebtoken 12 and reject empty keys."
+  ]
+}

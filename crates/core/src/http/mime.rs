@@ -7,11 +7,114 @@ use crate::http::Request;
 #[doc(hidden)]
 #[inline]
 pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
-    let dmime: Mime = default_type.unwrap_or(mime::TEXT_HTML);
-    let accept = req.accept();
-    // `accept.first()` is already a `Mime`; clone it directly instead of
-    // round-tripping through `to_string().parse()`.
-    accept.first().cloned().unwrap_or(dmime)
+    accepted_ranges(req)
+        .into_iter()
+        .enumerate()
+        .filter(|(_, (range, quality))| {
+            *quality > 0 && range.type_() != STAR && range.subtype() != STAR
+        })
+        .max_by_key(|(order, (_, quality))| (*quality, std::cmp::Reverse(*order)))
+        .map(|(_, (mime, _))| without_quality(&mime))
+        .unwrap_or_else(|| default_type.unwrap_or(mime::TEXT_HTML))
+}
+
+// Prefer the quality of the most specific matching range, rather than the
+// highest quality wildcard. An explicit q=0 therefore excludes that format.
+pub(crate) fn negotiate_accept_mime(req: &Request, supported: &[Mime]) -> Option<Mime> {
+    let ranges = accepted_ranges(req);
+    supported
+        .iter()
+        .enumerate()
+        .filter_map(|(order, candidate)| {
+            let best =
+                ranges
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, (range, quality))| {
+                        if range.type_() != STAR && range.type_() != candidate.type_()
+                            || range.subtype() != STAR && range.subtype() != candidate.subtype()
+                        {
+                            return None;
+                        }
+                        let parameter_count =
+                            range.params().take_while(|(name, _)| *name != "q").count();
+                        if !range.params().take_while(|(name, _)| *name != "q").all(
+                            |(name, value)| {
+                                candidate
+                                    .get_param(name)
+                                    .is_some_and(|actual| actual == value)
+                            },
+                        ) {
+                            return None;
+                        }
+                        let specificity = (
+                            u8::from(range.type_() != STAR),
+                            u8::from(range.subtype() != STAR),
+                            parameter_count,
+                        );
+                        Some((specificity, std::cmp::Reverse(index), *quality))
+                    })
+                    .max_by_key(|(specificity, order, _)| (*specificity, *order));
+            best.filter(|(_, _, quality)| *quality > 0)
+                .map(|(_, _, quality)| (quality, std::cmp::Reverse(order), candidate))
+        })
+        .max_by_key(|(quality, order, _)| (*quality, *order))
+        .map(|(_, _, mime)| mime.clone())
+}
+
+fn without_quality(mime: &Mime) -> Mime {
+    let mut value = mime.essence_str().to_owned();
+    for (name, parameter) in mime.params().take_while(|(name, _)| *name != "q") {
+        value.push_str(&format!("; {name}={parameter}"));
+    }
+    value
+        .parse()
+        .unwrap_or_else(|_| mime.essence_str().parse().expect("MIME essence is valid"))
+}
+
+fn accepted_ranges(req: &Request) -> Vec<(Mime, u16)> {
+    let mut ranges = Vec::new();
+    for field in req.headers().get_all(crate::http::header::ACCEPT) {
+        let Ok(field) = field.to_str() else { continue };
+        let mut quoted = false;
+        let mut escaped = false;
+        let mut start = 0;
+        for (index, byte) in field.bytes().chain(std::iter::once(b',')).enumerate() {
+            if escaped {
+                escaped = false;
+                continue;
+            }
+            match byte {
+                b'\\' if quoted => escaped = true,
+                b'"' => quoted = !quoted,
+                b',' if !quoted => {
+                    if let Ok(mime) = field[start..index].trim().parse::<Mime>() {
+                        let quality = mime
+                            .get_param("q")
+                            .map(|q| quality(q.as_str()))
+                            .unwrap_or(1000);
+                        ranges.push((mime, quality));
+                    }
+                    start = index + 1;
+                }
+                _ => {}
+            }
+        }
+    }
+    ranges
+}
+
+fn quality(value: &str) -> u16 {
+    let value = value.trim_matches('"');
+    let (integer, decimals) = value.split_once('.').unwrap_or((value, ""));
+    if decimals.len() > 3 || !decimals.bytes().all(|digit| digit.is_ascii_digit()) {
+        return 0;
+    }
+    match integer {
+        "1" if decimals.bytes().all(|digit| digit == b'0') => 1000,
+        "0" => decimals.parse::<u16>().unwrap_or(0) * 10u16.pow((3 - decimals.len()) as u32),
+        _ => 0,
+    }
 }
 
 #[doc(hidden)]

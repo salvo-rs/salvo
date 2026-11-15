@@ -115,7 +115,7 @@ impl Origin {
         jsonwebtoken::encode(
             &header,
             &json!({"iss":self.issuer,"aud":"client","exp":current_time()+3600}),
-            &jsonwebtoken::EncodingKey::from_secret(b"secret"),
+            &jsonwebtoken::EncodingKey::from_secret(b"secret").unwrap(),
         )
         .unwrap()
     }
