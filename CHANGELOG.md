@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Preserve conditional serde tuple skips, including shifted item positions, in schemas.
 - Preserve object closure, property-count bounds and map constraints when adding internally tagged newtype enum tags.
 - Match adjacent unit-enum schemas to serde's tag-only representation.
 - Drop untrusted `X-Forwarded-For` values on non-IP peers when proxy client-IP forwarding is enabled.
