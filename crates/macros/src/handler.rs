@@ -99,7 +99,7 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
     }
 }
 
-fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
+fn handle_fn(salvo: &syn::Path, sig: &Signature) -> syn::Result<TokenStream> {
     let name = &sig.ident;
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());

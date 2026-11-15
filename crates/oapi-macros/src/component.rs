@@ -826,7 +826,7 @@ fn inline_child_type(ty: &syn::Type, index: usize) -> Option<&syn::Type> {
 
 /// Compose an explicitly inline Rust type without losing its structural syntax.
 /// Each child is evaluated first to keep mutable component borrows independent.
-pub(crate) fn build_inline_compose_block(ty: &syn::Type, oapi: &syn::Ident) -> TokenStream {
+pub(crate) fn build_inline_compose_block(ty: &syn::Type, oapi: &syn::Path) -> TokenStream {
     match ty {
         syn::Type::Reference(reference) => build_inline_compose_block(&reference.elem, oapi),
         syn::Type::Paren(paren) => build_inline_compose_block(&paren.elem, oapi),

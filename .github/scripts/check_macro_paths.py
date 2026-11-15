@@ -4,11 +4,16 @@ import json
 from pathlib import Path
 import subprocess
 
+CASES = [
+    "facade", "renamed-facade", "split", "renamed-split", "raw-identifier",
+    "shadow-facade", "shadow-renamed-facade", "shadow-split", "shadow-renamed-split", "mixed-shadow",
+]
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
-    parser.add_argument("--case", choices=["facade", "renamed-facade", "split", "renamed-split", "raw-identifier"])
+    parser.add_argument("--case", choices=CASES)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     metadata = json.loads(subprocess.check_output(["cargo", "metadata", "--no-deps", "--format-version", "1"], cwd=root, text=True))
@@ -18,24 +23,38 @@ def main():
     (fixture / "src").mkdir(parents=True, exist_ok=True)
     source = (root / ".github/fixtures/macro_paths.rs").read_text(encoding="utf-8")
     failures = []
-    for case in ["facade", "renamed-facade", "split", "renamed-split", "raw-identifier"]:
+    for case in CASES:
         if args.case and args.case != case:
             continue
-        facade = case in ("facade", "renamed-facade", "raw-identifier")
-        framework = "framework" if case.startswith("renamed") else ("salvo" if facade else "salvo_core")
-        api = "api" if case.startswith("renamed") else "salvo_oapi"
+        base_case = case.removeprefix("shadow-")
+        mixed = case == "mixed-shadow"
+        shadowed = case.startswith("shadow-") or mixed
+        facade = base_case in ("facade", "renamed-facade", "raw-identifier") or mixed
+        renamed = base_case.startswith("renamed") or mixed
+        framework = "framework" if renamed else ("salvo" if facade else "salvo_core")
+        api = "api" if renamed else "salvo_oapi"
         package = "salvo" if facade else "salvo_core"
         path = root / "crates" / ("salvo" if facade else "core")
         manifest = '[package]\nname = "macro-path-contract"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n[workspace]\n[dependencies]\n'
-        manifest += f'{framework} = {{ package = "{package}", path = {json.dumps(str(path))}, default-features = false, features = {json.dumps(["oapi", "test"] if facade else ["test"])} }}\n'
-        if not facade:
+        manifest += f'{framework} = {{ package = "{package}", path = {json.dumps(str(path))}, default-features = false, features = {json.dumps(["oapi", "test"] if facade and not mixed else ["test"])} }}\n'
+        if not facade or mixed:
             manifest += f'{api} = {{ package = "salvo-oapi", path = {json.dumps(str(root / "crates/oapi"))} }}\n'
         manifest += f'renamed_craft = {{ package = "salvo-craft", path = {json.dumps(str(root / "crates/craft"))} }}\n'
         manifest += 'serde = { version = "1", features = ["derive"] }\nserde_json = "1"\n'
         manifest += 'tokio = { version = "1", features = ["macros", "rt"] }\n'
         imports = f'use {framework} as framework;\n' if framework != "framework" else ""
-        imports += f'use {framework}::oapi as api;\n' if facade else (f'use {api} as api;\n' if api != "api" else "")
+        imports += f'use {framework}::oapi as api;\n' if facade and not mixed else (f'use {api} as api;\n' if api != "api" else "")
         code = source
+        if shadowed:
+            api_path = f"::{framework}::oapi::" if facade and not mixed else f"::{api}::"
+            code = code.replace("framework::", f"::{framework}::").replace("api::", api_path)
+            code = code.replace("renamed_craft::", "::renamed_craft::")
+            code = code.replace("async fn main()", "pub async fn run()")
+            code = (
+                f"#[allow(dead_code)] mod shadowed {{ mod {framework} {{}} mod {api} {{}} mod renamed_craft {{}} mod std {{}}\n"
+                + code + "\n}\nfn main() { shadowed::run(); }\n"
+            )
+            imports = ""
         if case == "raw-identifier":
             code = '''#[api::endpoint]
 async fn r#match(r#type: api::extract::QueryParam<String>) -> String { r#type.into_inner() }

@@ -26,28 +26,35 @@ pub(crate) enum InputType<'a> {
 }
 
 // https://github.com/bkchr/proc-macro-crate/issues/14
-pub(crate) fn oapi_crate() -> syn::Ident {
+// These crates declare an `extern crate self as ...` alias too, so the same
+// absolute path works both inside the defining crate and in downstream tests.
+fn dependency_path(name: &str) -> syn::Path {
+    let ident = Ident::new(name, Span::call_site());
+    syn::parse_quote!(::#ident)
+}
+
+pub(crate) fn oapi_crate() -> syn::Path {
     match crate_name("salvo-oapi") {
         Ok(oapi) => match oapi {
-            FoundCrate::Itself => syn::Ident::new("salvo_oapi", Span::call_site()),
-            FoundCrate::Name(name) => syn::Ident::new(&name, Span::call_site()),
+            FoundCrate::Itself => dependency_path("salvo_oapi"),
+            FoundCrate::Name(name) => dependency_path(&name),
         },
         Err(_) => salvo_crate(),
     }
 }
 // https://github.com/bkchr/proc-macro-crate/issues/14
-pub(crate) fn salvo_crate() -> syn::Ident {
+pub(crate) fn salvo_crate() -> syn::Path {
     match crate_name("salvo") {
         Ok(salvo) => match salvo {
-            FoundCrate::Itself => Ident::new("salvo", Span::call_site()),
-            FoundCrate::Name(name) => Ident::new(&name, Span::call_site()),
+            FoundCrate::Itself => dependency_path("salvo"),
+            FoundCrate::Name(name) => dependency_path(&name),
         },
         Err(_) => match crate_name("salvo_core") {
             Ok(salvo) => match salvo {
-                FoundCrate::Itself => Ident::new("salvo_core", Span::call_site()),
-                FoundCrate::Name(name) => Ident::new(&name, Span::call_site()),
+                FoundCrate::Itself => dependency_path("salvo_core"),
+                FoundCrate::Name(name) => dependency_path(&name),
             },
-            Err(_) => Ident::new("salvo", Span::call_site()),
+            Err(_) => dependency_path("salvo"),
         },
     }
 }

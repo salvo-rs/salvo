@@ -77,8 +77,14 @@ fn take_method_macro(item_fn: &mut ImplItemFn) -> syn::Result<Option<Attribute>>
                 .map(|c| c.as_str().to_owned())
                 .unwrap_or_default();
             let ts: TokenStream = match name {
-                "handler" => format!("#[{}::{name}{content}]", salvo_crate()).parse()?,
-                "endpoint" => format!("#[{}::oapi::{name}{content}]", oapi_crate()).parse()?,
+                "handler" => {
+                    format!("#[{}::{name}{content}]", salvo_crate().to_token_stream()).parse()?
+                }
+                "endpoint" => format!(
+                    "#[{}::oapi::{name}{content}]",
+                    oapi_crate().to_token_stream()
+                )
+                .parse()?,
                 _ => {
                     unreachable!()
                 }

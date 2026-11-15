@@ -301,14 +301,14 @@ mod tests {
                         {res.render_plain_text("Hello World");}
                     }
                 }
-                #[salvo::async_trait]
-                impl salvo::Handler for hello {
+                #[::salvo::async_trait]
+                impl ::salvo::Handler for hello {
                     async fn handle(
                         &self,
-                        __macro_gen_req: &mut salvo::Request,
-                        __macro_gen_depot: &mut salvo::Depot,
-                        __macro_gen_res: &mut salvo::Response,
-                        __macro_gen_ctrl: &mut salvo::FlowCtrl
+                        __macro_gen_req: &mut ::salvo::Request,
+                        __macro_gen_depot: &mut ::salvo::Depot,
+                        __macro_gen_res: &mut ::salvo::Response,
+                        __macro_gen_ctrl: &mut ::salvo::FlowCtrl
                     ) {
                         Self::hello().await
                     }
@@ -316,17 +316,17 @@ mod tests {
                 fn __macro_gen_oapi_endpoint_type_id_hello() -> ::std::any::TypeId {
                     ::std::any::TypeId::of::<hello>()
                 }
-                fn __macro_gen_oapi_endpoint_creator_hello() -> salvo::oapi::Endpoint {
-                    let mut components = salvo::oapi::Components::new();
-                    let status_codes: &[salvo::http::StatusCode] = &{ [] };
-                    let mut operation = salvo::oapi::Operation::new();
+                fn __macro_gen_oapi_endpoint_creator_hello() -> ::salvo::oapi::Endpoint {
+                    let mut components = ::salvo::oapi::Components::new();
+                    let status_codes: &[::salvo::http::StatusCode] = &{ [] };
+                    let mut operation = ::salvo::oapi::Operation::new();
                     if operation.operation_id.is_none() {
-                        operation.assign_auto_operation_id(salvo::oapi::naming::assign_name::<hello>(salvo::oapi::naming::NameRule::Auto));
+                        operation.assign_auto_operation_id(::salvo::oapi::naming::assign_name::<hello>(::salvo::oapi::naming::NameRule::Auto));
                     }
                     if !status_codes.is_empty() {
-                        let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);
+                        let responses = ::std::ops::DerefMut::deref_mut(&mut operation.responses);
                         responses.retain(|k, _| {
-                            if let Ok(code) = <salvo::http::StatusCode as std::str::FromStr>::from_str(k) {
+                            if let Ok(code) = <::salvo::http::StatusCode as ::std::str::FromStr>::from_str(k) {
                                 status_codes.contains(&code)
                             } else {
                                 true
@@ -334,15 +334,15 @@ mod tests {
                         });
                     }
                     if operation.responses.is_empty() {
-                        operation.responses.insert("default", salvo::oapi::Response::new("Response"));
+                        operation.responses.insert("default", ::salvo::oapi::Response::new("Response"));
                     }
-                    salvo::oapi::Endpoint {
+                    ::salvo::oapi::Endpoint {
                         operation,
                         components,
                     }
                 }
-                salvo::oapi::__private::inventory::submit! {
-                    salvo::oapi::EndpointRegistry::save(__macro_gen_oapi_endpoint_type_id_hello, __macro_gen_oapi_endpoint_creator_hello)
+                ::salvo::oapi::__private::inventory::submit! {
+                    ::salvo::oapi::EndpointRegistry::save(__macro_gen_oapi_endpoint_type_id_hello, __macro_gen_oapi_endpoint_creator_hello)
                 }
             }
             .to_string()
@@ -370,11 +370,11 @@ mod tests {
             .to_string();
         // Should contain both ComposeSchema and ToSchema impls
         assert!(
-            result.contains("impl salvo :: oapi :: ComposeSchema for User"),
+            result.contains("impl :: salvo :: oapi :: ComposeSchema for User"),
             "Expected ComposeSchema impl in output"
         );
         assert!(
-            result.contains("impl salvo :: oapi :: ToSchema for User"),
+            result.contains("impl :: salvo :: oapi :: ToSchema for User"),
             "Expected ToSchema impl in output"
         );
         // Verify schema body content
@@ -435,11 +435,11 @@ mod tests {
             .to_string();
         // Should contain both ComposeSchema and ToSchema impls
         assert!(
-            result.contains("impl salvo :: oapi :: ComposeSchema for People"),
+            result.contains("impl :: salvo :: oapi :: ComposeSchema for People"),
             "Expected ComposeSchema impl in output"
         );
         assert!(
-            result.contains("impl salvo :: oapi :: ToSchema for People"),
+            result.contains("impl :: salvo :: oapi :: ToSchema for People"),
             "Expected ToSchema impl in output"
         );
         // Verify enum values
@@ -461,40 +461,40 @@ mod tests {
             response::to_response(parse2(input).unwrap()).unwrap()
                 .to_string(),
             quote! {
-                impl salvo::oapi::ToResponse for User {
+                impl ::salvo::oapi::ToResponse for User {
                     fn to_response(
-                        components: &mut salvo::oapi::Components
-                    ) -> salvo::oapi::RefOr<salvo::oapi::Response> {
-                        let response = salvo::oapi::Response::new("Person response returns single Person entity").add_content(
+                        components: &mut ::salvo::oapi::Components
+                    ) -> ::salvo::oapi::RefOr<::salvo::oapi::Response> {
+                        let response = ::salvo::oapi::Response::new("Person response returns single Person entity").add_content(
                             "application/json",
-                            salvo::oapi::Content::new(
-                                salvo::oapi::Object::new()
+                            ::salvo::oapi::Content::new(
+                                ::salvo::oapi::Object::new()
                                     .property(
                                         "name",
-                                        salvo::oapi::Object::new().schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
+                                        ::salvo::oapi::Object::new().schema_type(::salvo::oapi::schema::SchemaType::basic(::salvo::oapi::schema::BasicType::String))
                                     )
                                     .required("name")
                                     .property(
                                         "age",
-                                        salvo::oapi::Object::new()
-                                            .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::Integer))
-                                            .format(salvo::oapi::SchemaFormat::KnownFormat(
-                                                salvo::oapi::KnownFormat::Int32
+                                        ::salvo::oapi::Object::new()
+                                            .schema_type(::salvo::oapi::schema::SchemaType::basic(::salvo::oapi::schema::BasicType::Integer))
+                                            .format(::salvo::oapi::SchemaFormat::KnownFormat(
+                                                ::salvo::oapi::KnownFormat::Int32
                                             ))
                                     )
                                     .required("age")
                             )
                         );
-                        let name = salvo::oapi::naming::response_component_name::<Self>();
+                        let name = ::salvo::oapi::naming::response_component_name::<Self>();
                         components.responses.insert(name.clone(), response);
-                        salvo::oapi::RefOr::Ref(salvo::oapi::Ref::new(format!("#/components/responses/{}", name)))
+                        ::salvo::oapi::RefOr::Ref(::salvo::oapi::Ref::new(format!("#/components/responses/{}", name)))
                     }
                 }
-                impl salvo::oapi::EndpointOutRegister for User {
-                    fn register(components: &mut salvo::oapi::Components, operation: &mut salvo::oapi::Operation) {
+                impl ::salvo::oapi::EndpointOutRegister for User {
+                    fn register(components: &mut ::salvo::oapi::Components, operation: &mut ::salvo::oapi::Operation) {
                         operation
                             .responses
-                            .insert("200", <Self as salvo::oapi::ToResponse>::to_response(components))
+                            .insert("200", <Self as ::salvo::oapi::ToResponse>::to_response(components))
                     }
                 }
             } .to_string()
@@ -526,19 +526,19 @@ mod tests {
         assert_eq!(
             response::to_responses(parse2(input).unwrap()).unwrap().to_string(),
             quote! {
-                impl salvo::oapi::ToResponses for UserResponses {
-                    fn to_responses(components: &mut salvo::oapi::Components) -> salvo::oapi::response::Responses {
+                impl ::salvo::oapi::ToResponses for UserResponses {
+                    fn to_responses(components: &mut ::salvo::oapi::Components) -> ::salvo::oapi::response::Responses {
                         [
                             (
                                 "200",
-                                salvo::oapi::RefOr::from(
-                                    salvo::oapi::Response::new("Success response description.").add_content(
+                                ::salvo::oapi::RefOr::from(
+                                    ::salvo::oapi::Response::new("Success response description.").add_content(
                                         "application/json",
-                                        salvo::oapi::Content::new(
-                                            salvo::oapi::Object::new()
+                                        ::salvo::oapi::Content::new(
+                                            ::salvo::oapi::Object::new()
                                                 .property(
                                                     "value",
-                                                    salvo::oapi::Object::new().schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
+                                                    ::salvo::oapi::Object::new().schema_type(::salvo::oapi::schema::SchemaType::basic(::salvo::oapi::schema::BasicType::String))
                                                 )
                                                 .required("value")
                                                 .description("Success response description.")
@@ -548,32 +548,32 @@ mod tests {
                             ),
                             (
                                 "404",
-                                salvo::oapi::RefOr::from(salvo::oapi::Response::new(""))
+                                ::salvo::oapi::RefOr::from(::salvo::oapi::Response::new(""))
                             ),
                             (
                                 "400",
-                                salvo::oapi::RefOr::from(salvo::oapi::Response::new("").add_content(
+                                ::salvo::oapi::RefOr::from(::salvo::oapi::Response::new("").add_content(
                                     "application/json",
-                                    salvo::oapi::Content::new(salvo::oapi::RefOr::from(
-                                        <BadRequest as salvo::oapi::ToSchema>::to_schema(components)
+                                    ::salvo::oapi::Content::new(::salvo::oapi::RefOr::from(
+                                        <BadRequest as ::salvo::oapi::ToSchema>::to_schema(components)
                                     ))
                                 ))
                             ),
                             (
                                 "500",
-                                salvo::oapi::RefOr::from(salvo::oapi::Response::new("").add_content(
+                                ::salvo::oapi::RefOr::from(::salvo::oapi::Response::new("").add_content(
                                     "application/json",
-                                    salvo::oapi::Content::new(salvo::oapi::RefOr::from(
-                                        <Response as salvo::oapi::ToSchema>::to_schema(components)
+                                    ::salvo::oapi::Content::new(::salvo::oapi::RefOr::from(
+                                        <Response as ::salvo::oapi::ToSchema>::to_schema(components)
                                     ))
                                 ))
                             ),
                             (
                                 "418",
-                                salvo::oapi::RefOr::from(salvo::oapi::Response::new("").add_content(
+                                ::salvo::oapi::RefOr::from(::salvo::oapi::Response::new("").add_content(
                                     "application/json",
-                                    salvo::oapi::Content::new(salvo::oapi::RefOr::from(
-                                        <Response as salvo::oapi::ToSchema>::to_schema(components)
+                                    ::salvo::oapi::Content::new(::salvo::oapi::RefOr::from(
+                                        <Response as ::salvo::oapi::ToSchema>::to_schema(components)
                                     ))
                                 ))
                             ),
@@ -581,11 +581,11 @@ mod tests {
                         .into()
                     }
                 }
-                impl salvo::oapi::EndpointOutRegister for UserResponses {
-                    fn register(components: &mut salvo::oapi::Components, operation: &mut salvo::oapi::Operation) {
+                impl ::salvo::oapi::EndpointOutRegister for UserResponses {
+                    fn register(components: &mut ::salvo::oapi::Components, operation: &mut ::salvo::oapi::Operation) {
                         operation
                             .responses
-                            .append(&mut <Self as salvo::oapi::ToResponses>::to_responses(components));
+                            .append(&mut <Self as ::salvo::oapi::ToResponses>::to_responses(components));
                     }
                 }
             }
@@ -610,103 +610,103 @@ mod tests {
         assert_eq!(
             parameter::to_parameters(parse2(input).unwrap()).unwrap().to_string(),
             quote! {
-                impl<'__macro_gen_ex> salvo::oapi::ToParameters<'__macro_gen_ex> for PetQuery {
-                    fn to_parameters(components: &mut salvo::oapi::Components) -> salvo::oapi::Parameters {
-                        salvo::oapi::Parameters(
+                impl<'__macro_gen_ex> ::salvo::oapi::ToParameters<'__macro_gen_ex> for PetQuery {
+                    fn to_parameters(components: &mut ::salvo::oapi::Components) -> ::salvo::oapi::Parameters {
+                        ::salvo::oapi::Parameters(
                             [
-                                salvo::oapi::parameter::Parameter::new("name")
-                                    .location(salvo::oapi::parameter::ParameterIn::Query)
+                                ::salvo::oapi::parameter::Parameter::new("name")
+                                    .location(::salvo::oapi::parameter::ParameterIn::Query)
                                     .description("Name of pet")
-                                    .required(salvo::oapi::Required::False)
+                                    .required(::salvo::oapi::Required::False)
                                     .schema(
-                                        salvo::oapi::Object::new()
-                                            .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
+                                        ::salvo::oapi::Object::new()
+                                            .schema_type(::salvo::oapi::schema::SchemaType::basic(::salvo::oapi::schema::BasicType::String))
                                     ),
-                                salvo::oapi::parameter::Parameter::new("age")
-                                    .location(salvo::oapi::parameter::ParameterIn::Query)
+                                ::salvo::oapi::parameter::Parameter::new("age")
+                                    .location(::salvo::oapi::parameter::ParameterIn::Query)
                                     .description("Age of pet")
-                                    .required(salvo::oapi::Required::False)
+                                    .required(::salvo::oapi::Required::False)
                                     .schema(
-                                        salvo::oapi::Object::new()
-                                            .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::Integer))
-                                            .format(salvo::oapi::SchemaFormat::KnownFormat(
-                                                salvo::oapi::KnownFormat::Int32
+                                        ::salvo::oapi::Object::new()
+                                            .schema_type(::salvo::oapi::schema::SchemaType::basic(::salvo::oapi::schema::BasicType::Integer))
+                                            .format(::salvo::oapi::SchemaFormat::KnownFormat(
+                                                ::salvo::oapi::KnownFormat::Int32
                                             ))
                                     ),
-                                salvo::oapi::parameter::Parameter::new("kind")
-                                    .location(salvo::oapi::parameter::ParameterIn::Query)
+                                ::salvo::oapi::parameter::Parameter::new("kind")
+                                    .location(::salvo::oapi::parameter::ParameterIn::Query)
                                     .description("Kind of pet")
-                                    .required(salvo::oapi::Required::True)
-                                    .schema({ <PetKind as salvo::oapi::ComposeSchema>::compose(components, ::std::vec![]) }),
+                                    .required(::salvo::oapi::Required::True)
+                                    .schema({ <PetKind as ::salvo::oapi::ComposeSchema>::compose(components, ::std::vec![]) }),
                             ]
-                            .into_iter().map(salvo::oapi::RefOr::Type).collect()
+                            .into_iter().map(::salvo::oapi::RefOr::Type).collect()
                         )
                     }
                 }
-                impl salvo::oapi::EndpointArgRegister for PetQuery {
+                impl ::salvo::oapi::EndpointArgRegister for PetQuery {
                     fn register(
-                        components: &mut salvo::oapi::Components,
-                        operation: &mut salvo::oapi::Operation,
+                        components: &mut ::salvo::oapi::Components,
+                        operation: &mut ::salvo::oapi::Operation,
                         _arg: &str
                     ) {
-                        operation.parameters.extend(salvo::oapi::Parameters(
+                        operation.parameters.extend(::salvo::oapi::Parameters(
                             [
-                                salvo::oapi::parameter::Parameter::new("name")
-                                    .location(salvo::oapi::parameter::ParameterIn::Query)
+                                ::salvo::oapi::parameter::Parameter::new("name")
+                                    .location(::salvo::oapi::parameter::ParameterIn::Query)
                                     .description("Name of pet")
-                                    .required(salvo::oapi::Required::False)
+                                    .required(::salvo::oapi::Required::False)
                                     .schema(
-                                        salvo::oapi::Object::new()
-                                            .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::String))
+                                        ::salvo::oapi::Object::new()
+                                            .schema_type(::salvo::oapi::schema::SchemaType::basic(::salvo::oapi::schema::BasicType::String))
                                     ),
-                                salvo::oapi::parameter::Parameter::new("age")
-                                    .location(salvo::oapi::parameter::ParameterIn::Query)
+                                ::salvo::oapi::parameter::Parameter::new("age")
+                                    .location(::salvo::oapi::parameter::ParameterIn::Query)
                                     .description("Age of pet")
-                                    .required(salvo::oapi::Required::False)
+                                    .required(::salvo::oapi::Required::False)
                                     .schema(
-                                        salvo::oapi::Object::new()
-                                            .schema_type(salvo::oapi::schema::SchemaType::basic(salvo::oapi::schema::BasicType::Integer))
-                                            .format(salvo::oapi::SchemaFormat::KnownFormat(
-                                                salvo::oapi::KnownFormat::Int32
+                                        ::salvo::oapi::Object::new()
+                                            .schema_type(::salvo::oapi::schema::SchemaType::basic(::salvo::oapi::schema::BasicType::Integer))
+                                            .format(::salvo::oapi::SchemaFormat::KnownFormat(
+                                                ::salvo::oapi::KnownFormat::Int32
                                             ))
                                     ),
-                                salvo::oapi::parameter::Parameter::new("kind")
-                                    .location(salvo::oapi::parameter::ParameterIn::Query)
+                                ::salvo::oapi::parameter::Parameter::new("kind")
+                                    .location(::salvo::oapi::parameter::ParameterIn::Query)
                                     .description("Kind of pet")
-                                    .required(salvo::oapi::Required::True)
-                                    .schema(<PetKind as salvo::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())),
+                                    .required(::salvo::oapi::Required::True)
+                                    .schema(<PetKind as ::salvo::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())),
                             ]
-                            .into_iter().map(salvo::oapi::RefOr::Type).collect()
+                            .into_iter().map(::salvo::oapi::RefOr::Type).collect()
                         ));
                     }
                 }
-                impl<'__macro_gen_ex> salvo::Extractible<'__macro_gen_ex> for PetQuery {
-                    fn metadata() -> &'static salvo::extract::Metadata {
-                        static METADATA: ::std::sync::OnceLock<salvo::extract::Metadata> = ::std::sync::OnceLock::new();
+                impl<'__macro_gen_ex> ::salvo::Extractible<'__macro_gen_ex> for PetQuery {
+                    fn metadata() -> &'static ::salvo::extract::Metadata {
+                        static METADATA: ::std::sync::OnceLock<::salvo::extract::Metadata> = ::std::sync::OnceLock::new();
                         METADATA.get_or_init(||
-                            salvo::extract::Metadata::new("PetQuery")
-                                .default_sources(vec![salvo::extract::metadata::Source::new(
-                                    salvo::extract::metadata::SourceFrom::Query,
-                                    salvo::extract::metadata::SourceParser::MultiMap
+                            ::salvo::extract::Metadata::new("PetQuery")
+                                .default_sources(vec![::salvo::extract::metadata::Source::new(
+                                    ::salvo::extract::metadata::SourceFrom::Query,
+                                    ::salvo::extract::metadata::SourceParser::MultiMap
                                 )])
                                 .fields(vec![
-                                    salvo::extract::metadata::Field::new("name"),
-                                    salvo::extract::metadata::Field::new("age"),
-                                    salvo::extract::metadata::Field::new("kind")
+                                    ::salvo::extract::metadata::Field::new("name"),
+                                    ::salvo::extract::metadata::Field::new("age"),
+                                    ::salvo::extract::metadata::Field::new("kind")
                                 ])
                         )
                     }
                     async fn extract(
-                        req: &'__macro_gen_ex mut salvo::Request,
-                        depot: &'__macro_gen_ex mut salvo::Depot
-                    ) -> ::std::result::Result<Self, impl salvo::Writer + Send + std::fmt::Debug + 'static> {
-                        salvo::serde::from_request(req, depot, Self::metadata()).await
+                        req: &'__macro_gen_ex mut ::salvo::Request,
+                        depot: &'__macro_gen_ex mut ::salvo::Depot
+                    ) -> ::std::result::Result<Self, impl ::salvo::Writer + ::std::marker::Send + ::std::fmt::Debug + 'static> {
+                        ::salvo::serde::from_request(req, depot, Self::metadata()).await
                     }
                     async fn extract_with_arg(
-                        req: &'__macro_gen_ex mut salvo::Request,
-                        depot: &'__macro_gen_ex mut salvo::Depot,
+                        req: &'__macro_gen_ex mut ::salvo::Request,
+                        depot: &'__macro_gen_ex mut ::salvo::Depot,
                         _arg: &str
-                    ) -> ::std::result::Result<Self, impl salvo::Writer + Send + std::fmt::Debug + 'static> {
+                    ) -> ::std::result::Result<Self, impl ::salvo::Writer + ::std::marker::Send + ::std::fmt::Debug + 'static> {
                         Self::extract(req, depot).await
                     }
                 }

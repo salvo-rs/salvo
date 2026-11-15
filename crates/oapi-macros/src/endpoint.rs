@@ -79,8 +79,8 @@ fn resolve_self_types(block: &mut syn::Block, owner: &Type) {
 }
 
 fn metadata(
-    salvo: &Ident,
-    oapi: &Ident,
+    salvo: &syn::Path,
+    oapi: &syn::Path,
     attr: &EndpointAttr,
     name: &Ident,
     type_path: &TokenStream,
@@ -170,9 +170,9 @@ fn metadata(
                 operation.assign_auto_operation_id(#oapi::oapi::naming::assign_name::<#type_path>(#oapi::oapi::naming::NameRule::Auto));
             }
             if !status_codes.is_empty() {
-                let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);
+                let responses = ::std::ops::DerefMut::deref_mut(&mut operation.responses);
                 responses.retain(|k,_| {
-                    if let Ok(code) = <#salvo::http::StatusCode as std::str::FromStr>::from_str(k) {
+                    if let Ok(code) = <#salvo::http::StatusCode as ::std::str::FromStr>::from_str(k) {
                         status_codes.contains(&code)
                     } else {
                         true
@@ -353,8 +353,8 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
 }
 
 fn handle_fn(
-    salvo: &Ident,
-    oapi: &Ident,
+    salvo: &syn::Path,
+    oapi: &syn::Path,
     sig: &Signature,
 ) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
     let name = &sig.ident;
@@ -478,8 +478,8 @@ mod tests {
 
     #[test]
     fn test_handle_fn() {
-        let salvo = Ident::new("salvo", proc_macro2::Span::call_site());
-        let oapi = Ident::new("salvo_oapi", proc_macro2::Span::call_site());
+        let salvo: syn::Path = syn::parse_quote!(salvo);
+        let oapi: syn::Path = syn::parse_quote!(salvo_oapi);
         let sig: Signature = parse_str("fn hello(name: String)").unwrap();
         let (hfn, modifiers) = handle_fn(&salvo, &oapi, &sig).unwrap();
         let expected_hfn = quote! {
