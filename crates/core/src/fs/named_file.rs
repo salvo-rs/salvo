@@ -936,6 +936,9 @@ impl NamedFile {
             res.status_code(StatusCode::PRECONDITION_FAILED);
             return;
         } else if not_modified {
+            if retrieval {
+                res.take_body();
+            }
             if retrieval && let Some(content_encoding) = &self.content_encoding {
                 res.headers_mut()
                     .insert(CONTENT_ENCODING, content_encoding.clone());

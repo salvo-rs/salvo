@@ -1,8 +1,6 @@
 use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::hash::Hash;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use moka::Expiry;
@@ -142,16 +140,17 @@ where
         refer: &Self::Guard,
         quota: &<Self::Guard as RateGuard>::Quota,
     ) -> Result<RateLimitState<Self::Guard>, Self::Error> {
-        let allowed = Arc::new(AtomicBool::new(false));
-        let allowed_in_compute = Arc::clone(&allowed);
-        let refer = refer.clone();
+        // Moka awaits this FnOnce while serializing this key. Borrow the result
+        // slot instead of allocating an Arc<AtomicBool> for every verification.
+        let mut allowed = false;
+        let allowed_out = &mut allowed;
         let expires = self.time_to_idle.is_some();
 
         let result = self
             .inner
             .entry(key)
             .and_compute_with(|entry| async move {
-                let mut guard = entry.map_or(refer, |entry| entry.into_value().guard);
+                let mut guard = entry.map_or_else(|| refer.clone(), |entry| entry.into_value().guard);
                 let verified = guard.verify(quota).await;
                 let retain_for = if expires {
                     // reset() is expressed in whole Unix seconds. Retain through
@@ -169,7 +168,7 @@ where
                     // perform expensive work in reset(), so do not call it here.
                     Duration::ZERO
                 };
-                allowed_in_compute.store(verified, Ordering::Relaxed);
+                *allowed_out = verified;
                 compute::Op::Put(StoredGuard { guard, retain_for })
             })
             .await;
@@ -178,7 +177,7 @@ where
             unreachable!("MokaStore verify_guard always stores an updated guard");
         };
         Ok(RateLimitState {
-            allowed: allowed.load(Ordering::Relaxed),
+            allowed,
             guard: entry.into_value().guard,
         })
     }

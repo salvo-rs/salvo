@@ -13,6 +13,7 @@ pub struct ExternalDocs {
     /// Target URL for the external documentation location.
     pub url: String,
     /// Additional description supporting markdown syntax of the external documentation.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
     /// Optional extensions "x-something"

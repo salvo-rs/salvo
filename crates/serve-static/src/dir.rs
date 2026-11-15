@@ -46,7 +46,7 @@ impl FromStr for CompressionAlgo {
         match s {
             "br" | "brotli" => Ok(Self::Brotli),
             "deflate" => Ok(Self::Deflate),
-            "gzip" => Ok(Self::Gzip),
+            "gzip" | "x-gzip" => Ok(Self::Gzip),
             "zstd" => Ok(Self::Zstd),
             _ => Err(format!("unknown compression algorithm: {s}")),
         }
@@ -130,6 +130,8 @@ where
 /// This handler can serve files from one or more directory paths,
 /// with support for directory listing, compressed file variants,
 /// and default files.
+/// Roots are searched in configured order for both ordinary and default files.
+/// The first matching resource wins; later roots are not resolved after a hit.
 ///
 /// # Examples
 ///
@@ -543,9 +545,17 @@ impl Handler for StaticDir {
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let has_dot_segment = rel_path.split('/').any(|part| part.starts_with('.'));
         let mut abs_path = None;
-        let roots = self.canonical_roots().await;
+        let mut roots = Vec::new();
         if self.include_dot_files || !has_dot_segment {
-            for root in &roots {
+            for configured in &self.roots {
+                let Ok(canonical_path) = tokio::fs::canonicalize(configured).await else {
+                    continue;
+                };
+                roots.push(CanonicalRoot {
+                    path: configured.clone(),
+                    canonical_path,
+                });
+                let root = roots.last().expect("root was inserted");
                 // Use a single async symlink_metadata call for file type checks, then verify
                 // the canonical target stays under the canonical root before serving it.
                 if let Some(path) = self.resolve_relative_path(root, &rel_path).await {
@@ -577,12 +587,16 @@ impl Handler for StaticDir {
                         }
                     } else if path.metadata.is_file() {
                         abs_path = Some(path);
+                        break;
                     }
                 }
             }
         }
         let fallback = self.fallback.as_deref().unwrap_or_default();
         if abs_path.is_none() && !fallback.is_empty() && is_safe_relative_path(fallback) {
+            if roots.is_empty() && !self.include_dot_files && has_dot_segment {
+                roots = self.canonical_roots().await;
+            }
             for root in &roots {
                 if let Some(path) = self.resolve_relative_path(root, fallback).await {
                     if !path.metadata.is_file() {
@@ -616,12 +630,12 @@ impl Handler for StaticDir {
             // one would stack a second coding on top, and only the outer coding can
             // be reported, so the client would strip that and be left holding gzip
             // bytes labelled `image/svg+xml`. Serve the file itself instead.
-            let is_self_coded_ext = ext
-                .as_deref()
-                .map(|ext| extension_content_encoding(ext).is_some())
-                .unwrap_or(false);
+            let stored_encoding = ext.as_deref().and_then(extension_content_encoding);
+            let is_self_coded_ext = stored_encoding.is_some();
             let mut content_encoding = None;
-            let mut varies_on_accept_encoding = false;
+            // The selected representation or a 406 can depend on Accept-Encoding,
+            // including files whose extension implies a stored content coding.
+            let mut varies_on_accept_encoding = true;
             let content_type = mime_infer::from_path(&abs_path).first();
             // Captured before the compressed-variant lookup may replace the path:
             // a download must be named after the resource that was requested, not
@@ -630,63 +644,103 @@ impl Handler for StaticDir {
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned());
 
+            // Accept-Encoding has list semantics across field lines.
+            // Borrow the common single-field value and only allocate
+            // when there are more preferences to combine.
+            let mut header = Cow::Borrowed("");
+            for value in req
+                .headers()
+                .get_all(ACCEPT_ENCODING)
+                .iter()
+                .filter_map(|value| value.to_str().ok())
+            {
+                if header.is_empty() {
+                    header = Cow::Borrowed(value);
+                } else {
+                    let combined = header.to_mut();
+                    combined.push(',');
+                    combined.push_str(value);
+                }
+            }
+            let preferences = http::parse_accept_encoding_with_quality(&header);
+            let quality = |name: &str| {
+                preferences
+                    .iter()
+                    .filter(|(coding, _)| coding == name || name == "gzip" && coding == "x-gzip")
+                    .map(|(_, q)| *q)
+                    .max()
+            };
+            let identity = quality("identity").map_or(quality("*") != Some(0), |q| q > 0);
+            if let Some(coding) = stored_encoding {
+                // An absent field accepts every coding; an empty field accepts none.
+                // Self-coded formats cannot fall back to identity bytes or stack a
+                // sidecar on the stored coding, so reject an unacceptable coding.
+                let acceptable = !req.headers().contains_key(ACCEPT_ENCODING)
+                    || quality(coding)
+                        .or_else(|| quality("*"))
+                        .is_some_and(|q| q > 0);
+                if !acceptable {
+                    res.render(StatusError::not_acceptable());
+                    append_vary_header(res.headers_mut(), "accept-encoding");
+                    return;
+                }
+            }
             let named_path = if !is_compressed_ext && !is_self_coded_ext {
                 if !self.compressed_variations.is_empty() {
                     // Even an identity response participates in negotiation.
                     // Its Vary policy must not depend on this request's header.
                     varies_on_accept_encoding = true;
                     let mut new_abs_path = None;
-                    // Accept-Encoding has list semantics across field lines.
-                    // Borrow the common single-field value and only allocate
-                    // when there are more preferences to combine.
-                    let mut header = Cow::Borrowed("");
-                    for value in req
-                        .headers()
-                        .get_all(ACCEPT_ENCODING)
-                        .iter()
-                        .filter_map(|value| value.to_str().ok())
-                    {
-                        if header.is_empty() {
-                            header = Cow::Borrowed(value);
-                        } else {
-                            let combined = header.to_mut();
-                            combined.push(',');
-                            combined.push_str(value);
-                        }
-                    }
-                    // Skip compressed variant lookup when client only accepts identity
                     if !header.is_empty() && header != "identity" {
-                        'accepted_encoding: for (algo, level) in
-                            http::parse_accept_encoding_with_quality(&header)
-                        {
-                            if level == 0 {
+                        'accepted_encoding: for (name, level) in &preferences {
+                            if *level == 0 {
                                 continue;
                             }
-                            if algo.eq_ignore_ascii_case("identity") {
+                            if name == "identity" {
                                 break;
                             }
-                            let Ok(algo) = algo.parse::<CompressionAlgo>() else {
-                                continue;
+                            let candidates: Vec<_> = if name == "*" {
+                                [
+                                    CompressionAlgo::Brotli,
+                                    CompressionAlgo::Zstd,
+                                    CompressionAlgo::Gzip,
+                                    CompressionAlgo::Deflate,
+                                ]
+                                .into_iter()
+                                .filter(|algo| {
+                                    !preferences.iter().any(|(name, _)| {
+                                        name.parse::<CompressionAlgo>().ok().as_ref() == Some(algo)
+                                    })
+                                })
+                                .collect()
+                            } else {
+                                name.parse::<CompressionAlgo>().ok().into_iter().collect()
                             };
-                            let Some(exts) = self.compressed_variations.get(&algo) else {
-                                continue;
-                            };
-                            for zip_ext in exts {
-                                let mut path = abs_path.clone();
-                                path.as_mut_os_string().push(".");
-                                path.as_mut_os_string().push(zip_ext.as_str());
-                                if self
-                                    .resolve_child_path(&canonical_root, path.clone())
-                                    .await
-                                    .map(|path| path.metadata.is_file())
-                                    .unwrap_or(false)
-                                {
-                                    new_abs_path = Some(path);
-                                    content_encoding = Some(algo.to_string());
-                                    break 'accepted_encoding;
+                            for algo in candidates {
+                                let Some(exts) = self.compressed_variations.get(&algo) else {
+                                    continue;
+                                };
+                                for zip_ext in exts {
+                                    let mut path = abs_path.clone();
+                                    path.as_mut_os_string().push(".");
+                                    path.as_mut_os_string().push(zip_ext.as_str());
+                                    if self
+                                        .resolve_child_path(&canonical_root, path.clone())
+                                        .await
+                                        .is_some_and(|path| path.metadata.is_file())
+                                    {
+                                        new_abs_path = Some(path);
+                                        content_encoding = Some(algo.to_string());
+                                        break 'accepted_encoding;
+                                    }
                                 }
                             }
                         }
+                    }
+                    if new_abs_path.is_none() && !identity {
+                        res.render(StatusError::not_acceptable());
+                        append_vary_header(res.headers_mut(), "accept-encoding");
+                        return;
                     }
                     new_abs_path.unwrap_or(abs_path)
                 } else {
@@ -695,6 +749,12 @@ impl Handler for StaticDir {
             } else {
                 abs_path
             };
+
+            if content_encoding.is_none() && !is_self_coded_ext && !identity {
+                res.render(StatusError::not_acceptable());
+                append_vary_header(res.headers_mut(), "accept-encoding");
+                return;
+            }
 
             let (builder, varies_on_accept_encoding) = {
                 let mut builder = NamedFile::builder(named_path);

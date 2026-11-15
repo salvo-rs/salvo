@@ -104,7 +104,7 @@
 use std::borrow::Borrow;
 use std::collections::{HashMap, VecDeque};
 use std::error::Error as StdError;
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::{self, Debug, Formatter, Write};
 use std::hash::Hash;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -239,9 +239,13 @@ impl CacheIssuer for RequestIssuer {
     type Key = String;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
         let mut key = String::with_capacity(req.uri().path().len() + 16);
+        // Prefix every component with its byte length. Neither methods nor URI
+        // components are safe to concatenate with an unescaped delimiter.
+        let mut component = |value: &str| {
+            let _ = write!(key, "{}:{value}", value.len());
+        };
         if self.use_scheme {
-            key.push_str(req.uri().scheme_str().unwrap_or(req.scheme().as_str()));
-            key.push_str("://");
+            component(req.uri().scheme_str().unwrap_or(req.scheme().as_str()));
         }
         if self.use_authority {
             let authority = match req.uri().authority() {
@@ -273,20 +277,18 @@ impl CacheIssuer for RequestIssuer {
                     host.parse::<salvo_core::http::uri::Authority>().ok()?
                 }
             };
-            key.push_str(authority.as_str());
+            component(authority.as_str());
         }
         if self.use_path {
-            key.push_str(req.uri().path());
+            component(req.uri().path());
         }
         if self.use_query
             && let Some(query) = req.uri().query()
         {
-            key.push('?');
-            key.push_str(query);
+            component(query);
         }
         if self.use_method {
-            key.push('|');
-            key.push_str(req.method().as_str());
+            component(req.method().as_str());
         }
         Some(key)
     }
@@ -475,7 +477,27 @@ impl TryFrom<&ResBody> for CachedBody {
         match body {
             ResBody::None => Ok(Self::None),
             ResBody::Once(bytes) => Ok(Self::Once(bytes.to_owned())),
-            ResBody::Chunks(chunks) => Ok(Self::Chunks(chunks.to_owned())),
+            ResBody::Chunks(chunks) => {
+                if chunks.len() <= 1 {
+                    return Ok(Self::Once(chunks.front().cloned().unwrap_or_default()));
+                }
+                // Bound the extra insertion-time allocation. Small fragmented
+                // bodies are compacted once instead of cloning a descriptor
+                // array on every hit; large responses keep shared chunks.
+                const MAX_COMPACT_BYTES: usize = 64 * 1024;
+                let len = chunks.iter().try_fold(0usize, |len, chunk| {
+                    len.checked_add(chunk.len())
+                        .filter(|len| *len <= MAX_COMPACT_BYTES)
+                });
+                let Some(len) = len else {
+                    return Ok(Self::Chunks(chunks.clone()));
+                };
+                let mut bytes = Vec::with_capacity(len);
+                for chunk in chunks {
+                    bytes.extend_from_slice(chunk);
+                }
+                Ok(Self::Once(Bytes::from(bytes)))
+            }
             _ => Err(Error::other("unsupported body type")),
         }
     }
@@ -763,10 +785,8 @@ fn cached_response(
 fn handler_response_headers(before: &HeaderMap, after: &HeaderMap) -> HeaderMap {
     let mut headers = HeaderMap::new();
     for name in after.keys() {
-        let after_values = after.get_all(name).iter().collect::<Vec<_>>();
-        let before_values = before.get_all(name).iter().collect::<Vec<_>>();
-        if after_values != before_values {
-            for value in after_values {
+        if !after.get_all(name).iter().eq(before.get_all(name).iter()) {
+            for value in after.get_all(name) {
                 headers.append(name.clone(), value.clone());
             }
         }
@@ -1252,7 +1272,10 @@ mod tests {
         chunks.push_back(Bytes::from("chunk2"));
         let res_body = ResBody::Chunks(chunks.clone());
         let result: Result<CachedBody, _> = (&res_body).try_into();
-        assert_eq!(result.unwrap(), CachedBody::Chunks(chunks));
+        assert_eq!(
+            result.unwrap(),
+            CachedBody::Once(Bytes::from_static(b"chunk1chunk2"))
+        );
     }
 
     #[test]

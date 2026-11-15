@@ -146,6 +146,7 @@ where
     fn to_request_body(components: &mut Components) -> RequestBody {
         let schema = T::to_schema(components);
         RequestBody::new()
+            .required(Required::True)
             .description("Extract form format data from request.")
             .add_content(
                 "application/x-www-form-urlencoded",
@@ -164,6 +165,7 @@ where
         let Some(body) = register_form_schema(components, operation, schema.clone()) else {
             return;
         };
+        body.required = Some(Required::True);
         body.description = Some("Extract form format data from request.".into());
         body.contents.insert(
             "application/x-www-form-urlencoded".into(),
@@ -178,6 +180,7 @@ where
 {
     fn to_request_body(components: &mut Components) -> RequestBody {
         RequestBody::new()
+            .required(Required::True)
             .description("Extract json format data from request.")
             .add_content("application/json", Content::new(T::to_schema(components)))
     }
@@ -312,6 +315,7 @@ mod tests {
         assert_json_eq!(
             request_body,
             json!({
+                "required": true,
                 "description": "Extract form format data from request.",
                 "content": {
                     "application/x-www-form-urlencoded": {
@@ -343,7 +347,8 @@ mod tests {
                             "schema": { "type": "string" }
                         }
                     },
-                    "description": "Extract form format data from request."
+                    "required": true,
+                "description": "Extract form format data from request."
                 },
                 "responses": {}
             })
@@ -357,6 +362,7 @@ mod tests {
         assert_json_eq!(
             request_body,
             json!({
+                "required": true,
                 "description": "Extract json format data from request.",
                 "content": {
                     "application/json": {
@@ -382,7 +388,8 @@ mod tests {
                             "schema": { "type": "string" }
                         }
                     },
-                    "description": "Extract json format data from request."
+                    "required": true,
+                "description": "Extract json format data from request."
                 },
                 "responses": {}
             })

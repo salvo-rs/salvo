@@ -36,7 +36,12 @@ pub struct AllOf {
     pub description: Option<String>,
 
     /// Default value which is provided when user has not provided the input in Swagger UI.
-    #[serde(rename = "default", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "crate::openapi::deserialize_json_value",
+        rename = "default",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub default_value: Option<Value>,
 
     /// Example shown in UI of the value for richer documentation.

@@ -26,6 +26,8 @@ struct Inner {
     state: AtomicU8,
     notify: Notify,
     relax: AtomicBool,
+    // 0: cleartext, 1: TLS without ALPN, 2: HTTP/1.1, 3: HTTP/2, 4: unsupported ALPN.
+    protocol: AtomicU8,
     upgrades: std::sync::OnceLock<tokio::sync::mpsc::UnboundedSender<UpgradeTask>>,
     // Reuse the connection state already exposed on Request. Request dispatch
     // needs no additional extension insertion, certificate clone, or synchronization.
@@ -57,6 +59,7 @@ impl ConnCtrl {
                 state: AtomicU8::new(RUNNING),
                 notify: Notify::new(),
                 relax: AtomicBool::new(false),
+                protocol: AtomicU8::new(0),
                 upgrades: std::sync::OnceLock::new(),
                 #[cfg(feature = "rustls")]
                 tls_info: std::sync::OnceLock::new(),
@@ -92,8 +95,41 @@ impl ConnCtrl {
         super::upgrades::UpgradeScope::new(self.clone(), receiver)
     }
 
+    #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
+    pub(crate) fn set_tls_protocol(&self, protocol: Option<&[u8]>) {
+        let protocol = match protocol {
+            None => 1,
+            Some(b"http/1.1") => 2,
+            Some(b"h2") => 3,
+            Some(_) => 4,
+        };
+        self.inner.protocol.store(protocol, Ordering::Release);
+    }
+
+    pub(crate) fn select_http_version(
+        &self,
+        detected: http::Version,
+    ) -> std::io::Result<http::Version> {
+        use http::Version;
+        let allowed = match self.inner.protocol.load(Ordering::Acquire) {
+            0 => detected != Version::HTTP_2 || cfg!(feature = "http2-cleartext"),
+            1 | 2 => detected != Version::HTTP_2,
+            3 => detected == Version::HTTP_2,
+            _ => false,
+        };
+        if allowed {
+            Ok(detected)
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "HTTP protocol does not match the transport's negotiated or enabled protocol",
+            ))
+        }
+    }
+
     #[cfg(feature = "rustls")]
     pub(crate) fn set_tls_info(&self, info: super::TlsInfo) {
+        self.set_tls_protocol(info.alpn_protocol());
         let _ = self.inner.tls_info.set(Box::new(info));
     }
 

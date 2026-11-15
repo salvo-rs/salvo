@@ -47,7 +47,11 @@ pub struct Header {
     pub explode: Option<bool>,
 
     /// Example of the header's potential value.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "crate::openapi::deserialize_json_value",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub example: Option<Value>,
 
     /// Examples of the header's potential value, indexed by name. Mutually exclusive with

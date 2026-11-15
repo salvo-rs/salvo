@@ -132,8 +132,6 @@ pub enum TlsClientAuth {
 fn alpn_protocols() -> Vec<Vec<u8>> {
     #[allow(unused_mut)]
     let mut alpn_protocols = Vec::with_capacity(3);
-    #[cfg(feature = "quinn")]
-    alpn_protocols.push(b"h3".to_vec());
     #[cfg(feature = "http2")]
     alpn_protocols.push(b"h2".to_vec());
     #[cfg(feature = "http1")]
@@ -282,11 +280,11 @@ impl RustlsConfig {
             for domain in name {
                 if domain.starts_with("*.") {
                     wildcard_certified_keys.insert(
-                        domain.trim_start_matches("*.").to_owned(),
+                        domain.trim_start_matches("*.").to_ascii_lowercase(),
                         certified_key.clone(),
                     );
                 } else {
-                    literal_certified_keys.insert(domain.clone(), certified_key.clone());
+                    literal_certified_keys.insert(domain.to_ascii_lowercase(), certified_key.clone());
                 }
             }
         }
@@ -349,7 +347,13 @@ cfg_feature! {
         type Error = IoError;
 
         fn try_into(self) -> IoResult<crate::conn::quinn::ServerConfig> {
-            let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(self.build_server_config()?).map_err(|_|IoError::other( "failed to build quinn server config"))?;
+            let mut config = self.build_server_config()?;
+            // HTTP/3 is carried by QUIC, never by the TCP TLS listener.
+            config.alpn_protocols.retain(|protocol| !matches!(protocol.as_slice(), b"h2" | b"http/1.1"));
+            if config.alpn_protocols.is_empty() {
+                config.alpn_protocols.push(b"h3".to_vec());
+            }
+            let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(config).map_err(|_|IoError::other( "failed to build quinn server config"))?;
             Ok(crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto)))
         }
     }
@@ -367,7 +371,8 @@ impl ResolvesServerCert for CertResolver {
         client_hello
             .server_name()
             .and_then(|name| {
-                if let Some(certified_key) = self.literal_certified_keys.get(name) {
+                let name = name.to_ascii_lowercase();
+                if let Some(certified_key) = self.literal_certified_keys.get(&name) {
                     Some(Arc::clone(certified_key))
                 } else {
                     // Check for wildcard match

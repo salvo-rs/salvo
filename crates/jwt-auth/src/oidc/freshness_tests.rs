@@ -115,7 +115,7 @@ impl Origin {
         jsonwebtoken::encode(
             &header,
             &json!({"iss":self.issuer,"aud":"client","exp":current_time()+3600}),
-            &jsonwebtoken::EncodingKey::from_secret(b"secret"),
+            &jsonwebtoken::EncodingKey::from_secret(b"secret").unwrap(),
         )
         .unwrap()
     }
@@ -281,7 +281,7 @@ async fn a_validated_policy_change_controls_subsequent_reuse() {
 }
 
 #[tokio::test]
-async fn explicit_zero_without_stale_allowances_never_has_a_fresh_window() {
+async fn explicit_zero_without_stale_allowances_revalidates_each_use() {
     timeout(Duration::from_secs(5), async {
         let origin = Origin::start(
             "max-age=0, stale-while-revalidate=0, stale-if-error=0",
@@ -289,6 +289,11 @@ async fn explicit_zero_without_stale_allowances_never_has_a_fresh_window() {
         )
         .await;
         let decoder = origin.decoder().await;
+        assert!(validates(&decoder, &origin.token()).await);
+        let fetched = origin.state.fetches.load(Ordering::SeqCst);
+        assert!(validates(&decoder, &origin.token()).await);
+        assert_eq!(origin.state.fetches.load(Ordering::SeqCst), fetched + 1);
+        origin.state.revoked.store(true, Ordering::SeqCst);
         assert!(!validates(&decoder, &origin.token()).await);
         assert_eq!(
             decoder.cache.read().await.cache_policy.max_age,

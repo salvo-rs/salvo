@@ -124,7 +124,7 @@ use mime::Mime;
 use serde::Serialize;
 
 use crate::handler::{Handler, WhenHoop};
-use crate::http::mime::guess_accept_mime;
+use crate::http::mime::negotiate_accept_mime;
 use crate::http::{Request, ResBody, Response, StatusCode, StatusError, header};
 use crate::{Depot, FlowCtrl};
 
@@ -602,9 +602,36 @@ pub fn status_error_bytes(
     (format, Bytes::from(content))
 }
 
+static ERROR_MIME_TYPES: LazyLock<Vec<Mime>> = LazyLock::new(|| {
+    let mut supported = Vec::new();
+    #[cfg(feature = "catcher-html")]
+    supported.push(mime::TEXT_HTML);
+    #[cfg(feature = "catcher-json")]
+    supported.push(mime::APPLICATION_JSON);
+    #[cfg(feature = "catcher-xml")]
+    supported.extend([
+        "application/xml".parse::<Mime>().expect("static MIME"),
+        mime::TEXT_XML,
+    ]);
+    supported.push(mime::TEXT_PLAIN);
+    // UTF-8 variants let media parameters participate in range specificity.
+    let utf8: Vec<Mime> = supported
+        .iter()
+        .filter_map(|mime| format!("{mime}; charset=utf-8").parse().ok())
+        .collect();
+    supported.extend(utf8);
+    supported
+});
+
 #[doc(hidden)]
 pub fn write_error_default(req: &Request, res: &mut Response, footer: Option<&str>) {
-    let format = guess_accept_mime(req, None);
+    let default = if cfg!(feature = "catcher-html") {
+        mime::TEXT_HTML
+    } else {
+        mime::TEXT_PLAIN
+    };
+    let format = negotiate_accept_mime(req, &ERROR_MIME_TYPES).unwrap_or(default);
+    crate::http::append_vary_header(res.headers_mut(), "accept");
     let (format, data) = if let ResBody::Error(body) = &res.body {
         status_error_bytes(body, &format, footer)
     } else {

@@ -129,6 +129,15 @@ impl SchemaType<'_> {
             return false;
         };
         let name = &*last_segment.ident.to_string();
+        // Bare Duration can denote chrono's tuple representation. Dispatch through
+        // the real type's trait implementation instead of guessing its origin.
+        if name == "Duration" {
+            return path.segments.len() > 1
+                && path
+                    .segments
+                    .first()
+                    .is_some_and(|segment| segment.ident == "time");
+        }
 
         #[cfg(not(any(
             feature = "chrono",

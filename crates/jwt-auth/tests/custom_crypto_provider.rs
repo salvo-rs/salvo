@@ -33,11 +33,11 @@ fn preserves_an_explicitly_installed_provider() {
         .install_default()
         .expect("the integration test process should not have a provider yet");
 
-    let _decoder = ConstDecoder::from_secret(b"secret");
+    let _decoder = ConstDecoder::from_secret(b"secret").unwrap();
     let result = jsonwebtoken::encode(
         &Header::default(),
         &Claims { sub: "test" },
-        &EncodingKey::from_secret(b"secret"),
+        &EncodingKey::from_secret(b"secret").unwrap(),
     );
 
     assert!(result.is_err());

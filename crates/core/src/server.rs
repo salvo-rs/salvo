@@ -400,7 +400,7 @@ impl<A: Acceptor + Send> Server<A> {
                     {
                         let port = addr.port();
                         alt_svc_h3 = Some(
-                            format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
+                            format!(r#"h3=":{port}"; ma=2592000"#)
                                 .parse::<HeaderValue>()
                                 .expect("parsing alt-svc header should not fail"),
                         );
@@ -577,7 +577,7 @@ impl<A: Acceptor + Send> Server<A> {
                 {
                     let port = addr.port();
                     alt_svc_h3 = Some(
-                        format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
+                        format!(r#"h3=":{port}"; ma=2592000"#)
                             .parse::<HeaderValue>()
                             .expect("parsing alt-svc header should not fail"),
                     );

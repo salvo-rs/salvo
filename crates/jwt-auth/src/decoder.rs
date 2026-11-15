@@ -80,12 +80,13 @@ impl ConstDecoder {
     /// Creates a decoder from a raw secret byte array for HMAC verification.
     ///
     /// This is the most common method for symmetric key validation.
-    #[must_use]
-    pub fn from_secret(secret: &[u8]) -> Self {
-        Self::with_validation(
-            DecodingKey::from_secret(secret),
-            Validation::new(Algorithm::HS256),
-        )
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the secret is empty.
+    pub fn from_secret(secret: &[u8]) -> Result<Self, JwtError> {
+        DecodingKey::from_secret(secret)
+            .map(|key| Self::with_validation(key, Validation::new(Algorithm::HS256)))
     }
 
     /// Creates a decoder from a base64-encoded secret string for HMAC verification.
@@ -194,8 +195,14 @@ mod tests {
     }
 
     #[test]
+    fn empty_secret_is_rejected() {
+        assert!(ConstDecoder::from_secret(b"").is_err());
+        assert!(ConstDecoder::from_base64_secret("").is_err());
+    }
+
+    #[test]
     fn secret_constructors_pin_hs256() {
-        let decoder = ConstDecoder::from_secret(b"secret");
+        let decoder = ConstDecoder::from_secret(b"secret").unwrap();
         assert_eq!(decoder.validation.algorithms, [Algorithm::HS256]);
 
         let decoder = ConstDecoder::from_base64_secret("c2VjcmV0").unwrap();

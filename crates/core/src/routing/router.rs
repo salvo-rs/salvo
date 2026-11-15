@@ -24,6 +24,7 @@ pub struct Router {
     pub hoops: Vec<Arc<dyn Handler>>,
     /// The final handler to handle request of current router.
     pub goal: Option<Arc<dyn Handler>>,
+    extensions: http::Extensions,
 }
 
 struct DetectFrame<'a> {
@@ -75,7 +76,23 @@ impl Router {
             filters: Vec::new(),
             hoops: Vec::new(),
             goal: None,
+            extensions: http::Extensions::new(),
         }
+    }
+
+    /// Metadata owned by this router, released when the router is dropped.
+    ///
+    /// Router extensions are for construction and introspection. They are not
+    /// copied into request extensions or consulted while routing requests.
+    #[inline]
+    pub fn extensions(&self) -> &http::Extensions {
+        &self.extensions
+    }
+
+    /// Mutable construction and introspection metadata owned by this router.
+    #[inline]
+    pub fn extensions_mut(&mut self) -> &mut http::Extensions {
+        &mut self.extensions
     }
 
     /// Get current router's children reference.

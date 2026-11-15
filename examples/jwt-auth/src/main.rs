@@ -18,7 +18,7 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let auth_handler: JwtAuth<JwtClaims, _> =
-        JwtAuth::new(ConstDecoder::from_secret(SECRET_KEY.as_bytes()))
+        JwtAuth::new(ConstDecoder::from_secret(SECRET_KEY.as_bytes()).expect("JWT secret must not be empty"))
             .finders(vec![
                 // Box::new(HeaderFinder::new()),
                 Box::new(QueryFinder::new("jwt_token")),
@@ -50,7 +50,7 @@ async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyh
         let token = jsonwebtoken::encode(
             &jsonwebtoken::Header::default(),
             &claim,
-            &EncodingKey::from_secret(SECRET_KEY.as_bytes()),
+            &EncodingKey::from_secret(SECRET_KEY.as_bytes())?,
         )?;
         res.render(Redirect::other(format!("/?jwt_token={token}")));
     } else {

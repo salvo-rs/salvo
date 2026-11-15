@@ -1,0 +1,168 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -62 +61,0 @@
+-    "dep:rustls-pemfile",
+@@ -117,4 +115,0 @@
+-[dependencies.rustls-pemfile]
+-version = "2"
+-optional = true
+-
+@@ -167,0 +163,7 @@
++
++[dev-dependencies]
++rcgen = "0.14"
++tempfile = "3"
++
++# Keep test-only dependencies in this temporary driver patch workspace.
++[workspace]
+--- a/src/tls/config.rs
++++ b/src/tls/config.rs
+@@ -1,0 +2,2 @@
++
++use rustls::pki_types::pem::PemObject;
+@@ -219,4 +221,3 @@
+-            let certs: Vec<CertificateDer<'static>> =
+-                rustls_pemfile::certs(&mut cert_data.as_slice())
+-                    .collect::<Result<Vec<_>, _>>()
+-                    .map_err(toasty_core::Error::driver_operation_failed)?;
++            let certs: Vec<CertificateDer<'static>> = CertificateDer::pem_slice_iter(&cert_data)
++                .collect::<Result<Vec<_>, _>>()
++                .map_err(toasty_core::Error::driver_operation_failed)?;
+@@ -231,7 +232,2 @@
+-            let key = rustls_pemfile::private_key(&mut key_data.as_slice())
+-                .map_err(toasty_core::Error::driver_operation_failed)?
+-                .ok_or_else(|| {
+-                    toasty_core::Error::invalid_connection_url(format!(
+-                        "no private key found in sslkey file: {key_path}"
+-                    ))
+-                })?;
++            let key = rustls::pki_types::PrivateKeyDer::from_pem_slice(&key_data)
++                .map_err(toasty_core::Error::driver_operation_failed)?;
+@@ -274 +270 @@
+-    let certs: Vec<CertificateDer<'static>> = rustls_pemfile::certs(&mut pem_data.as_slice())
++    let certs: Vec<CertificateDer<'static>> = CertificateDer::pem_slice_iter(&pem_data)
+@@ -292,0 +289,124 @@
++
++#[cfg(test)]
++mod pem_tests {
++    use super::*;
++
++    fn write_file(dir: &tempfile::TempDir, name: &str, contents: &str) -> String {
++        let path = dir.path().join(name);
++        std::fs::write(&path, contents).unwrap();
++        path.to_str().unwrap().to_owned()
++    }
++
++    fn certificate() -> (String, String) {
++        let generated = rcgen::generate_simple_self_signed(vec!["localhost".to_owned()]).unwrap();
++        (generated.cert.pem(), generated.signing_key.serialize_pem())
++    }
++
++    #[test]
++    fn valid_root_and_client_identity_still_load() {
++        let dir = tempfile::tempdir().unwrap();
++        let (certificate, key) = certificate();
++        let cert_path = write_file(&dir, "certificate.pem", &certificate);
++        let key_path = write_file(&dir, "key.pem", &key);
++        assert_eq!(load_root_certs(&cert_path).unwrap().len(), 1);
++        let (certs, _) = load_client_auth(Some(&cert_path), Some(&key_path))
++            .unwrap()
++            .unwrap();
++        assert_eq!(certs.len(), 1);
++        assert!(
++            build_client_config(
++                SslVerifyMode::Require,
++                None,
++                Some(&cert_path),
++                Some(&key_path)
++            )
++            .is_ok()
++        );
++    }
++
++    #[test]
++    fn empty_malformed_and_non_certificate_roots_are_rejected() {
++        let dir = tempfile::tempdir().unwrap();
++        let (_, key) = certificate();
++        for contents in [
++            "",
++            "not a certificate",
++            key.as_str(),
++            "-----BEGIN CERTIFICATE-----\n!invalid!\n-----END CERTIFICATE-----",
++            "-----BEGIN CERTIFICATE-----\naGVsbG8=\n-----END CERTIFICATE-----",
++        ] {
++            let path = write_file(&dir, "root.pem", contents);
++            assert!(load_root_certs(&path).is_err());
++        }
++    }
++
++    #[test]
++    fn client_auth_requires_both_files() {
++        assert!(load_client_auth(None, None).unwrap().is_none());
++        assert!(load_client_auth(Some("certificate.pem"), None).is_err());
++        assert!(load_client_auth(None, Some("key.pem")).is_err());
++    }
++
++    #[test]
++    fn invalid_and_missing_client_keys_fail_closed() {
++        let dir = tempfile::tempdir().unwrap();
++        let (certificate, _) = certificate();
++        let cert_path = write_file(&dir, "certificate.pem", &certificate);
++        for key in [
++            "",
++            "not a private key",
++            certificate.as_str(),
++            "-----BEGIN PRIVATE KEY-----\n!invalid!\n-----END PRIVATE KEY-----",
++            "-----BEGIN PRIVATE KEY-----\naGVsbG8=\n-----END PRIVATE KEY-----",
++        ] {
++            let key_path = write_file(&dir, "key.pem", key);
++            assert!(
++                build_client_config(
++                    SslVerifyMode::Require,
++                    None,
++                    Some(&cert_path),
++                    Some(&key_path)
++                )
++                .is_err()
++            );
++        }
++        assert!(load_client_auth(Some(&cert_path), Some("nonexistent-key.pem")).is_err());
++    }
++
++    #[test]
++    fn invalid_client_certificates_and_mismatched_keys_fail_closed() {
++        let dir = tempfile::tempdir().unwrap();
++        let (cert, key) = certificate();
++        let key_path = write_file(&dir, "key.pem", &key);
++        for contents in [
++            "",
++            "not a certificate",
++            key.as_str(),
++            "-----BEGIN CERTIFICATE-----\n!invalid!\n-----END CERTIFICATE-----",
++            "-----BEGIN CERTIFICATE-----\naGVsbG8=\n-----END CERTIFICATE-----",
++        ] {
++            let cert_path = write_file(&dir, "certificate.pem", contents);
++            assert!(
++                build_client_config(
++                    SslVerifyMode::Require,
++                    None,
++                    Some(&cert_path),
++                    Some(&key_path)
++                )
++                .is_err()
++            );
++        }
++        let cert_path = write_file(&dir, "certificate.pem", &cert);
++        let (_, wrong_key) = certificate();
++        let wrong_key_path = write_file(&dir, "wrong-key.pem", &wrong_key);
++        assert!(
++            build_client_config(
++                SslVerifyMode::Require,
++                None,
++                Some(&cert_path),
++                Some(&wrong_key_path)
++            )
++            .is_err()
++        );
++    }
++}

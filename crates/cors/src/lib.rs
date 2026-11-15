@@ -460,6 +460,9 @@ pub enum CallNext {
     /// headers onto the response. This is the default and the right choice for
     /// most setups: downstream handlers see the request unmodified, and CORS
     /// headers are appended last.
+    /// This policy owns the CORS response fields: rejected or disabled grants
+    /// remove values left by inner handlers. Nested policies are not intersected;
+    /// the last policy to write the response is authoritative.
     #[default]
     Before,
     /// Run the remaining handlers **after** [`CorsHandler`] has written the CORS
@@ -548,6 +551,19 @@ impl Handler for CorsHandler {
             headers.extend(self.cors.expose_headers.to_header(origin, req, depot).await);
         }
 
+        // None/false is a policy decision too. Extending only Some headers would
+        // leave a more permissive inner policy's grants in the final response.
+        for name in [
+            header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+            header::ACCESS_CONTROL_ALLOW_METHODS,
+            header::ACCESS_CONTROL_ALLOW_HEADERS,
+            header::ACCESS_CONTROL_EXPOSE_HEADERS,
+            header::ACCESS_CONTROL_MAX_AGE,
+            header::HeaderName::from_static("access-control-allow-private-network"),
+        ] {
+            res.headers_mut().remove(name);
+        }
         res.headers_mut().extend(headers);
 
         if self.call_next == CallNext::After {
@@ -577,6 +593,14 @@ impl Handler for CorsHandler {
 /// - `Access-Control-Allow-Methods` / `-Allow-Headers` — preflight responses only;
 /// - `Access-Control-Expose-Headers` — non-preflight (actual) responses only.
 fn enforce_credentials_safety(res: &mut Response, is_preflight: bool) {
+    if !res
+        .headers()
+        .contains_key(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+    {
+        res.headers_mut()
+            .remove(header::ACCESS_CONTROL_ALLOW_CREDENTIALS);
+        return;
+    }
     let credentials = res
         .headers()
         .get_all(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
@@ -754,9 +778,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors_drops_credentials_when_handler_sets_wildcard_origin() {
-        // With the default `CallNext::Before`, the downstream handler runs first
-        // and may set its own `Access-Control-Allow-Origin: *`. The guard must
-        // inspect the final merged response, not just the headers it built.
+        // With the default `CallNext::Before`, this policy's absent origin
+        // grant replaces the downstream wildcard. Credentials are meaningless
+        // without an allowed origin and must be removed too.
         #[handler]
         async fn sets_wildcard(res: &mut Response) {
             res.headers_mut()
@@ -831,10 +855,12 @@ mod tests {
                 HeaderValue::from_static("*, authorization"),
             );
         }
-        let cors_handler = Cors::new()
+        let cors = Cors::new()
             .allow_origin("https://app.example.com")
-            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true))
-            .into_handler();
+            .allow_credentials(AllowCredentials::dynamic(|_, _, _| true));
+        // After mode deliberately permits downstream changes; the final guard
+        // must still reject the invalid wildcard/credentials combination.
+        let cors_handler = CorsHandler::new(cors, CallNext::After);
         let router = Router::new()
             .hoop(cors_handler)
             .push(Router::with_path("hello").goal(sets_list_wildcard));

@@ -21,6 +21,9 @@
 //! Initial management errors are logged while available certificates remain
 //! usable. Background maintenance renews cached certificates; a domain that has
 //! never obtained a certificate is not automatically retried by that maintenance.
+//! Certificates and account keys are stored in memory unless a cache path or
+//! custom storage is configured. Maintenance follows the lifetime of the shared
+//! TLS configuration and stops when its last owner is dropped.
 //!
 //! ## Certificate key type
 //!
@@ -88,6 +91,7 @@ mod config;
 #[path = "tests.rs"]
 mod integration_tests;
 mod listener;
+mod memory_storage;
 mod solvers;
 
 use std::collections::HashMap;

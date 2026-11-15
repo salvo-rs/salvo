@@ -93,6 +93,10 @@ pub enum TusError {
     /// The upload previously existed but is no longer available.
     FileNoLongerExists,
 
+    /// The configured wait for an upload lock elapsed.
+    #[error("upload lock wait timed out")]
+    LockTimeout,
+
     #[error("internal: {0}")]
     /// Internal error message.
     Internal(String),
@@ -135,6 +139,7 @@ impl TusError {
             Self::GenerateIdError => StatusCode::INTERNAL_SERVER_ERROR, // 500
             Self::GenerateUploadURLError => StatusCode::INTERNAL_SERVER_ERROR, // 500
             Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::LockTimeout => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
 }
