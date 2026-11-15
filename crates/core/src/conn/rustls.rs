@@ -5,12 +5,42 @@ use std::sync::Arc;
 use rustls::RootCertStore;
 use rustls::crypto::CryptoProvider;
 use rustls::pki_types::{CertificateDer, pem::PemObject};
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_rustls::server::TlsStream;
+
+use super::{ConnCtrl, HandshakeStream, TlsInfo};
+use crate::fuse::FuseConfig;
 
 pub(crate) mod config;
 pub use config::{Keycert, RustlsConfig, ServerConfig};
 
 mod listener;
 pub use listener::{RustlsAcceptor, RustlsListener};
+
+/// Wraps a rustls accept future for a Salvo TLS transport adapter.
+///
+/// Authenticated TLS metadata and negotiated ALPN are recorded on the connection
+/// control before the stream can be read by HTTP protocol detection. The supplied
+/// fuse configuration continues to govern handshake deadlines and cancellation.
+#[doc(hidden)]
+#[must_use]
+pub fn accept_tls<S>(
+    accept: tokio_rustls::Accept<S>,
+    fuse_config: Option<FuseConfig>,
+    conn_ctrl: ConnCtrl,
+) -> HandshakeStream<TlsStream<S>>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    HandshakeStream::new(
+        async move {
+            let stream = accept.await?;
+            conn_ctrl.set_tls_info(TlsInfo::from_rustls(stream.get_ref().1));
+            Ok(stream)
+        },
+        fuse_config,
+    )
+}
 
 /// Returns the [`CryptoProvider`] used to build rustls configurations.
 ///
