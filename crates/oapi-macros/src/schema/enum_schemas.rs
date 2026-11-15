@@ -907,7 +907,9 @@ impl ComplexEnum<'_> {
                             #oapi::oapi::schema::flatten_all_of_schema(
                                 #oapi::oapi::schema::AllOf::new()
                                     #title
-                                    .item(#unnamed_enum)
+                                    .item(#oapi::oapi::schema::tagged_payload_schema(
+                                        (#unnamed_enum).into(), #tag, components,
+                                    ))
                                     .item(#oapi::oapi::schema::Object::new()
                                         .schema_type(#oapi::oapi::schema::BasicType::Object)
                                         .property(#tag, #variant_name_tokens)
