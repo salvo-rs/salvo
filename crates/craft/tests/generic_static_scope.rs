@@ -1,5 +1,5 @@
 //! Stateless generic factories retain service scope without retaining service state.
-#![deny(non_local_definitions, non_snake_case)]
+#![deny(deprecated, non_local_definitions, non_snake_case)]
 
 use std::marker::PhantomData;
 use std::rc::Rc;
@@ -165,6 +165,57 @@ async fn each_erased_endpoint_instance_keeps_its_own_metadata() {
         doc["paths"]["/borrowed"]["get"]["operationId"],
         doc["paths"]["/wide"]["get"]["operationId"]
     );
+
+    use salvo::oapi::naming::{FlexNamer, NameRule, Namer, set_namer};
+    let short_namer = FlexNamer::new()
+        .short_mode(true)
+        .generic_delimiter('_', '_');
+    set_namer(short_namer.clone());
+    let short_doc = to_value(OpenApi::new("short names", "1").merge_router(&router)).unwrap();
+    let expected = short_namer.assign_name(
+        Typed::<u32>::value().type_id(),
+        std::any::type_name_of_val(&Typed::<u32>::value),
+        NameRule::Auto,
+    );
+    assert_eq!(
+        short_doc["paths"]["/number"]["get"]["operationId"],
+        expected
+    );
+    assert!(!expected.contains("::"));
+    assert!(!expected.contains(['<', '>']));
+
+    struct CustomNamer;
+    impl Namer for CustomNamer {
+        fn assign_name(&self, _id: std::any::TypeId, name: &'static str, rule: NameRule) -> String {
+            match rule {
+                NameRule::Auto => format!("configured-{}", name.replace("::", "_")),
+                NameRule::Force(name) => name.to_owned(),
+            }
+        }
+    }
+    set_namer(CustomNamer);
+    let custom_doc = to_value(OpenApi::new("custom names", "1").merge_router(&router)).unwrap();
+    for path in ["/text", "/number", "/borrowed", "/wide", "/ordinary"] {
+        assert!(
+            custom_doc["paths"][path]["get"]["operationId"]
+                .as_str()
+                .unwrap()
+                .starts_with("configured-")
+        );
+    }
+    assert!(
+        custom_doc["paths"]["/number"]["get"]["operationId"]
+            .as_str()
+            .unwrap()
+            .contains("Typed<u32>")
+    );
+    assert!(
+        custom_doc["paths"]["/number"]["get"]["operationId"]
+            .as_str()
+            .unwrap()
+            .ends_with("_value")
+    );
+    set_namer(FlexNamer::new());
 
     let service = salvo::Service::new(router);
     for (path, expected) in [

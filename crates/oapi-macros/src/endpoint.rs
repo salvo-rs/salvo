@@ -166,10 +166,14 @@ fn metadata_inner(
         .deprecated
         .unwrap_or_default()
         .then(|| quote!(#[allow(deprecated)]));
+    let endpoint_type_id = Ident::new("__salvo_endpoint_type_id", Span::mixed_site());
     let auto_operation_id = match associated {
         Some((_, method)) => {
-            let method = method.unraw().to_string();
-            quote!(::std::format!("{}::{}", ::std::any::type_name::<Self>(), #method))
+            quote!(#oapi::oapi::naming::namer().assign_name(
+                #endpoint_type_id,
+                ::std::any::type_name_of_val(&Self::#method),
+                #oapi::oapi::naming::NameRule::Auto,
+            ))
         }
         None => {
             quote!(#oapi::oapi::naming::assign_name::<#type_path>(#oapi::oapi::naming::NameRule::Auto))
@@ -204,7 +208,10 @@ fn metadata_inner(
             }
     };
     if let Some((creator, _)) = associated {
-        return Ok(quote! { fn #creator() -> #oapi::oapi::Endpoint { #creator_body } });
+        return Ok(quote! {
+            #allow_deprecated
+            fn #creator(#endpoint_type_id: ::std::any::TypeId) -> #oapi::oapi::Endpoint { #creator_body }
+        });
     }
     let stream = quote! {
         #(#cfg)*

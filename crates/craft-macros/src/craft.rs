@@ -230,7 +230,11 @@ fn rewrite_method(
             parse_quote!(#[#salvo::macros::__craft_handler(#dispatch, #lifetime)])
         });
         let metadata_field = is_endpoint.then(|| quote!(creator: fn() -> #oapi::oapi::Endpoint,));
-        let metadata_init = is_endpoint.then(|| quote!(creator: Self::#creator,));
+        let metadata_init = is_endpoint.then(|| {
+            quote! {
+                creator: || Self::#creator(::std::any::TypeId::of::<handle>()),
+            }
+        });
         let metadata_hook = is_endpoint.then(|| {
             quote! {
                 fn type_data(&self) -> Option<&(dyn ::std::any::Any + Send + Sync)> {
