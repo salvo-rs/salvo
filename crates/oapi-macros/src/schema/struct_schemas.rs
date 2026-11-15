@@ -22,7 +22,7 @@ use crate::feature::{
 use crate::schema::{Description, Inline};
 use crate::type_tree::TypeTree;
 use crate::{
-    Deprecated, DiagLevel, DiagResult, Diagnostic, IntoInner, SerdeContainer, SerdeValue,
+    AnyValue, Deprecated, DiagLevel, DiagResult, Diagnostic, IntoInner, SerdeContainer, SerdeValue,
     TryToTokens, serde_util,
 };
 
@@ -111,9 +111,13 @@ impl NamedStructSchema<'_> {
                     .as_ref()
                     .expect("field ident should be exist")
                     .to_owned();
-                features_inner.push(Feature::Default(Default::new_default_trait(
-                    field_ident.into(),
-                )));
+                let default = match container_rules.and_then(|rules| rules.default_path.as_ref()) {
+                    Some(path) if !schema_default => {
+                        Default(Some(AnyValue::Json(quote! { (#path()).#field_ident })))
+                    }
+                    _ => Default::new_default_trait(field_ident.into()),
+                };
+                features_inner.push(Feature::Default(default));
             }
         }
 
@@ -455,6 +459,13 @@ impl TryToTokens for NamedStructSchema<'_> {
 
         if all_of && (schema_default || serde_default) {
             let mut default_value_tokens = TokenStream::new();
+            let default_constructor = match container_rules
+                .as_ref()
+                .and_then(|rules| rules.default_path.as_ref())
+            {
+                Some(path) if !schema_default => quote! { #path() },
+                _ => quote! { Self::default() },
+            };
 
             for field in self.fields {
                 if field
@@ -499,7 +510,7 @@ impl TryToTokens for NamedStructSchema<'_> {
                 if is_flatten(field_rule.as_ref()) {
                     let insert_tokens = quote! {
                         if let #oapi::oapi::__private::serde_json::Value::Object(__flattened) =
-                            #oapi::oapi::__private::serde_json::to_value(Self::default().#field_ident).unwrap()
+                            #oapi::oapi::__private::serde_json::to_value((#default_constructor).#field_ident).unwrap()
                         {
                             __default.extend(__flattened);
                         }
@@ -532,7 +543,7 @@ impl TryToTokens for NamedStructSchema<'_> {
                     let insert_tokens = quote! {
                         __default.insert(
                             #name.to_owned(),
-                            #oapi::oapi::__private::serde_json::to_value(Self::default().#field_ident).unwrap(),
+                            #oapi::oapi::__private::serde_json::to_value((#default_constructor).#field_ident).unwrap(),
                         );
                     };
                     if let Some(guard_tokens) = maybe_guard {
