@@ -881,14 +881,20 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                 .or(Some(ComponentDescription::CommentAttributes(&comments)));
 
             tokens.extend(
-                ComponentSchema::new(ComponentSchemaProps {
-                    type_tree: override_type_tree.as_ref().unwrap_or(first_part),
-                    features: unnamed_struct_features,
-                    description: description.as_ref(),
-                    deprecated: deprecated.as_ref(),
-                    object_name: self.struct_name.as_ref(),
-                    compose_context: self.compose_context.as_ref(),
-                })?
+                ComponentSchema::for_type(
+                    ComponentSchemaProps {
+                        type_tree: override_type_tree.as_ref().unwrap_or(first_part),
+                        features: unnamed_struct_features,
+                        description: description.as_ref(),
+                        deprecated: deprecated.as_ref(),
+                        object_name: self.struct_name.as_ref(),
+                        compose_context: self.compose_context.as_ref(),
+                    },
+                    value_type
+                        .as_ref()
+                        .map(|value_type| &value_type.0)
+                        .unwrap_or(&first_field.ty),
+                )?
                 .to_token_stream(),
             );
         } else {
