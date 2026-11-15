@@ -172,6 +172,8 @@ pub enum SerdeEnumRepr {
 pub struct SerdeContainer {
     /// Rename all fields.
     pub rename_all: Option<RenameRule>,
+    /// Rename fields of every named enum variant.
+    pub rename_all_fields: Option<RenameRule>,
     /// Enum repr.
     pub enum_repr: SerdeEnumRepr,
     /// Is default.
@@ -196,6 +198,15 @@ impl SerdeContainer {
         deserializing: bool,
     ) -> syn::Result<()> {
         match ident.to_string().as_str() {
+            "rename_all_fields" => {
+                if let Some((literal, span)) = parse_rename(next, deserializing)? {
+                    self.rename_all_fields = Some(
+                        literal
+                            .parse::<RenameRule>()
+                            .map_err(|error| Error::new(span, error))?,
+                    );
+                }
+            }
             "rename_all" => {
                 if let Some((literal, span)) = parse_rename(next, deserializing)? {
                     self.rename_all = Some(

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Apply serde `rename_all_fields` rules to enum variant schemas.
 - Use serde container default functions when generating schema default values.
 - Retain method-level where clauses in crafted handler factories and wrappers.
 - Preserve adjacent enum tags and content across separate serde attributes.
