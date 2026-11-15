@@ -219,7 +219,11 @@ pub struct Parameter {
 
     /// Example of the [`Parameter`]'s potential value. This example will override any
     /// example defined within [`Parameter::schema`].
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "crate::openapi::deserialize_json_value",
+        skip_serializing_if = "Option::is_none"
+    )]
     example: Option<Value>,
 
     /// Examples of the parameter's potential value, indexed by name. When both

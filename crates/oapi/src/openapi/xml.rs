@@ -5,6 +5,8 @@ use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
+use super::PropMap;
+
 /// Implements [OpenAPI Xml Object][xml_object].
 ///
 /// Can be used to modify xml output format of specific [OpenAPI Schema Object][schema_object] which
@@ -52,6 +54,10 @@ pub struct Xml {
     /// Deprecated in OpenAPI 3.2 in favour of [`XmlNodeType::Element`] on the array schema.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wrapped: Option<bool>,
+
+    /// Optional specification extensions (`x-something`).
+    #[serde(default, skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 /// The kind of XML [DOM node](https://dom.spec.whatwg.org/#interface-node) a schema describes.

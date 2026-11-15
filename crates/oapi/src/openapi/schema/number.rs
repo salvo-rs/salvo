@@ -23,9 +23,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[derive(Clone, Debug)]
 pub enum Number {
     /// Signed integer value e.g. `1` or `-2`.
-    Int(isize),
+    Int(i64),
     /// Unsigned integer value e.g. `0`.
-    UInt(usize),
+    UInt(u64),
     /// Floating point number e.g. `1.34`.
     Float(f64),
 }
@@ -55,8 +55,8 @@ impl Serialize for Number {
         S: Serializer,
     {
         match self {
-            Self::Int(value) => serializer.serialize_i64(*value as i64),
-            Self::UInt(value) => serializer.serialize_u64(*value as u64),
+            Self::Int(value) => serializer.serialize_i64(*value),
+            Self::UInt(value) => serializer.serialize_u64(*value),
             Self::Float(value) => {
                 // Preserve whole floats without `.0` only when the conversion
                 // is exact. u64::MAX rounds up to 2^64 as f64, so its upper
@@ -86,14 +86,14 @@ impl<'de> Visitor<'de> for NumberVisitor {
     where
         E: de::Error,
     {
-        Ok(Number::Int(v as isize))
+        Ok(Number::Int(v))
     }
 
     fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        Ok(Number::UInt(v as usize))
+        Ok(Number::UInt(v))
     }
 
     fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
@@ -128,9 +128,9 @@ macro_rules! impl_from_for_number {
 #[rustfmt::skip]
 impl_from_for_number!(
     f32 => Float as f64, f64 => Float,
-    i8 => Int as isize, i16 => Int as isize, i32 => Int as isize, i64 => Int as isize,
-    u8 => UInt as usize, u16 => UInt as usize, u32 => UInt as usize, u64 => UInt as usize,
-    isize => Int, usize => UInt
+    i8 => Int as i64, i16 => Int as i64, i32 => Int as i64, i64 => Int as i64,
+    u8 => UInt as u64, u16 => UInt as u64, u32 => UInt as u64, u64 => UInt as u64,
+    isize => Int as i64, usize => UInt as u64
 );
 
 #[cfg(test)]

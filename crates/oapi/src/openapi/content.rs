@@ -41,7 +41,11 @@ pub struct Content {
     pub item_schema: Option<RefOr<Schema>>,
 
     /// Example for request body or response body.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "crate::openapi::deserialize_json_value",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub example: Option<Value>,
 
     /// Examples of the request body or response body. [`Content::examples`] should match to
