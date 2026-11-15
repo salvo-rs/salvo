@@ -16,6 +16,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Fix `ToSchema` expansion for `#[serde(flatten)]` map fields.
 
+- Match exactly the given width for path parameters such as `{id:num[6]}` and
+  `{id:hex[6]}`, which also accepted longer values.
+
 - Use `anyOf` for untagged enum alternatives, including per-variant fallbacks,
   so overlapping valid serde representations remain accepted.
 
