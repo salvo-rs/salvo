@@ -23,6 +23,18 @@
 //! }
 //! ```
 //!
+//! Deprecated handlers retain caller-facing deprecation diagnostics:
+//!
+//! ```compile_fail
+//! #![allow(deprecated)]
+//! use salvo_core::handler;
+//! #[handler]
+//! #[deprecated(note = "use the replacement handler")]
+//! fn old() -> &'static str { "old" }
+//! #[deny(deprecated)]
+//! fn caller() { let _handler = old; }
+//! ```
+//!
 //! This is equivalent to:
 //!
 //! ```
