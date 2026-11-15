@@ -1,4 +1,0 @@
-# Preserve these upstream documentation and test-fixture spellings.
-[default.extend-words]
-exmample = "exmample"
-abd = "abd"

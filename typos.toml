@@ -3,6 +3,12 @@ extend-ignore-identifiers-re = [
     # *sigh* this just isn't worth the cost of fixing
     "AttributeID.*Supress.*",
 ]
+extend-ignore-re = [
+    # Preserve these exact upstream vendor snippets during a repository-root scan.
+    'Bytes::from\(b"abd"\.to_vec\(\)\)',
+    's\.contains\("doub"\)',
+    '/// for exmample:',
+]
 
 [default.extend-identifiers]
 # *sigh* this just isn't worth the cost of fixing
