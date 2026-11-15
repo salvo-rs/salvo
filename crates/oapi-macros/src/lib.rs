@@ -119,6 +119,10 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// The derive also reflects supported serde rename/default/skip attributes and
 /// Rust's `#[deprecated]` attribute into the generated OpenAPI schema.
+/// Tuple fields using `serde(skip_serializing_if = "...")` produce a union of
+/// their distinct serialized positions. At most 256 distinct shapes are supported;
+/// equivalent item schemas are merged, so homogeneous optional tuples remain compact.
+/// Use named fields or a manual `ToSchema` implementation for larger combinations.
 ///
 /// Full attribute reference:
 /// <https://docs.rs/salvo-oapi/latest/salvo_oapi/derive.ToSchema.html>
