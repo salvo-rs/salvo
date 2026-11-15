@@ -45,7 +45,7 @@ where
     let iter = input.into_iter().map(|(k, v)| {
         (
             CowValue(k.into()),
-            VecValue(v.into_iter().map(|v| CowValue(v.into()))),
+            VecValue::new(v.into_iter().map(|v| CowValue(v.into()))),
         )
     });
     T::deserialize(MapDeserializer::new(iter))
@@ -58,7 +58,17 @@ where
     C: Into<Cow<'de, str>> + std::cmp::Eq + 'de,
 {
     let iter = input.into_iter().map(|v| CowValue(v.into()));
-    T::deserialize(VecValue(iter))
+    T::deserialize(VecValue::new(iter))
+}
+
+pub(crate) fn from_header_multi_val<'de, I, T, C>(input: I) -> Result<T, ValError>
+where
+    I: IntoIterator<Item = C> + 'de,
+    T: Deserialize<'de>,
+    C: Into<Cow<'de, str>>,
+{
+    let iter = input.into_iter().map(|value| CowValue(value.into()));
+    T::deserialize(VecValue::header(iter))
 }
 
 #[inline]
