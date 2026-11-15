@@ -56,8 +56,35 @@ fn serialized_map_names_match_serde() {
             vec![json!({"Other":"one"})],
         ),
         json!({"schema":BTreeMap::<i32,String>::compose(&mut components,vec![]),"valid":[{"7":"one"}],"invalid":[{"no":"one"},{"7":false}]}),
+        json!({"schema":BTreeMap::<String,String>::compose(&mut components,vec![false.into(),String::to_schema(&mut Components::new())]),"valid":[{}],"invalid":[{"anything":"one"}]}),
     ];
     if let Some(path) = std::env::var_os("SALVO_SCHEMA_CONTRACT_OUTPUT") {
         std::fs::write(path, serde_json::to_vec(&cases).unwrap()).unwrap();
     }
+}
+
+#[test]
+fn explicit_boolean_key_schemas_preserve_their_constraints() {
+    use salvo::oapi::Ref;
+    use salvo::oapi::schema::serialized_map_key_schema;
+    let mut components = Components::new();
+    for value in [false, true] {
+        assert_eq!(
+            json!(serialized_map_key_schema(value.into(), &components)),
+            json!(value)
+        );
+    }
+    components.schemas.insert("Never", false);
+    assert_eq!(
+        json!(serialized_map_key_schema(
+            Ref::from_schema_name("Never").into(),
+            &components
+        )),
+        false
+    );
+    let schema = BTreeMap::<String, String>::compose(
+        &mut components,
+        vec![false.into(), String::to_schema(&mut Components::new())],
+    );
+    assert_eq!(json!(schema)["propertyNames"], false);
 }

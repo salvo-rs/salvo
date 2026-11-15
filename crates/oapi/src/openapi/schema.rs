@@ -42,6 +42,11 @@ pub fn serialized_map_key_schema(
         };
         key = schema.clone();
     }
+    // Boolean schemas express unconditional acceptance/rejection; converting
+    // them to a string schema would discard an explicit composition constraint.
+    if matches!(key, RefOr::Type(Schema::Boolean(_))) {
+        return key;
+    }
     let RefOr::Type(Schema::Object(object)) = key else {
         return Object::with_type(BasicType::String).into();
     };
