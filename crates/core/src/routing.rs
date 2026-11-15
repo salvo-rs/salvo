@@ -178,7 +178,8 @@
 //! semantics more clear, for example: `{**file_path}`.
 //!
 //! It is allowed to combine multiple expressions to match the same path segment,
-//! such as `/articles/article_{id:num}/`, `/images/{name}.{ext}`.
+//! such as `/articles/article_{id|\d+}/`, `/images/{name}.{ext}`. A character class such as
+//! `{id:num}` has to be a whole segment; use a regular expression inside a combined one.
 //!
 //! # Add middlewares
 //!
