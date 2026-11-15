@@ -697,7 +697,7 @@ impl<T: ComposeSchema> ComposeSchema for Option<T> {
 
 impl<T> ToSchema for PhantomData<T> {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
-        Schema::Object(Box::default()).into()
+        schema::Object::with_type(schema::BasicType::Null).into()
     }
 }
 impl<T> ComposeSchema for PhantomData<T> {
@@ -705,7 +705,7 @@ impl<T> ComposeSchema for PhantomData<T> {
         _components: &mut Components,
         _generics: Vec<RefOr<schema::Schema>>,
     ) -> RefOr<schema::Schema> {
-        Schema::Object(Box::default()).into()
+        schema::Object::with_type(schema::BasicType::Null).into()
     }
 }
 
@@ -954,7 +954,7 @@ where
 
 impl ToSchema for serde_json::Value {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
-        Schema::Object(Box::default()).into()
+        schema::Object::with_type(schema::SchemaType::AnyValue).into()
     }
 }
 impl ComposeSchema for serde_json::Value {
@@ -962,7 +962,7 @@ impl ComposeSchema for serde_json::Value {
         _components: &mut Components,
         _generics: Vec<RefOr<schema::Schema>>,
     ) -> RefOr<schema::Schema> {
-        Schema::Object(Box::default()).into()
+        schema::Object::with_type(schema::SchemaType::AnyValue).into()
     }
 }
 
@@ -982,7 +982,7 @@ impl ComposeSchema for serde_json::Map<String, serde_json::Value> {
 
 impl ToSchema for serde_json::value::RawValue {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
-        Schema::Object(Box::default()).into()
+        schema::Object::with_type(schema::SchemaType::AnyValue).into()
     }
 }
 impl ComposeSchema for serde_json::value::RawValue {
@@ -990,7 +990,7 @@ impl ComposeSchema for serde_json::value::RawValue {
         _components: &mut Components,
         _generics: Vec<RefOr<schema::Schema>>,
     ) -> RefOr<schema::Schema> {
-        Schema::Object(Box::default()).into()
+        schema::Object::with_type(schema::SchemaType::AnyValue).into()
     }
 }
 
