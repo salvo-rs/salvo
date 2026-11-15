@@ -24,9 +24,10 @@ mod xml;
 
 use std::collections::BTreeSet;
 use std::fmt::{self, Debug, Formatter};
-use std::sync::LazyLock;
+use std::sync::{LazyLock, OnceLock};
 
 use regex::Regex;
+use salvo_core::hyper::body::Bytes;
 use salvo_core::{Depot, FlowCtrl, Handler, Router, async_trait, writing};
 use serde::de::{Error, Expected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -607,9 +608,22 @@ impl OpenApi {
         self
     }
 
-    /// Consumes the [`OpenApi`] and returns [`Router`] with the [`OpenApi`] as handler.
+    /// Freeze the document into a handler that serializes each JSON format once.
+    ///
+    /// Compact and pretty representations are initialized on demand, then shared
+    /// by subsequent responses. Use this after finishing document construction.
+    #[must_use]
+    pub fn into_handler(self) -> OpenApiHandler {
+        OpenApiHandler {
+            document: self,
+            compact: OnceLock::new(),
+            pretty: OnceLock::new(),
+        }
+    }
+
+    /// Freeze the document and serve cached compact/pretty JSON at `path`.
     pub fn into_router(self, path: impl Into<String>) -> Router {
-        Router::with_path(path.into()).goal(self)
+        Router::with_path(path.into()).goal(self.into_handler())
     }
 
     /// Consumes the [`OpenApi`] and information from a [`Router`].
@@ -819,6 +833,42 @@ impl OpenApi {
         for child in &mut node.children {
             self.merge_norm_node(child, &path);
         }
+    }
+}
+
+/// An immutable OpenAPI document served using shared, lazily serialized bytes.
+#[derive(Debug)]
+pub struct OpenApiHandler {
+    document: OpenApi,
+    compact: OnceLock<Bytes>,
+    pretty: OnceLock<Bytes>,
+}
+
+#[async_trait]
+impl Handler for OpenApiHandler {
+    async fn handle(
+        &self,
+        req: &mut salvo_core::Request,
+        _depot: &mut Depot,
+        res: &mut salvo_core::Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
+        let pretty = req
+            .queries()
+            .get("pretty")
+            .is_some_and(|value| &**value != "false");
+        let bytes = if pretty {
+            self.pretty
+                .get_or_init(|| self.document.to_pretty_json().unwrap_or_default().into())
+        } else {
+            self.compact
+                .get_or_init(|| self.document.to_json().unwrap_or_default().into())
+        };
+        res.headers_mut().insert(
+            salvo_core::http::header::CONTENT_TYPE,
+            salvo_core::http::HeaderValue::from_static("application/json; charset=utf-8"),
+        );
+        res.body(salvo_core::http::ResBody::Once(bytes.clone()));
     }
 }
 
