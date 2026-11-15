@@ -1,7 +1,7 @@
 [workspace]
 members = ["*"]
 resolver = "3"
-exclude = ["todos-utoipa", "target", "temp"]
+exclude = ["todos-utoipa", "target", "temp", "vendor"]
 
 [workspace.package]
 version = "0.1.0"
@@ -80,3 +80,7 @@ rand_core = "0.9.3"
 
 toasty = { version = "0.8.0", default-features = false }
 jiff = "0.2.23"
+
+[patch.crates-io]
+# Published Toasty PostgreSQL drivers still depend on unmaintained rustls-pemfile.
+toasty-driver-postgresql = { path = "vendor/toasty-driver-postgresql" }
