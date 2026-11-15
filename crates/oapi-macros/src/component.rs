@@ -283,7 +283,7 @@ impl ComponentSchema {
         tokens.extend(quote! {
             #oapi::oapi::Object::new()
                 #schema_type
-                .property_names(#property_names_schema)
+                .property_names(#oapi::oapi::schema::serialized_map_key_schema((#property_names_schema).into(), components))
                 #additional_properties
                 #description_stream
                 #deprecated_stream
