@@ -167,6 +167,7 @@ fn rewrite_method(
     let handler = quote!(#salvo::Handler);
     let method_name = method.sig.ident.clone();
     let vis = method.vis.clone();
+    let factory_where = method.sig.generics.where_clause.clone();
     let mut attrs = method.attrs.clone();
     let style = FnReceiver::from_method(method)?;
     let stateless_generic = style == FnReceiver::None && !impl_generics.params.is_empty();
@@ -265,11 +266,14 @@ fn rewrite_method(
                 // Preserve the original stateless body for generic static methods.
                 method.sig = helper.sig.clone();
                 method.sig.ident = method_name.clone();
+                // The factory enforces these predicates. A nested stateless
+                // function cannot capture the enclosing impl's parameters.
+                method.sig.generics.where_clause = None;
                 method.block = helper.block.clone();
             }
             method.attrs.push(macro_attr);
             parse_quote! {
-                #vis fn #method_name() -> impl #handler {
+                #vis fn #method_name() -> impl #handler #factory_where {
 
                     #method
 
@@ -313,10 +317,16 @@ fn rewrite_method(
             // In the local wrapper, `Self` names the wrapper rather than the service.
             // Keep predicates from the service impl attached to the service type.
             let mut handler_generics = impl_generics.clone();
+            if let Some(predicates) = &method.sig.generics.where_clause {
+                handler_generics
+                    .make_where_clause()
+                    .predicates
+                    .extend(predicates.predicates.clone());
+            }
             ServiceSelf(self_ty).visit_generics_mut(&mut handler_generics);
             let (impl_g, ty_g, where_c) = handler_generics.split_for_impl();
             parse_quote! {
-                #vis fn #method_name(#receiver) -> impl #handler {
+                #vis fn #method_name(#receiver) -> impl #handler #factory_where {
                     #[allow(non_camel_case_types)]
                     // Named fields avoid introducing a tuple constructor into
                     // the value namespace of the user's parameter bindings.

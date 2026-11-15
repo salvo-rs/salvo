@@ -174,10 +174,14 @@ pub struct SerdeContainer {
     pub transparent: bool,
     /// Rename all fields.
     pub rename_all: Option<RenameRule>,
+    /// Rename fields of every named enum variant.
+    pub rename_all_fields: Option<RenameRule>,
     /// Enum repr.
     pub enum_repr: SerdeEnumRepr,
     /// Is default.
     pub is_default: bool,
+    /// Function supplied by `#[serde(default = "path")]`.
+    pub default_path: Option<syn::Path>,
     /// Deny unknown fields.
     pub deny_unknown_fields: bool,
 }
@@ -197,6 +201,15 @@ impl SerdeContainer {
     ) -> syn::Result<()> {
         match ident.to_string().as_str() {
             "transparent" => self.transparent = true,
+            "rename_all_fields" => {
+                if let Some((literal, span)) = parse_rename(next, deserializing)? {
+                    self.rename_all_fields = Some(
+                        literal
+                            .parse::<RenameRule>()
+                            .map_err(|error| Error::new(span, error))?,
+                    );
+                }
+            }
             "rename_all" => {
                 if let Some((literal, span)) = parse_rename(next, deserializing)? {
                     self.rename_all = Some(
@@ -255,6 +268,10 @@ impl SerdeContainer {
             }
             "default" => {
                 self.is_default = true;
+                if let Some((literal, span)) = parse_next_lit_str(next) {
+                    self.default_path =
+                        Some(syn::parse_str(&literal).map_err(|error| Error::new(span, error))?);
+                }
             }
             "deny_unknown_fields" => {
                 self.deny_unknown_fields = true;
@@ -265,14 +282,12 @@ impl SerdeContainer {
     }
 
     /// Parse the attributes inside a `#[serde(...)]` container attribute.
-    fn parse(input: syn::parse::ParseStream, deserializing: bool) -> syn::Result<Self> {
-        let mut container = Self::default();
-
+    fn parse(&mut self, input: syn::parse::ParseStream, deserializing: bool) -> syn::Result<()> {
         input.step(|cursor| {
             let mut rest = *cursor;
             while let Some((tt, next)) = rest.token_tree() {
                 if let TokenTree::Ident(ident) = tt {
-                    container.parse_attribute(&ident, next, deserializing)?
+                    self.parse_attribute(&ident, next, deserializing)?
                 }
 
                 rest = next;
@@ -280,7 +295,7 @@ impl SerdeContainer {
             Ok(((), rest))
         })?;
 
-        Ok(container)
+        Ok(())
     }
 }
 
@@ -364,44 +379,27 @@ fn parse_container_with_direction(
     attributes: &[Attribute],
     deserializing: bool,
 ) -> Result<Option<SerdeContainer>, Error> {
-    attributes
+    // Serde attributes form one container configuration, even when split across
+    // several attributes. Keep the representation state while parsing each one.
+    let mut container = SerdeContainer::default();
+    for attribute in attributes
         .iter()
-        .filter(|attribute| attribute.path().is_ident("serde"))
-        .map(|serde_attribute| {
-            serde_attribute.parse_args_with(|input: syn::parse::ParseStream| {
-                SerdeContainer::parse(input, deserializing)
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .map(|parsed| {
-            Some(
-                parsed
-                    .into_iter()
-                    .fold(SerdeContainer::default(), |mut acc, value| {
-                        if value.is_default {
-                            acc.is_default = value.is_default;
-                        }
-                        if value.deny_unknown_fields {
-                            acc.deny_unknown_fields = value.deny_unknown_fields;
-                        }
-                        acc.transparent |= value.transparent;
-                        match value.enum_repr {
-                            SerdeEnumRepr::ExternallyTagged => {}
-                            SerdeEnumRepr::Untagged
-                            | SerdeEnumRepr::InternallyTagged { .. }
-                            | SerdeEnumRepr::AdjacentlyTagged { .. }
-                            | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
-                                acc.enum_repr = value.enum_repr;
-                            }
-                        }
-                        if value.rename_all.is_some() {
-                            acc.rename_all = value.rename_all;
-                        }
-
-                        acc
-                    }),
-            )
-        })
+        .filter(|attr| attr.path().is_ident("serde"))
+    {
+        attribute.parse_args_with(|input: syn::parse::ParseStream| {
+            container.parse(input, deserializing)
+        })?;
+    }
+    if matches!(
+        container.enum_repr,
+        SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. }
+    ) {
+        return Err(Error::new(
+            proc_macro2::Span::call_site(),
+            "serde content requires a tag",
+        ));
+    }
+    Ok(Some(container))
 }
 
 #[cfg(test)]
@@ -410,6 +408,27 @@ mod tests {
 
     use super::case::RENAME_RULES;
     use super::{RenameRule, SerdeContainer, parse_container, parse_value};
+
+    #[test]
+    fn split_representation_rejects_duplicate_tags_and_missing_tags() {
+        let duplicate: Vec<Attribute> = vec![
+            parse_quote!(#[serde(tag = "one")]),
+            parse_quote!(#[serde(tag = "two")]),
+        ];
+        assert!(
+            parse_container(&duplicate)
+                .unwrap_err()
+                .to_string()
+                .contains("Duplicate serde tag")
+        );
+        let missing: Vec<Attribute> = vec![parse_quote!(#[serde(content = "data")])];
+        assert!(
+            parse_container(&missing)
+                .unwrap_err()
+                .to_string()
+                .contains("content requires a tag")
+        );
+    }
 
     #[test]
     fn test_serde_parse_value() {

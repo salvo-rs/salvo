@@ -18,6 +18,21 @@ pub(crate) fn effective_schema_data(
     attributes: &[syn::Attribute],
 ) -> DiagResult<syn::Data> {
     fn unnamed_override(fields: &mut syn::Fields, features: &[Feature]) -> DiagResult<()> {
+        if let syn::Fields::Unnamed(unnamed) = fields
+            && unnamed.unnamed.len() != 1
+        {
+            unnamed.unnamed = unnamed
+                .unnamed
+                .iter()
+                .map(|field| {
+                    let rules = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
+                    Ok((!rules.is_some_and(|rules| rules.skip)).then(|| field.clone()))
+                })
+                .collect::<DiagResult<Vec<_>>>()?
+                .into_iter()
+                .flatten()
+                .collect();
+        }
         let Some(Feature::ValueType(value_type)) = features
             .iter()
             .find(|feature| matches!(feature, Feature::ValueType(_)))

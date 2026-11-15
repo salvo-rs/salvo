@@ -402,6 +402,79 @@ struct Parameter<'a> {
 }
 
 impl Parameter<'_> {
+    fn sequence_delimiter(&self, features: &[Feature]) -> DiagResult<Option<char>> {
+        use crate::parameter::ParameterStyle;
+        use crate::type_tree::GenericType;
+        let mut ty = TypeTree::from_type(&self.field.ty)?;
+        while matches!(
+            ty.generic_type,
+            Some(
+                GenericType::Option
+                    | GenericType::Box
+                    | GenericType::Arc
+                    | GenericType::Rc
+                    | GenericType::Cow
+                    | GenericType::RefCell
+            )
+        ) {
+            let Some(child) = ty.children.as_mut().and_then(|children| children.pop()) else {
+                break;
+            };
+            ty = child;
+        }
+        let sequence = matches!(
+            ty.generic_type,
+            Some(GenericType::Vec | GenericType::Set | GenericType::LinkedList)
+        );
+        #[cfg(feature = "smallvec")]
+        let sequence = sequence || matches!(ty.generic_type, Some(GenericType::SmallVec));
+        if !sequence {
+            return Ok(None);
+        }
+        let location = features
+            .iter()
+            .find_map(|feature| match feature {
+                Feature::ParameterIn(value) => Some(&value.0),
+                _ => None,
+            })
+            .or_else(|| match self.container_attributes.default_parameter_in {
+                Some(Feature::DefaultParameterIn(value)) => Some(&value.0),
+                _ => None,
+            })
+            .unwrap_or(&ParameterIn::Query);
+        let style = features
+            .iter()
+            .find_map(|feature| match feature {
+                Feature::Style(value) => Some(value.0),
+                _ => None,
+            })
+            .or_else(|| match self.container_attributes.default_style {
+                Some(Feature::DefaultStyle(value)) => Some(value.0),
+                _ => None,
+            })
+            .unwrap_or_else(|| match location {
+                ParameterIn::Header | ParameterIn::Path => ParameterStyle::Simple,
+                _ => ParameterStyle::Form,
+            });
+        let explode = features
+            .iter()
+            .find_map(|feature| match feature {
+                Feature::Explode(value) => Some(value.0),
+                _ => None,
+            })
+            .unwrap_or(matches!(style, ParameterStyle::Form));
+        match (location, style, explode) {
+            (ParameterIn::Query, ParameterStyle::Form, true) => Ok(None),
+            (ParameterIn::Query, ParameterStyle::Form, false)
+            | (ParameterIn::Header, ParameterStyle::Simple, _) => Ok(Some(',')),
+            (ParameterIn::Query, ParameterStyle::PipeDelimited, false) => Ok(Some('|')),
+            _ => Err(Diagnostic::spanned(
+                self.field.span(),
+                DiagLevel::Error,
+                "unsupported array parameter encoding in ToParameters; use Form or PipeDelimited query arrays, Simple header arrays, or a custom extractor",
+            )),
+        }
+    }
     /// Resolve [`Parameter`] features and split features into two [`Vec`]s. Features are split by
     /// whether they should be rendered in [`Parameter`] itself or in [`Parameter`]s schema.
     ///
@@ -483,6 +556,9 @@ impl Parameter<'_> {
 
     fn to_extract_field_token_stream(&self, salvo: &syn::Path) -> DiagResult<TokenStream> {
         let (_, mut param_features) = self.resolve_field_features()?;
+        let delimiter = self
+            .sequence_delimiter(&param_features)?
+            .map(|delimiter| quote! { .value_delimiter(Some(#delimiter)) });
         let name = self
             .field
             .ident
@@ -547,6 +623,7 @@ impl Parameter<'_> {
                     #serde_rename
                     #(#aliases)*
                     #defaulted
+                    #delimiter
             })
         } else {
             Ok(quote! {
@@ -555,6 +632,7 @@ impl Parameter<'_> {
                 #serde_rename
                 #(#aliases)*
                 #defaulted
+                #delimiter
             })
         }
     }
@@ -685,6 +763,17 @@ impl TryToTokens for Parameter<'_> {
 #[cfg(test)]
 mod tests {
     use syn::parse_quote;
+
+    #[test]
+    fn unsupported_array_encodings_produce_derive_errors() {
+        for input in [
+            parse_quote! { struct Array { #[salvo(parameter(style = DeepObject))] values: Vec<String> } },
+            parse_quote! { #[salvo(parameters(default_parameter_in = Path, default_style = Matrix))] struct Array { values: Vec<String> } },
+            parse_quote! { struct Array { #[salvo(parameter(style = PipeDelimited, explode = true))] values: Vec<String> } },
+        ] {
+            assert!(crate::parameter::to_parameters(input).is_err());
+        }
+    }
 
     #[test]
     fn querystring_container_is_rejected_instead_of_generating_an_invalid_schema() {
