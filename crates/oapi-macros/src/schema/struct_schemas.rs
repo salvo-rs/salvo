@@ -443,7 +443,9 @@ impl TryToTokens for NamedStructSchema<'_> {
                 } else {
                     schema
                 };
-                tokens.extend(schema);
+                tokens.extend(quote! {
+                    #oapi::oapi::schema::flatten_all_of_schema(#schema, components)
+                });
                 true
             }
         } else {

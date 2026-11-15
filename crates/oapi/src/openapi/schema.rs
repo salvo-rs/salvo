@@ -270,6 +270,193 @@ pub(crate) fn flatten_with_known_properties(
     }
 }
 
+/// Apply flattened catch-all rules after the known properties of every child.
+/// Used by generated schemas when the concrete type of a flattened field may
+/// only become known during generic schema composition.
+#[doc(hidden)]
+pub fn flatten_all_of_schema(schema: AllOf, components: &crate::Components) -> AllOf {
+    fn referenced<'a>(
+        reference: &crate::Ref,
+        components: &'a crate::Components,
+    ) -> Option<&'a RefOr<Schema>> {
+        reference
+            .ref_location
+            .strip_prefix("#/components/schemas/")
+            .and_then(|name| {
+                components
+                    .schemas
+                    .get(&name.replace("~1", "/").replace("~0", "~"))
+            })
+    }
+
+    fn extension_names(
+        extensions: &PropMap<String, serde_json::Value>,
+        names: &mut std::collections::BTreeSet<String>,
+    ) {
+        if let Some(properties) = extensions
+            .get("properties")
+            .and_then(serde_json::Value::as_object)
+        {
+            names.extend(properties.keys().cloned());
+        }
+    }
+
+    fn known_names(
+        schema: &RefOr<Schema>,
+        components: &crate::Components,
+        visiting: &mut std::collections::HashSet<String>,
+        names: &mut std::collections::BTreeSet<String>,
+    ) {
+        match schema {
+            RefOr::Ref(reference) => {
+                extension_names(&reference.extensions, names);
+                if visiting.insert(reference.ref_location.clone()) {
+                    if let Some(target) = referenced(reference, components) {
+                        known_names(target, components, visiting, names);
+                    }
+                    visiting.remove(&reference.ref_location);
+                }
+            }
+            RefOr::Type(Schema::Object(object)) => {
+                names.extend(object.properties.keys().cloned());
+                extension_names(&object.extensions, names);
+            }
+            RefOr::Type(Schema::AllOf(all)) => {
+                extension_names(&all.extensions, names);
+                for item in &all.items {
+                    known_names(item, components, visiting, names);
+                }
+            }
+            // Alternative-only fields must not exempt an inactive branch's
+            // keys from a sibling map's value rules.
+            RefOr::Type(Schema::AnyOf(any)) => extension_names(&any.extensions, names),
+            RefOr::Type(Schema::OneOf(one)) => extension_names(&one.extensions, names),
+            _ => {}
+        }
+    }
+
+    fn take_extensions(
+        extensions: &mut PropMap<String, serde_json::Value>,
+        catch_all: &mut Vec<serde_json::Value>,
+    ) {
+        for keyword in ["additionalProperties", "unevaluatedProperties"] {
+            if let Some(value) = extensions.remove(keyword) {
+                catch_all.push(value);
+            }
+        }
+    }
+
+    fn lift(
+        schema: RefOr<Schema>,
+        components: &crate::Components,
+        visiting: &mut std::collections::HashSet<String>,
+        catch_all: &mut Vec<serde_json::Value>,
+    ) -> RefOr<Schema> {
+        match schema {
+            RefOr::Ref(reference) => {
+                if !visiting.insert(reference.ref_location.clone()) {
+                    return reference.into();
+                }
+                let target = referenced(&reference, components);
+                let siblings = if reference.extensions.is_empty() {
+                    None
+                } else {
+                    let value = serde_json::to_value(&reference.extensions)
+                        .expect("schema serializes to JSON");
+                    let Ok(siblings) = serde_json::from_value::<RefOr<Schema>>(value) else {
+                        visiting.remove(&reference.ref_location);
+                        return reference.into();
+                    };
+                    Some(siblings)
+                };
+                let normalized = target.map(|target| {
+                    let target = if siblings.is_none()
+                        && reference.description.is_empty()
+                        && reference.summary.is_empty()
+                    {
+                        target.clone()
+                    } else {
+                        let mut annotated = AllOf::new().item(target.clone());
+                        if let Some(siblings) = siblings {
+                            annotated.items.push(siblings);
+                        }
+                        if !reference.description.is_empty() {
+                            annotated.description = Some(reference.description.clone());
+                        }
+                        if !reference.summary.is_empty() {
+                            annotated
+                                .extensions
+                                .insert("summary".into(), serde_json::json!(reference.summary));
+                        }
+                        annotated.into()
+                    };
+                    let normalized = lift(target.clone(), components, visiting, catch_all);
+                    (target, normalized)
+                });
+                visiting.remove(&reference.ref_location);
+                match normalized {
+                    Some((target, normalized)) if normalized != target => normalized,
+                    _ => reference.into(),
+                }
+            }
+            RefOr::Type(mut schema) => {
+                match &mut schema {
+                    Schema::Object(object) => {
+                        if let Some(value) = object.additional_properties.take() {
+                            catch_all.push(
+                                serde_json::to_value(value).expect("schema serializes to JSON"),
+                            );
+                        }
+                        take_extensions(&mut object.extensions, catch_all);
+                    }
+                    Schema::AllOf(all) => {
+                        all.items = std::mem::take(&mut all.items)
+                            .into_iter()
+                            .map(|item| lift(item, components, visiting, catch_all))
+                            .collect();
+                        take_extensions(&mut all.extensions, catch_all);
+                    }
+                    // A conditional map must keep its catch-all conditional.
+                    // The known-key preparation above handles fixed siblings.
+                    _ => {}
+                }
+                schema.into()
+            }
+        }
+    }
+
+    let schema = RefOr::Type(Schema::AllOf(schema));
+    let mut known = std::collections::BTreeSet::new();
+    known_names(
+        &schema,
+        components,
+        &mut std::collections::HashSet::new(),
+        &mut known,
+    );
+    let schema = flatten_with_known_properties(schema, &known, components);
+    let mut catch_all = Vec::new();
+    let schema = lift(
+        schema,
+        components,
+        &mut std::collections::HashSet::new(),
+        &mut catch_all,
+    );
+    let RefOr::Type(Schema::AllOf(mut schema)) = schema else {
+        unreachable!("preparing an allOf preserves its outer composition");
+    };
+    if !catch_all.is_empty() {
+        let value = if catch_all.len() == 1 {
+            catch_all.pop().expect("one catch-all")
+        } else {
+            serde_json::json!({"allOf":catch_all})
+        };
+        schema
+            .extensions
+            .insert("unevaluatedProperties".into(), value);
+    }
+    schema
+}
+
 /// Schemas collection for OpenApi.
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
