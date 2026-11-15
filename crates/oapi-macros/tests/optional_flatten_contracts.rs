@@ -158,6 +158,41 @@ fn optional_flatten_keeps_group_constraints() {
         }
         cases.push(json!({"schema":{"allOf":[composed],"components":components},"valid":[{"id":"one"},{"id":"one","label":"yes","extra":2}],"invalid":[{"id":2},{"id":"one","label":"yes","extra":false}]}));
     }
+    let parent = salvo::oapi::Object::new()
+        .property(
+            "id",
+            salvo::oapi::Object::with_type(salvo::oapi::schema::BasicType::String),
+        )
+        .required("id");
+    let child = salvo::oapi::Object::new()
+        .property(
+            "label",
+            salvo::oapi::Object::with_type(salvo::oapi::schema::BasicType::String),
+        )
+        .required("label")
+        .add_extension("unevaluatedProperties", json!(false));
+    let child =
+        salvo::oapi::schema::optional_flatten_schema(child.into(), &parent, &Components::new());
+    assert_eq!(
+        json!(&child)["anyOf"][0]["properties"]["label"]["type"],
+        "string"
+    );
+    cases.push(json!({"schema":{"allOf":[child,parent]},"valid":[{"id":"one"},{"id":"one","label":"yes"}],"invalid":[{"id":"one","label":2},{"id":"one","label":"yes","unknown":2}]}));
+
+    let mut components = Components::new();
+    let mut child = ChildMap::to_schema(&mut components);
+    if let salvo::oapi::RefOr::Ref(reference) = &mut child {
+        reference
+            .extensions
+            .insert("maxProperties".into(), json!(3));
+        reference.description = "child map annotation".into();
+        reference.summary = "child map summary".into();
+    }
+    let composed = StringParent::<ChildMap>::compose(&mut components, vec![child]);
+    let serialized = serde_json::to_string(&composed).unwrap();
+    assert!(serialized.contains("child map annotation"));
+    assert!(serialized.contains("child map summary"));
+    cases.push(json!({"schema":{"allOf":[composed],"components":components},"valid":[{"id":"one"},{"id":"one","label":"yes","extra":2}],"invalid":[{"id":"one","label":"yes","extra":2,"another":3},{"id":"one","label":2}]}));
     let _: Parent<Child> = serde_json::from_value(json!({"id":1})).unwrap();
     if let Some(path) = std::env::var_os("SALVO_SCHEMA_CONTRACT_OUTPUT") {
         std::fs::write(path, serde_json::to_vec(&cases).unwrap()).unwrap();
