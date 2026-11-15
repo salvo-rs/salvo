@@ -321,7 +321,7 @@ mod tests {
                     let status_codes: &[salvo::http::StatusCode] = &[];
                     let mut operation = salvo::oapi::Operation::new();
                     if operation.operation_id.is_none() {
-                        operation.operation_id = Some(salvo::oapi::naming::assign_name::<hello>(salvo::oapi::naming::NameRule::Auto));
+                        operation.assign_auto_operation_id(salvo::oapi::naming::assign_name::<hello>(salvo::oapi::naming::NameRule::Auto));
                     }
                     if !status_codes.is_empty() {
                         let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);
