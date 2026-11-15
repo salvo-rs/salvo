@@ -1094,8 +1094,9 @@ impl TryToTokens for UnnamedStructSchema<'_> {
 
 #[cfg(test)]
 mod conditional_tuple_tests {
-    use super::conditional_tuple_shapes;
     use proc_macro2::Span;
+
+    use super::conditional_tuple_shapes;
 
     #[test]
     fn limits_distinct_shapes_without_expanding_homogeneous_combinations() {
