@@ -333,6 +333,9 @@ mod tests {
                             }
                         });
                     }
+                    if operation.responses.is_empty() {
+                        operation.responses.insert("default", salvo::oapi::Response::new("Response"));
+                    }
                     salvo::oapi::Endpoint {
                         operation,
                         components,
