@@ -5,6 +5,7 @@
 mod all_of;
 mod any_of;
 mod array;
+mod flatten_names;
 mod number;
 mod object;
 mod one_of;
@@ -180,17 +181,13 @@ pub(crate) fn flatten_with_known_properties(
         extensions: &mut PropMap<String, serde_json::Value>,
         known: &std::collections::BTreeSet<String>,
         inject_properties: bool,
+        own: Option<&std::collections::BTreeSet<String>>,
+        components: &crate::Components,
     ) {
-        let exempt = known
-            .iter()
-            .filter(|name| {
-                !extensions
-                    .get("properties")
-                    .and_then(serde_json::Value::as_object)
-                    .is_some_and(|properties| properties.contains_key(*name))
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+        flatten_names::exempt_known(extensions, known, components);
+        let exempt = own
+            .map(|own| known.difference(own).cloned().collect::<Vec<_>>())
+            .unwrap_or_default();
         if inject_properties
             && (extensions.contains_key("additionalProperties")
                 || extensions.contains_key("unevaluatedProperties"))
@@ -235,8 +232,17 @@ pub(crate) fn flatten_with_known_properties(
                 let prepared =
                     target.map(|target| prepare(target.clone(), known, components, visiting));
                 visiting.remove(&reference.ref_location);
+                let name_rule = reference.extensions.get("propertyNames");
+                let name_own = name_rule.and_then(|_| {
+                    let original =
+                        serde_json::to_value(&reference).expect("schema serializes to JSON");
+                    flatten_names::own_names(&original, components)
+                });
+                let prepare_names = name_own
+                    .as_ref()
+                    .is_some_and(|own| known.difference(own).next().is_some());
                 match (target, prepared) {
-                    (Some(target), Some(prepared)) if &prepared != target => {
+                    (Some(target), Some(prepared)) if &prepared != target || prepare_names => {
                         if reference.extensions.is_empty()
                             && reference.description.is_empty()
                             && reference.summary.is_empty()
@@ -245,16 +251,27 @@ pub(crate) fn flatten_with_known_properties(
                         }
                         let mut combined = AllOf::new().item(prepared);
                         if !reference.extensions.is_empty() {
-                            let siblings = serde_json::to_value(&reference.extensions)
-                                .expect("reference keywords serialize to JSON");
-                            let siblings = serde_json::from_value::<RefOr<Schema>>(siblings)
-                                .unwrap_or_else(|_| {
-                                    let mut object = Object::with_type(SchemaType::any());
-                                    object.extensions = reference.extensions.clone();
-                                    object.into()
-                                });
-                            combined =
-                                combined.item(prepare(siblings, known, components, visiting));
+                            let mut siblings = reference.extensions.clone();
+                            siblings.remove("propertyNames");
+                            if !siblings.is_empty() {
+                                let value = serde_json::to_value(&siblings)
+                                    .expect("reference keywords serialize to JSON");
+                                let siblings = serde_json::from_value::<RefOr<Schema>>(value)
+                                    .unwrap_or_else(|_| {
+                                        let mut object = Object::with_type(SchemaType::any());
+                                        object.extensions = siblings;
+                                        object.into()
+                                    });
+                                combined =
+                                    combined.item(prepare(siblings, known, components, visiting));
+                            }
+                            if let Some(rule) = name_rule {
+                                combined = combined.item(flatten_names::reference_check(
+                                    rule.clone(),
+                                    name_own.as_ref(),
+                                    known,
+                                ));
+                            }
                         }
                         if !reference.description.is_empty() {
                             combined.description = Some(reference.description);
@@ -270,6 +287,8 @@ pub(crate) fn flatten_with_known_properties(
                 }
             }
             RefOr::Type(mut schema) => {
+                let original = serde_json::to_value(&schema).expect("schema serializes to JSON");
+                let own = flatten_names::own_names(&original, components);
                 match &mut schema {
                     Schema::Object(object) => {
                         let exempt = known
@@ -288,40 +307,53 @@ pub(crate) fn flatten_with_known_properties(
                             }
                         }
                         let extension_names = exempt.iter().cloned().collect();
-                        if !exempt.is_empty()
+                        let name_exempt = own
+                            .as_ref()
+                            .map(|own| known.difference(own).cloned().collect::<Vec<_>>())
+                            .unwrap_or_default();
+                        if !name_exempt.is_empty()
                             && let Some(names) = object.property_names.take()
                         {
                             object.property_names = Some(Box::new(
                                 AnyOf::new()
                                     .item(*names)
-                                    .item(Object::with_type(BasicType::String).enum_values(exempt))
+                                    .item(
+                                        Object::with_type(BasicType::String)
+                                            .enum_values(name_exempt),
+                                    )
                                     .into(),
                             ));
                         }
                         // Object already has a typed properties map. A second
                         // one in flattened extensions would shadow its fields.
-                        extensions(&mut object.extensions, &extension_names, false);
+                        extensions(
+                            &mut object.extensions,
+                            &extension_names,
+                            false,
+                            own.as_ref(),
+                            components,
+                        );
                     }
                     Schema::AllOf(all) => {
                         all.items = std::mem::take(&mut all.items)
                             .into_iter()
                             .map(|item| prepare(item, known, components, visiting))
                             .collect();
-                        extensions(&mut all.extensions, known, true);
+                        extensions(&mut all.extensions, known, true, own.as_ref(), components);
                     }
                     Schema::AnyOf(any) => {
                         any.items = std::mem::take(&mut any.items)
                             .into_iter()
                             .map(|item| prepare(item, known, components, visiting))
                             .collect();
-                        extensions(&mut any.extensions, known, true);
+                        extensions(&mut any.extensions, known, true, own.as_ref(), components);
                     }
                     Schema::OneOf(one) => {
                         one.items = std::mem::take(&mut one.items)
                             .into_iter()
                             .map(|item| prepare(item, known, components, visiting))
                             .collect();
-                        extensions(&mut one.extensions, known, true);
+                        extensions(&mut one.extensions, known, true, own.as_ref(), components);
                     }
                     _ => {}
                 }
@@ -409,11 +441,21 @@ pub fn flatten_all_of_schema(schema: AllOf, components: &crate::Components) -> A
     fn take_extensions(
         extensions: &mut PropMap<String, serde_json::Value>,
         catch_all: &mut Vec<serde_json::Value>,
+        name_policies: &mut Vec<flatten_names::NamePolicy>,
+        own: Option<&std::collections::BTreeSet<String>>,
     ) {
         for keyword in ["additionalProperties", "unevaluatedProperties"] {
             if let Some(value) = extensions.remove(keyword) {
                 catch_all.push(value);
             }
+        }
+        if let Some(own) = own
+            && let Some(rule) = extensions.remove("propertyNames")
+        {
+            name_policies.push(flatten_names::NamePolicy {
+                rule,
+                own: own.clone(),
+            });
         }
     }
 
@@ -422,13 +464,31 @@ pub fn flatten_all_of_schema(schema: AllOf, components: &crate::Components) -> A
         components: &crate::Components,
         visiting: &mut std::collections::HashSet<String>,
         catch_all: &mut Vec<serde_json::Value>,
+        name_policies: &mut Vec<flatten_names::NamePolicy>,
     ) -> RefOr<Schema> {
         match schema {
-            RefOr::Ref(reference) => {
+            RefOr::Ref(mut reference) => {
                 if !visiting.insert(reference.ref_location.clone()) {
                     return reference.into();
                 }
                 let target = referenced(&reference, components);
+                if target.is_some() && reference.extensions.contains_key("propertyNames") {
+                    let original =
+                        serde_json::to_value(&reference).expect("schema serializes to JSON");
+                    if let Some(own) = flatten_names::own_names(&original, components) {
+                        let rule = reference
+                            .extensions
+                            .remove("propertyNames")
+                            .expect("name policy exists");
+                        name_policies.push(flatten_names::NamePolicy { rule, own });
+                    } else {
+                        // A local alias can still lead to an opaque owner.
+                        // Do not later lift its sibling rule as an ownerless
+                        // object and accidentally exempt that owner's fields.
+                        visiting.remove(&reference.ref_location);
+                        return reference.into();
+                    }
+                }
                 let siblings = if reference.extensions.is_empty() {
                     None
                 } else {
@@ -461,7 +521,13 @@ pub fn flatten_all_of_schema(schema: AllOf, components: &crate::Components) -> A
                         }
                         annotated.into()
                     };
-                    let normalized = lift(target.clone(), components, visiting, catch_all);
+                    let normalized = lift(
+                        target.clone(),
+                        components,
+                        visiting,
+                        catch_all,
+                        name_policies,
+                    );
                     (target, normalized)
                 });
                 visiting.remove(&reference.ref_location);
@@ -471,6 +537,23 @@ pub fn flatten_all_of_schema(schema: AllOf, components: &crate::Components) -> A
                 }
             }
             RefOr::Type(mut schema) => {
+                let has_names = match &schema {
+                    Schema::Object(object) => {
+                        object.property_names.is_some()
+                            || object.extensions.contains_key("propertyNames")
+                    }
+                    Schema::AllOf(all) => all.extensions.contains_key("propertyNames"),
+                    Schema::AnyOf(any) => any.extensions.contains_key("propertyNames"),
+                    Schema::OneOf(one) => one.extensions.contains_key("propertyNames"),
+                    _ => false,
+                };
+                let own = if has_names {
+                    let original =
+                        serde_json::to_value(&schema).expect("schema serializes to JSON");
+                    flatten_names::own_names(&original, components)
+                } else {
+                    Some(std::collections::BTreeSet::new())
+                };
                 match &mut schema {
                     Schema::Object(object) => {
                         if let Some(value) = object.additional_properties.take() {
@@ -478,17 +561,52 @@ pub fn flatten_all_of_schema(schema: AllOf, components: &crate::Components) -> A
                                 serde_json::to_value(value).expect("schema serializes to JSON"),
                             );
                         }
-                        take_extensions(&mut object.extensions, catch_all);
+                        if let Some(own) = &own
+                            && let Some(rule) = object.property_names.take()
+                        {
+                            name_policies.push(flatten_names::NamePolicy {
+                                rule: serde_json::to_value(rule)
+                                    .expect("schema serializes to JSON"),
+                                own: own.clone(),
+                            });
+                        }
+                        take_extensions(
+                            &mut object.extensions,
+                            catch_all,
+                            name_policies,
+                            own.as_ref(),
+                        );
                     }
                     Schema::AllOf(all) => {
                         all.items = std::mem::take(&mut all.items)
                             .into_iter()
-                            .map(|item| lift(item, components, visiting, catch_all))
+                            .map(|item| lift(item, components, visiting, catch_all, name_policies))
                             .collect();
-                        take_extensions(&mut all.extensions, catch_all);
+                        take_extensions(
+                            &mut all.extensions,
+                            catch_all,
+                            name_policies,
+                            own.as_ref(),
+                        );
                     }
-                    // A conditional map must keep its catch-all conditional.
-                    // The known-key preparation above handles fixed siblings.
+                    // Only this node's rules are unconditional. A map inside
+                    // an alternative must keep its catch-all conditional.
+                    Schema::AnyOf(any) => {
+                        take_extensions(
+                            &mut any.extensions,
+                            catch_all,
+                            name_policies,
+                            own.as_ref(),
+                        );
+                    }
+                    Schema::OneOf(one) => {
+                        take_extensions(
+                            &mut one.extensions,
+                            catch_all,
+                            name_policies,
+                            own.as_ref(),
+                        );
+                    }
                     _ => {}
                 }
                 schema.into()
@@ -504,14 +622,18 @@ pub fn flatten_all_of_schema(schema: AllOf, components: &crate::Components) -> A
         &mut std::collections::HashSet::new(),
         &mut known,
     );
-    let schema = flatten_with_known_properties(schema, &known, components);
     let mut catch_all = Vec::new();
+    let mut name_policies = Vec::new();
     let schema = lift(
         schema,
         components,
         &mut std::collections::HashSet::new(),
         &mut catch_all,
+        &mut name_policies,
     );
+    // Capture each name policy's own fields before adding parent/sibling
+    // placeholders. Conditional siblings are handled separately below.
+    let schema = flatten_with_known_properties(schema, &known, components);
     let RefOr::Type(Schema::AllOf(mut schema)) = schema else {
         unreachable!("preparing an allOf preserves its outer composition");
     };
@@ -525,6 +647,7 @@ pub fn flatten_all_of_schema(schema: AllOf, components: &crate::Components) -> A
             .extensions
             .insert("unevaluatedProperties".into(), value);
     }
+    flatten_names::apply(&mut schema, name_policies, components);
     schema
 }
 
