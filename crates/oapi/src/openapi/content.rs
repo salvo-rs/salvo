@@ -1,5 +1,6 @@
 //! Implements content object for request body and response.
-use serde::{Deserialize, Serialize};
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 
 use super::encoding::Encoding;
@@ -7,7 +8,7 @@ use super::example::Example;
 use super::{PropMap, RefOr, Schema};
 
 /// Content holds request body content or response content.
-#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[derive(Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[non_exhaustive]
 pub struct Content {
@@ -85,6 +86,43 @@ pub struct Content {
     pub extensions: PropMap<String, serde_json::Value>,
 }
 
+impl Serialize for Content {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        if let Some(value) = &self.ref_location {
+            map.serialize_entry("$ref", value)?;
+        }
+        if let Some(value) = &self.schema {
+            map.serialize_entry("schema", value)?;
+        }
+        if let Some(value) = &self.item_schema {
+            map.serialize_entry("itemSchema", value)?;
+        }
+        if !self.encoding.is_empty() {
+            map.serialize_entry("encoding", &self.encoding)?;
+        }
+        if !self.prefix_encoding.is_empty() {
+            map.serialize_entry("prefixEncoding", &self.prefix_encoding)?;
+        }
+        if let Some(value) = &self.item_encoding {
+            map.serialize_entry("itemEncoding", value)?;
+        }
+        // Public fields and deserialized documents follow the same precedence
+        // as the builders, without cloning their schemas or example payloads.
+        if self.examples.is_empty() {
+            if let Some(example) = &self.example {
+                map.serialize_entry("example", example)?;
+            }
+        } else {
+            map.serialize_entry("examples", &self.examples)?;
+        }
+        for (key, value) in &self.extensions {
+            map.serialize_entry(key, value)?;
+        }
+        map.end()
+    }
+}
+
 impl Content {
     /// Construct a new [`Content`].
     #[must_use]
@@ -130,7 +168,7 @@ impl Content {
     /// Add example of schema.
     #[must_use]
     pub fn example(mut self, example: Value) -> Self {
-        self.example = Some(example);
+        self.example = self.examples.is_empty().then_some(example);
         self
     }
 
@@ -155,6 +193,9 @@ impl Content {
                 .into_iter()
                 .map(|(name, example)| (name.into(), example.into())),
         );
+        if !self.examples.is_empty() {
+            self.example = None;
+        }
 
         self
     }
@@ -258,9 +299,6 @@ mod tests {
             json!({
               "schema": {
                 "$ref": "#/components/schemas/NewSchema"
-              },
-              "example": {
-                "schema": "MySchema"
               },
               "examples": {
                 "example1": {
