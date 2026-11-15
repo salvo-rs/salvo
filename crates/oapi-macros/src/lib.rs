@@ -665,7 +665,7 @@ mod tests {
                                     .location(::salvo::oapi::parameter::ParameterIn::Query)
                                     .description("Kind of pet")
                                     .required(::salvo::oapi::Required::True)
-                                    .schema({ <PetKind as ::salvo::oapi::ComposeSchema>::compose(components, ::std::vec![]) }),
+                                    .schema(<PetKind as ::salvo::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())),
                             ]
                             .into_iter().map(::salvo::oapi::RefOr::Type).collect()
                         )
@@ -702,7 +702,7 @@ mod tests {
                                     .location(::salvo::oapi::parameter::ParameterIn::Query)
                                     .description("Kind of pet")
                                     .required(::salvo::oapi::Required::True)
-                                    .schema({ <PetKind as ::salvo::oapi::ComposeSchema>::compose(components, ::std::vec![]) }),
+                                    .schema(<PetKind as ::salvo::oapi::ComposeSchema>::compose(components, ::std::vec::Vec::new())),
                             ]
                             .into_iter().map(::salvo::oapi::RefOr::Type).collect()
                         ));

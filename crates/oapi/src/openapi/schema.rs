@@ -746,6 +746,98 @@ pub fn flatten_all_of_schema(schema: AllOf, components: &crate::Components) -> A
     schema
 }
 
+/// Apply a flattened map's key policy only to names not owned by fixed fields.
+#[doc(hidden)]
+pub fn with_flattened_map_key(
+    mut object: Object,
+    key: RefOr<Schema>,
+    components: &crate::Components,
+) -> Object {
+    let key = serialized_map_key_schema(key, components);
+    let key = if object.properties.is_empty() {
+        key
+    } else {
+        AnyOf::new()
+            .item(key)
+            .item(
+                Object::with_type(BasicType::String).enum_values(object.properties.keys().cloned()),
+            )
+            .into()
+    };
+    object.property_names = Some(Box::new(key));
+    object
+}
+
+/// Attach annotations to a property schema without mutating a shared component.
+#[doc(hidden)]
+pub fn annotate_schema(mut schema: RefOr<Schema>, mut annotations: Object) -> RefOr<Schema> {
+    macro_rules! common {
+        ($target:expr) => {{
+            if annotations.title.is_some() {
+                $target.title = annotations.title.take();
+            }
+            if annotations.default_value.is_some() {
+                $target.default_value = annotations.default_value.take();
+            }
+            if !annotations.examples.is_empty() {
+                $target.examples = std::mem::take(&mut annotations.examples);
+            }
+        }};
+    }
+    macro_rules! optional {
+        ($target:expr, $($field:ident),*) => {$(
+            if annotations.$field.is_some() { $target.$field = annotations.$field.take(); }
+        )*};
+    }
+    let extensions = match &mut schema {
+        RefOr::Ref(reference) => &mut reference.extensions,
+        RefOr::Type(Schema::Object(object)) => {
+            common!(object);
+            optional!(object, read_only, write_only, deprecated, xml);
+            if !annotations.content_encoding.is_empty() {
+                object.content_encoding = std::mem::take(&mut annotations.content_encoding);
+            }
+            if !annotations.content_media_type.is_empty() {
+                object.content_media_type = std::mem::take(&mut annotations.content_media_type);
+            }
+            &mut object.extensions
+        }
+        RefOr::Type(Schema::Array(array)) => {
+            common!(array);
+            optional!(array, deprecated, xml);
+            if !annotations.content_encoding.is_empty() {
+                array.content_encoding = Some(std::mem::take(&mut annotations.content_encoding));
+            }
+            if !annotations.content_media_type.is_empty() {
+                array.content_media_type =
+                    Some(std::mem::take(&mut annotations.content_media_type));
+            }
+            &mut array.extensions
+        }
+        RefOr::Type(Schema::AllOf(all)) => {
+            common!(all);
+            &mut all.extensions
+        }
+        RefOr::Type(Schema::AnyOf(any)) => {
+            common!(any);
+            &mut any.extensions
+        }
+        RefOr::Type(Schema::OneOf(one)) => {
+            common!(one);
+            &mut one.extensions
+        }
+        RefOr::Type(Schema::Boolean(_)) => {
+            return AllOf::new().item(schema).item(annotations).into();
+        }
+    };
+    if let serde_json::Value::Object(values) =
+        serde_json::to_value(annotations).expect("annotations serialize")
+    {
+        extensions.extend(values);
+    }
+    schema
+}
+
 /// Schemas collection for OpenApi.
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]

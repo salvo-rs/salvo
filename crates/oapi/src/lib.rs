@@ -181,7 +181,9 @@ pub trait ComposeSchema {
     ///
     /// The `components` parameter allows registering nested schemas.
     /// The `generics` vector contains pre-resolved schemas for each type parameter,
-    /// in the order they appear in the type definition.
+    /// in the order they appear in the type definition. Missing entries resolve
+    /// using the concrete type parameter's `ComposeSchema` implementation, so an
+    /// empty vector composes the actual type (including aliases and const generics).
     fn compose(
         components: &mut Components,
         generics: Vec<RefOr<schema::Schema>>,
@@ -391,22 +393,30 @@ impl_to_schema_primitive!(
     time::Duration
 );
 #[cfg(feature = "smallvec")]
-impl<T: ToSchema + smallvec::Array> ToSchema for smallvec::SmallVec<T> {
+impl<A: smallvec::Array> ToSchema for smallvec::SmallVec<A>
+where
+    A::Item: ToSchema,
+{
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        schema!(#[inline] smallvec::SmallVec<T>).into()
+        schema::Array::new()
+            .items(A::Item::to_schema(components))
+            .into()
     }
 }
 #[cfg(feature = "smallvec")]
-impl<T: ComposeSchema + smallvec::Array> ComposeSchema for smallvec::SmallVec<T> {
+impl<A: smallvec::Array> ComposeSchema for smallvec::SmallVec<A>
+where
+    A::Item: ComposeSchema,
+{
     fn compose(
         components: &mut Components,
         generics: Vec<RefOr<schema::Schema>>,
     ) -> RefOr<schema::Schema> {
-        let t_schema = generics
+        let item = generics
             .first()
             .cloned()
-            .unwrap_or_else(|| T::compose(components, vec![]));
-        schema::Array::new().items(t_schema).into()
+            .unwrap_or_else(|| A::Item::compose(components, vec![]));
+        schema::Array::new().items(item).into()
     }
 }
 #[cfg(feature = "indexmap")]
@@ -425,7 +435,14 @@ impl<K: ComposeSchema, V: ComposeSchema> ComposeSchema for indexmap::IndexMap<K,
             .get(1)
             .cloned()
             .unwrap_or_else(|| V::compose(components, vec![]));
-        schema::Object::new().additional_properties(v_schema).into()
+        let key = generics
+            .first()
+            .cloned()
+            .unwrap_or_else(|| K::compose(components, vec![]));
+        schema::Object::new()
+            .additional_properties(v_schema)
+            .property_names(schema::serialized_map_key_schema(key, components))
+            .into()
     }
 }
 

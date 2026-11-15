@@ -3,8 +3,8 @@ use std::str::FromStr;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{ToTokens, quote};
+use syn::LitInt;
 use syn::parse::ParseStream;
-use syn::{LitFloat, LitInt};
 
 mod ext;
 pub(crate) use ext::*;
@@ -37,42 +37,6 @@ where
                 .map_err(|e| syn::Error::new(lit.span(), e))
         } else {
             lit.base10_parse()
-        }
-    })
-}
-
-/// Parse any `number`. Tries to parse `LitInt` or `LitFloat` from parse stream,
-/// supporting an optional leading `-` for negative values.
-fn parse_number<T>(input: ParseStream) -> syn::Result<T>
-where
-    T: FromStr,
-    <T as FromStr>::Err: Display,
-{
-    parse_utils::parse_next(input, || {
-        let minus = input.parse::<Option<syn::Token![-]>>()?;
-        let lookup = input.lookahead1();
-        if lookup.peek(LitInt) {
-            let lit = input.parse::<LitInt>()?;
-            if minus.is_some() {
-                let value_str = format!("-{}", lit.base10_digits());
-                value_str
-                    .parse::<T>()
-                    .map_err(|e| syn::Error::new(lit.span(), e))
-            } else {
-                lit.base10_parse()
-            }
-        } else if lookup.peek(LitFloat) {
-            let lit = input.parse::<LitFloat>()?;
-            if minus.is_some() {
-                let value_str = format!("-{}", lit.base10_digits());
-                value_str
-                    .parse::<T>()
-                    .map_err(|e| syn::Error::new(lit.span(), e))
-            } else {
-                lit.base10_parse()
-            }
-        } else {
-            Err(lookup.error())
         }
     })
 }
@@ -160,7 +124,8 @@ impl Feature {
     ) -> DiagResult<()> {
         match self {
             Self::MultipleOf(multiple_of) => multiple_of.validate(
-                ValidatorChain::new(&IsNumber(schema_type)).next(&AboveZeroF64(multiple_of.0)),
+                ValidatorChain::new(&IsNumber(schema_type))
+                    .next(&AboveZeroF64(multiple_of.0.value)),
             ),
             Self::Maximum(maximum) => maximum.validate(IsNumber(schema_type)),
             Self::Minimum(minimum) => minimum.validate(IsNumber(schema_type)),
@@ -483,7 +448,8 @@ impl Merge<Self> for Vec<Feature> {
 mod negative_literal_tests {
     use syn::parse::Parser;
 
-    use super::{parse_integer, parse_number};
+    use super::parse_integer;
+    use super::validation::SchemaNumber;
 
     #[test]
     fn negative_numbers_normalize_rust_literal_spelling() {
@@ -494,9 +460,10 @@ mod negative_literal_tests {
             ("-1_000.25f64", -1000.25),
         ] {
             assert_eq!(
-                parse_number::<f64>
+                SchemaNumber::parse
                     .parse_str(&format!("= {source}"))
-                    .unwrap(),
+                    .unwrap()
+                    .value,
                 expected
             );
         }

@@ -1,13 +1,60 @@
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::ToTokens;
+use quote::{ToTokens, quote};
 use syn::LitStr;
 use syn::parse::ParseStream;
 
-use super::{Feature, Parse, Validate, Validator, impl_get_name, parse_integer, parse_number};
+use super::{Feature, Parse, Validate, Validator, impl_get_name, parse_integer};
 use crate::{DiagLevel, DiagResult, Diagnostic, parse_utils};
 
 #[derive(Clone, Debug)]
-pub(crate) struct MultipleOf(pub(crate) f64, pub(crate) Ident);
+pub(crate) struct SchemaNumber {
+    tokens: TokenStream,
+    pub(crate) value: f64,
+}
+impl SchemaNumber {
+    pub(crate) fn parse(input: ParseStream) -> syn::Result<Self> {
+        parse_utils::parse_next(input, || {
+            let negative = input.parse::<Option<syn::Token![-]>>()?.is_some();
+            if input.peek(syn::LitInt) {
+                let literal: syn::LitInt = input.parse()?;
+                let text = format!(
+                    "{}{}",
+                    if negative { "-" } else { "" },
+                    literal.base10_digits()
+                );
+                let value = text
+                    .parse::<f64>()
+                    .map_err(|error| syn::Error::new(literal.span(), error))?;
+                let tokens = if negative {
+                    let value = text
+                        .parse::<i64>()
+                        .map_err(|error| syn::Error::new(literal.span(), error))?;
+                    quote!(#value)
+                } else {
+                    let value = text
+                        .parse::<u64>()
+                        .map_err(|error| syn::Error::new(literal.span(), error))?;
+                    quote!(#value)
+                };
+                Ok(Self { tokens, value })
+            } else {
+                let literal: syn::LitFloat = input.parse()?;
+                let value = literal.base10_parse::<f64>()? * if negative { -1.0 } else { 1.0 };
+                Ok(Self {
+                    tokens: quote!(#value),
+                    value,
+                })
+            }
+        })
+    }
+}
+impl ToTokens for SchemaNumber {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.tokens.to_tokens(tokens);
+    }
+}
+#[derive(Clone, Debug)]
+pub(crate) struct MultipleOf(pub(crate) SchemaNumber, pub(crate) Ident);
 impl Validate for MultipleOf {
     fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
@@ -26,7 +73,7 @@ impl Validate for MultipleOf {
 }
 impl Parse for MultipleOf {
     fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self> {
-        parse_number(input).map(|multiple_of| Self(multiple_of, ident))
+        SchemaNumber::parse(input).map(|multiple_of| Self(multiple_of, ident))
     }
 }
 impl ToTokens for MultipleOf {
@@ -42,7 +89,7 @@ impl From<MultipleOf> for Feature {
 impl_get_name!(MultipleOf = "multiple_of");
 
 #[derive(Clone, Debug)]
-pub(crate) struct Maximum(pub(crate) f64, pub(crate) Ident);
+pub(crate) struct Maximum(pub(crate) SchemaNumber, pub(crate) Ident);
 impl Validate for Maximum {
     fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
@@ -61,7 +108,7 @@ impl Parse for Maximum {
     where
         Self: Sized,
     {
-        parse_number(input).map(|maximum| Self(maximum, ident))
+        SchemaNumber::parse(input).map(|maximum| Self(maximum, ident))
     }
 }
 impl ToTokens for Maximum {
@@ -77,10 +124,16 @@ impl From<Maximum> for Feature {
 impl_get_name!(Maximum = "maximum");
 
 #[derive(Clone, Debug)]
-pub(crate) struct Minimum(pub(crate) f64, pub(crate) Ident);
+pub(crate) struct Minimum(pub(crate) SchemaNumber, pub(crate) Ident);
 impl Minimum {
     pub(crate) fn new(value: f64, span: Span) -> Self {
-        Self(value, Ident::new("empty", span))
+        Self(
+            SchemaNumber {
+                tokens: quote!(#value),
+                value,
+            },
+            Ident::new("empty", span),
+        )
     }
 }
 impl Validate for Minimum {
@@ -101,7 +154,7 @@ impl Parse for Minimum {
     where
         Self: Sized,
     {
-        parse_number(input).map(|minimum| Self(minimum, ident))
+        SchemaNumber::parse(input).map(|minimum| Self(minimum, ident))
     }
 }
 impl ToTokens for Minimum {
@@ -117,7 +170,7 @@ impl From<Minimum> for Feature {
 impl_get_name!(Minimum = "minimum");
 
 #[derive(Clone, Debug)]
-pub(crate) struct ExclusiveMaximum(pub(crate) f64, pub(crate) Ident);
+pub(crate) struct ExclusiveMaximum(pub(crate) SchemaNumber, pub(crate) Ident);
 impl Validate for ExclusiveMaximum {
     fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
@@ -133,7 +186,7 @@ impl Parse for ExclusiveMaximum {
     where
         Self: Sized,
     {
-        parse_number(input).map(|max| Self(max, ident))
+        SchemaNumber::parse(input).map(|max| Self(max, ident))
     }
 }
 impl ToTokens for ExclusiveMaximum {
@@ -149,7 +202,7 @@ impl From<ExclusiveMaximum> for Feature {
 impl_get_name!(ExclusiveMaximum = "exclusive_maximum");
 
 #[derive(Clone, Debug)]
-pub(crate) struct ExclusiveMinimum(pub(crate) f64, pub(crate) Ident);
+pub(crate) struct ExclusiveMinimum(pub(crate) SchemaNumber, pub(crate) Ident);
 impl Validate for ExclusiveMinimum {
     fn validate(&self, validator: impl Validator) -> DiagResult<()> {
         if let Err(error) = validator.is_valid() {
@@ -165,7 +218,7 @@ impl Parse for ExclusiveMinimum {
     where
         Self: Sized,
     {
-        parse_number(input).map(|min| Self(min, ident))
+        SchemaNumber::parse(input).map(|min| Self(min, ident))
     }
 }
 impl ToTokens for ExclusiveMinimum {
