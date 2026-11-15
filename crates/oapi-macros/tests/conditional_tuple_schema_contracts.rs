@@ -19,6 +19,12 @@ struct Multiple(
     i64,
 );
 #[derive(Serialize, ToSchema)]
+#[salvo(schema(format = "wire-text"))]
+struct Formatted(
+    #[serde(skip_serializing_if = "String::is_empty")] String,
+    String,
+);
+#[derive(Serialize, ToSchema)]
 struct Generic<T, Skipped>(
     #[serde(skip_serializing_if = "Option::is_none")] Option<T>,
     #[serde(skip)] Skipped,
@@ -136,12 +142,25 @@ fn conditional_tuple_schemas_match_all_serialized_subsequences() {
             vec![json!({"Entry":[7,7]})],
         ),
         homogeneous,
+        case(
+            vec![
+                Formatted("".into(), "kept".into()),
+                Formatted("first".into(), "kept".into()),
+            ],
+            vec![json!([7]), json!([])],
+        ),
         json!({"schema":{"allOf":[composed],"components":components}, "valid":[[7],[true,7]], "invalid":[["wrong",7],[true,true,7]]}),
     ];
     let mixed_ref = cases[0]["schema"]["allOf"][0]["$ref"].as_str().unwrap();
     let mixed = cases[0]["schema"].pointer(&mixed_ref[1..]).unwrap();
     assert_eq!(mixed["title"], "Conditional tuple");
     assert_eq!(mixed["examples"], json!([[7]]));
+    let formatted_ref = cases[4]["schema"]["allOf"][0]["$ref"].as_str().unwrap();
+    let formatted = cases[4]["schema"].pointer(&formatted_ref[1..]).unwrap();
+    assert_eq!(
+        formatted["anyOf"][0]["prefixItems"][0]["format"],
+        "wire-text"
+    );
     if let Some(path) = std::env::var_os("SALVO_SCHEMA_CONTRACT_OUTPUT") {
         std::fs::write(path, serde_json::to_vec(&cases).unwrap()).unwrap();
     }

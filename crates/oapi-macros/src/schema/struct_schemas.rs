@@ -897,18 +897,20 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                 .as_ref()
                 .map(|value| value.as_type_tree())
                 .transpose()?;
+            let item_format = pop_feature!(features => Feature::Format(_));
+            let item_features = features
+                .iter()
+                .filter(|feature| matches!(feature, Feature::NoRecursion(_)))
+                .cloned()
+                .chain(item_format)
+                .collect::<Vec<_>>();
             let items = fields
                 .iter()
                 .map(|field| {
                     let type_tree = TypeTree::from_type(&field.ty)?;
                     Ok(ComponentSchema::new(ComponentSchemaProps {
                         type_tree: override_type.as_ref().unwrap_or(&type_tree),
-                        features: features
-                            .iter()
-                            .filter(|feature| matches!(feature, Feature::NoRecursion(_)))
-                            .cloned()
-                            .collect::<Vec<_>>()
-                            .into(),
+                        features: Some(item_features.clone()),
                         description: None,
                         deprecated: None,
                         object_name: self.struct_name.as_ref(),
