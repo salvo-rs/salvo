@@ -472,7 +472,7 @@ fn handle_fn(
 #[cfg(test)]
 mod tests {
     use quote::quote;
-    use syn::{Ident, Signature, parse_str};
+    use syn::{Signature, parse_str};
 
     use super::{handle_fn, type_name_suffix};
 
