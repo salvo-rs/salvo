@@ -14,19 +14,20 @@ async fn identity(depot: &mut Depot) -> String {
 #[tokio::test]
 async fn encoded_host_cookie_alias_cannot_select_another_jwt() {
     let _ = salvo_jwt_auth::install_crypto_provider();
-    let secret = b"audit-local-secret-with-sufficient-entropy-for-hs256";
+    let secret = "YXVkaXQtbG9jYWwtc2VjcmV0LXdpdGgtc3VmZmljaWVudC1lbnRyb3B5LWZvci1oczI1Ng==";
     let issue = |sub: &str| {
         jsonwebtoken::encode(
             &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256),
             &serde_json::json!({"sub": sub, "exp": 4000000000u64}),
-            &jsonwebtoken::EncodingKey::from_secret(secret),
+            &jsonwebtoken::EncodingKey::from_base64_secret(secret).unwrap(),
         )
         .unwrap()
     };
     let victim = issue("victim");
     let attacker = issue("attacker");
-    let auth: JwtAuth<serde_json::Value, _> = JwtAuth::new(ConstDecoder::from_secret(secret))
-        .finders(vec![Box::new(CookieFinder::new("__Host-token"))]);
+    let auth: JwtAuth<serde_json::Value, _> =
+        JwtAuth::new(ConstDecoder::from_base64_secret(secret).unwrap())
+            .finders(vec![Box::new(CookieFinder::new("__Host-token"))]);
     let service = Service::new(Router::new().hoop(auth).goal(identity));
     for (cookie, expected) in [
         (format!("__%48ost-token={attacker}"), None),
