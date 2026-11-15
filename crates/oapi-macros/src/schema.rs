@@ -139,7 +139,7 @@ impl TryToTokens for ToSchema<'_> {
         let _ = compose_variant.pop_skip_bound();
         let _ = compose_variant.pop_bound();
 
-        let effective_data = bound::effective_schema_data(self.data)?;
+        let effective_data = bound::effective_schema_data(self.data, self.attributes)?;
         let mut generics = bound::without_defaults(self.generics);
         if skip_bound != Some(SkipBound(true)) {
             generics = match bound {

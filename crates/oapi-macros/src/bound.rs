@@ -4,13 +4,42 @@ use syn::Token;
 use syn::punctuated::{Pair, Punctuated};
 
 use crate::feature::{Feature, IsSkipped};
-use crate::schema::feature::{FromAttributes, NamedFieldFeatures};
+use crate::schema::feature::{
+    EnumNamedFieldVariantFeatures, EnumUnnamedFieldVariantFeatures, FromAttributes,
+    NamedFieldFeatures, UnnamedFieldStructFeatures,
+};
 use crate::{DiagResult, Diagnostic, IntoInner, serde_util};
 
 /// Bound inference follows the types used by generated schemas, rather than
 /// types replaced or omitted by field attributes. Keep the original AST intact
 /// for schema generation and for diagnostics.
-pub(crate) fn effective_schema_data(data: &syn::Data) -> DiagResult<syn::Data> {
+pub(crate) fn effective_schema_data(
+    data: &syn::Data,
+    attributes: &[syn::Attribute],
+) -> DiagResult<syn::Data> {
+    fn unnamed_override(fields: &mut syn::Fields, features: &[Feature]) -> DiagResult<()> {
+        let Some(Feature::ValueType(value_type)) = features
+            .iter()
+            .find(|feature| matches!(feature, Feature::ValueType(_)))
+        else {
+            return Ok(());
+        };
+        let types = fields
+            .iter()
+            .map(|field| crate::type_tree::TypeTree::from_type(&field.ty))
+            .collect::<DiagResult<Vec<_>>>()?;
+        // UnnamedStructSchema applies container overrides to newtypes and
+        // homogeneous tuples; heterogeneous tuples keep each original type.
+        if types
+            .first()
+            .is_some_and(|first| types.iter().all(|ty| ty == first))
+        {
+            for field in fields.iter_mut() {
+                field.ty = value_type.0.clone();
+            }
+        }
+        Ok(())
+    }
     fn fields(fields: &mut syn::Fields) -> DiagResult<()> {
         if !matches!(fields, syn::Fields::Named(_)) {
             return Ok(());
@@ -36,15 +65,40 @@ pub(crate) fn effective_schema_data(data: &syn::Data) -> DiagResult<syn::Data> {
     }
     let mut data = data.clone();
     match &mut data {
-        syn::Data::Struct(data) => fields(&mut data.fields)?,
+        syn::Data::Struct(data) => {
+            if matches!(&data.fields, syn::Fields::Unnamed(_)) {
+                let features = attributes
+                    .parse_features::<UnnamedFieldStructFeatures>()?
+                    .into_inner()
+                    .unwrap_or_default();
+                unnamed_override(&mut data.fields, &features)?;
+            } else {
+                fields(&mut data.fields)?;
+            }
+        }
         syn::Data::Enum(data) => {
             for variant in &mut data.variants {
-                if serde_util::parse_value(&variant.attrs)
-                    .map_err(Diagnostic::from)?
-                    .is_some_and(|rules| rules.skip)
+                let features = match &variant.fields {
+                    syn::Fields::Named(_) => variant
+                        .attrs
+                        .parse_features::<EnumNamedFieldVariantFeatures>()?
+                        .into_inner()
+                        .unwrap_or_default(),
+                    syn::Fields::Unnamed(_) => variant
+                        .attrs
+                        .parse_features::<EnumUnnamedFieldVariantFeatures>()?
+                        .into_inner()
+                        .unwrap_or_default(),
+                    syn::Fields::Unit => Vec::new(),
+                };
+                if features.is_skipped()
+                    || serde_util::parse_value(&variant.attrs)
+                        .map_err(Diagnostic::from)?
+                        .is_some_and(|rules| rules.skip)
                 {
                     variant.fields = syn::Fields::Unit;
                 } else {
+                    unnamed_override(&mut variant.fields, &features)?;
                     fields(&mut variant.fields)?;
                 }
             }

@@ -4,6 +4,24 @@ use salvo::oapi::{Components, ComposeSchema, Object, ToSchema};
 use serde_json::json;
 
 struct NoSchema;
+#[derive(ToSchema)]
+#[salvo(schema(value_type = String))]
+struct Newtype<T>(T);
+#[derive(serde::Serialize, ToSchema)]
+enum SkippedVariants<T> {
+    Shown,
+    #[salvo(schema(skip))]
+    Hidden(T),
+    #[serde(skip)]
+    SerdeHidden {
+        value: T,
+    },
+}
+#[derive(ToSchema)]
+enum ReplacedVariant<T> {
+    #[salvo(schema(value_type = String))]
+    Value(T),
+}
 fn custom() -> Object {
     Object::with_type(salvo::oapi::schema::BasicType::String)
 }
@@ -40,6 +58,11 @@ struct Retarget<T, U> {
 #[test]
 fn effective_types_supply_only_needed_bounds() {
     let mut components = Components::new();
+    let _ = Newtype::<NoSchema>::to_schema(&mut components);
+    let _ = SkippedVariants::<NoSchema>::to_schema(&mut components);
+    let _ = ReplacedVariant::<NoSchema>::to_schema(&mut components);
+    let _ = Newtype::<NoSchema>::compose(&mut components, vec![]);
+    let _ = ReplacedVariant::<NoSchema>::compose(&mut components, vec![]);
     let _ = Replaced::<NoSchema>::to_schema(&mut components);
     let _ = Custom::<NoSchema>::to_schema(&mut components);
     let _ = Skipped::<NoSchema>::to_schema(&mut components);
