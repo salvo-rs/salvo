@@ -46,7 +46,7 @@ impl FromStr for CompressionAlgo {
         match s {
             "br" | "brotli" => Ok(Self::Brotli),
             "deflate" => Ok(Self::Deflate),
-            "gzip" => Ok(Self::Gzip),
+            "gzip" | "x-gzip" => Ok(Self::Gzip),
             "zstd" => Ok(Self::Zstd),
             _ => Err(format!("unknown compression algorithm: {s}")),
         }
@@ -630,12 +630,12 @@ impl Handler for StaticDir {
             // one would stack a second coding on top, and only the outer coding can
             // be reported, so the client would strip that and be left holding gzip
             // bytes labelled `image/svg+xml`. Serve the file itself instead.
-            let is_self_coded_ext = ext
-                .as_deref()
-                .map(|ext| extension_content_encoding(ext).is_some())
-                .unwrap_or(false);
+            let stored_encoding = ext.as_deref().and_then(extension_content_encoding);
+            let is_self_coded_ext = stored_encoding.is_some();
             let mut content_encoding = None;
-            let mut varies_on_accept_encoding = !is_self_coded_ext;
+            // The selected representation or a 406 can depend on Accept-Encoding,
+            // including files whose extension implies a stored content coding.
+            let mut varies_on_accept_encoding = true;
             let content_type = mime_infer::from_path(&abs_path).first();
             // Captured before the compressed-variant lookup may replace the path:
             // a download must be named after the resource that was requested, not
@@ -666,11 +666,25 @@ impl Handler for StaticDir {
             let quality = |name: &str| {
                 preferences
                     .iter()
-                    .filter(|(coding, _)| coding == name)
+                    .filter(|(coding, _)| coding == name || name == "gzip" && coding == "x-gzip")
                     .map(|(_, q)| *q)
                     .max()
             };
             let identity = quality("identity").map_or(quality("*") != Some(0), |q| q > 0);
+            if let Some(coding) = stored_encoding {
+                // An absent field accepts every coding; an empty field accepts none.
+                // Self-coded formats cannot fall back to identity bytes or stack a
+                // sidecar on the stored coding, so reject an unacceptable coding.
+                let acceptable = !req.headers().contains_key(ACCEPT_ENCODING)
+                    || quality(coding)
+                        .or_else(|| quality("*"))
+                        .is_some_and(|q| q > 0);
+                if !acceptable {
+                    res.render(StatusError::not_acceptable());
+                    append_vary_header(res.headers_mut(), "accept-encoding");
+                    return;
+                }
+            }
             let named_path = if !is_compressed_ext && !is_self_coded_ext {
                 if !self.compressed_variations.is_empty() {
                     // Even an identity response participates in negotiation.
