@@ -428,9 +428,6 @@ impl Parameter<'_> {
         );
         #[cfg(feature = "smallvec")]
         let sequence = sequence || matches!(ty.generic_type, Some(GenericType::SmallVec));
-        if !sequence {
-            return Ok(None);
-        }
         let location = features
             .iter()
             .find_map(|feature| match feature {
@@ -463,6 +460,29 @@ impl Parameter<'_> {
                 _ => None,
             })
             .unwrap_or(matches!(style, ParameterStyle::Form));
+        if !sequence {
+            if !matches!(ty.generic_type, Some(GenericType::Map))
+                && matches!(
+                    (location, style),
+                    (ParameterIn::Query, ParameterStyle::Form)
+                        | (
+                            ParameterIn::Header | ParameterIn::Path,
+                            ParameterStyle::Simple
+                        )
+                        | (
+                            ParameterIn::Cookie,
+                            ParameterStyle::Form | ParameterStyle::Cookie
+                        )
+                )
+            {
+                return Ok(None);
+            }
+            return Err(Diagnostic::spanned(
+                self.field.span(),
+                DiagLevel::Error,
+                "unsupported parameter encoding in ToParameters; scalar query/cookie parameters use Form, scalar path/header parameters use Simple; object parameters and other styles require a custom extractor",
+            ));
+        }
         match (location, style, explode) {
             (ParameterIn::Query, ParameterStyle::Form, true) => Ok(None),
             (ParameterIn::Query, ParameterStyle::Form, false)
@@ -763,6 +783,27 @@ impl TryToTokens for Parameter<'_> {
 #[cfg(test)]
 mod tests {
     use syn::parse_quote;
+
+    #[test]
+    fn unsupported_non_array_encodings_require_a_custom_extractor() {
+        for input in [
+            parse_quote! { struct Query { #[salvo(parameter(style = DeepObject, explode = true))] filter: Filter } },
+            parse_quote! { struct Path { #[salvo(parameter(parameter_in = Path, style = Label))] id: u32 } },
+            parse_quote! { #[salvo(parameters(default_parameter_in = Path, default_style = Matrix))] struct Path { id: u32 } },
+            parse_quote! { struct Query { #[salvo(parameter(style = Simple))] id: String } },
+            parse_quote! { struct Query { #[salvo(parameter(style = PipeDelimited))] id: String } },
+            parse_quote! { struct Header { #[salvo(parameter(parameter_in = Header, style = Form))] id: String } },
+            parse_quote! { struct Map { values: std::collections::BTreeMap<String, String> } },
+        ] {
+            let error = crate::parameter::to_parameters(input).unwrap_err();
+            assert!(
+                error
+                    .emit_as_item_tokens()
+                    .to_string()
+                    .contains("custom extractor")
+            );
+        }
+    }
 
     #[test]
     fn unsupported_array_encodings_produce_derive_errors() {

@@ -30,6 +30,10 @@ pub struct Object {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 
+    /// A human-readable title for the schema.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+
     /// Additional format for detailing the schema type.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<SchemaFormat>,
@@ -164,6 +168,13 @@ pub struct Object {
 }
 
 impl Object {
+    /// Add or change the human-readable schema title.
+    #[must_use]
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
     /// Initialize a new [`Object`] with default [`SchemaType`]. This effectively same as calling
     /// `Object::with_type(SchemaType::Object)`.
     #[must_use]

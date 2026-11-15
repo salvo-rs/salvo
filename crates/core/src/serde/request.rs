@@ -357,7 +357,7 @@ impl<'de> RequestDeserializer<'de> {
                 {
                     seed.deserialize(FlatValue(value))
                 } else {
-                    seed.deserialize(VecValue(value.into_iter()))
+                    seed.deserialize(VecValue::new(value.into_iter()))
                 }
             } else {
                 Err(ValError::custom("parse value error"))

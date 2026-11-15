@@ -19,7 +19,7 @@ use super::{NamedStructSchema, SchemaFeatureExt, UnnamedStructSchema, is_not_ski
 use crate::component::ComponentDescription;
 use crate::doc_comment::CommentAttributes;
 use crate::feature::attributes::{
-    Alias, Bound, Discriminator, Example, Name, Rename, RenameAll, SkipBound, Title,
+    Alias, Bound, Discriminator, Example, Name, Rename, RenameAll, Skip, SkipBound, Title,
 };
 use crate::feature::{
     Feature, FeaturesExt, IsSkipped, TryToTokensExt, parse_features, pop_feature,
@@ -47,6 +47,19 @@ fn variant_is_untagged(variant: &Variant) -> DiagResult<bool> {
         }
     }
     Ok(false)
+}
+
+/// Serde gives skipped enum-newtype fields unit style. Struct newtypes keep
+/// serializing their sole field, so this must be applied at the variant level.
+pub(crate) fn is_skipped_newtype_variant(variant: &Variant) -> DiagResult<bool> {
+    match &variant.fields {
+        Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+            serde_util::parse_value(&fields.unnamed[0].attrs)
+                .map(|rules| rules.is_some_and(|rules| rules.skip))
+                .map_err(Diagnostic::from)
+        }
+        _ => Ok(false),
+    }
 }
 
 #[derive(Debug)]
@@ -433,14 +446,16 @@ impl TryToTokens for SimpleEnum<'_> {
                     None
                 }
             })
-            .flat_map(|(variant, variant_rules)| {
+            .map(|(variant, variant_rules)| {
                 let name = &*variant.ident.to_string();
                 let mut variant_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as Rename))
-                    })
-                    .ok()?
+                        Ok(parse_features!(input as Rename, Skip))
+                    })?
                     .unwrap_or_default();
+                if variant_features.is_skipped() {
+                    return Ok(None);
+                }
                 let variant_name = rename_enum_variant(
                     name,
                     &mut variant_features,
@@ -449,16 +464,15 @@ impl TryToTokens for SimpleEnum<'_> {
                     self.rename_all,
                 );
 
-                variant_name
-                    .map(|name| SimpleEnumVariant {
-                        value: name.to_token_stream(),
-                    })
-                    .or_else(|| {
-                        Some(SimpleEnumVariant {
-                            value: name.to_token_stream(),
-                        })
-                    })
+                Ok(Some(SimpleEnumVariant {
+                    value: variant_name
+                        .unwrap_or(Cow::Borrowed(name))
+                        .to_token_stream(),
+                }))
             })
+            .collect::<DiagResult<Vec<_>>>()?
+            .into_iter()
+            .flatten()
             .collect::<Vec<SimpleEnumVariant<TokenStream>>>();
 
         regular_enum_to_tokens(
@@ -530,6 +544,52 @@ impl ComplexEnum<'_> {
     }
     pub(crate) fn pop_bound(&mut self) -> Option<Bound> {
         pop_feature_as_inner!(self.enum_features => Feature::Bound(_v))
+    }
+
+    fn skipped_newtype_tokens(
+        &self,
+        name: &str,
+        variant: &Variant,
+        rules: Option<&SerdeValue>,
+        container: Option<&SerdeContainer>,
+        representation: &SerdeEnumRepr,
+    ) -> DiagResult<Option<TokenStream>> {
+        let oapi = crate::oapi_crate();
+        let mut features = variant
+            .attrs
+            .parse_features::<EnumUnnamedFieldVariantFeatures>()?
+            .into_inner()
+            .unwrap_or_default();
+        if features.is_skipped() {
+            return Ok(None);
+        }
+        let renamed = rename_enum_variant(name, &mut features, rules, container, self.rename_all);
+        // There is no serialized field to override once serde gives it unit style.
+        let _ = features.pop_value_type_feature();
+        let title: Option<Title> = pop_feature_as_inner!(features => Feature::Title(_v));
+        let value = Enum::new([SimpleEnumVariant {
+            value: renamed.unwrap_or(Cow::Borrowed(name)).to_token_stream(),
+        }]);
+        let mut tokens = match representation {
+            SerdeEnumRepr::ExternallyTagged => value.to_token_stream(),
+            SerdeEnumRepr::InternallyTagged { tag }
+            | SerdeEnumRepr::AdjacentlyTagged { tag, .. } => quote! {
+                #oapi::oapi::Object::new().property(#tag, #value).required(#tag)
+            },
+            SerdeEnumRepr::Untagged => UntaggedEnum::new().try_to_token_stream()?,
+            SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
+                unreachable!("invalid serde representation")
+            }
+        };
+        tokens.extend(features.try_to_token_stream()?);
+        if let Some(title) = title {
+            tokens.extend(quote! {
+                .add_extension("title", #oapi::oapi::__private::serde_json::json!(#title))
+            });
+        }
+        let comments = CommentAttributes::from_attributes(&variant.attrs);
+        ComponentDescription::CommentAttributes(&comments).to_tokens(&mut tokens);
+        Ok(Some(tokens))
     }
 
     /// Produce tokens that represent a variant of a [`ComplexEnum`].
@@ -642,7 +702,13 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as Title, RenameAll, Rename, Example))
+                        Ok(parse_features!(
+                            input as Title,
+                            RenameAll,
+                            Rename,
+                            Example,
+                            Skip
+                        ))
                     })?
                     .unwrap_or_default();
 
@@ -746,7 +812,7 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as Title))
+                        Ok(parse_features!(input as Title, Skip))
                     })?
                     .unwrap_or_default();
 
@@ -904,14 +970,19 @@ impl ComplexEnum<'_> {
 
                     if is_reference {
                         Ok(Some(quote! {
-                            #oapi::oapi::schema::AllOf::new()
-                                #title
-                                .item(#unnamed_enum)
-                                .item(#oapi::oapi::schema::Object::new()
-                                    .schema_type(#oapi::oapi::schema::BasicType::Object)
-                                    .property(#tag, #variant_name_tokens)
-                                    .required(#tag)
-                                )
+                            #oapi::oapi::schema::flatten_all_of_schema(
+                                #oapi::oapi::schema::AllOf::new()
+                                    #title
+                                    .item(#oapi::oapi::schema::tagged_payload_schema(
+                                        (#unnamed_enum).into(), #tag, components,
+                                    ))
+                                    .item(#oapi::oapi::schema::Object::new()
+                                        .schema_type(#oapi::oapi::schema::BasicType::Object)
+                                        .property(#tag, #variant_name_tokens)
+                                        .required(#tag)
+                                    ),
+                                components,
+                            )
                         }))
                     } else {
                         Ok(Some(quote! {
@@ -933,7 +1004,7 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as Title, Rename))
+                        Ok(parse_features!(input as Title, Rename, Skip))
                     })?
                     .unwrap_or_default();
 
@@ -1077,8 +1148,7 @@ impl ComplexEnum<'_> {
                     let title = title_features
                         .first()
                         .map(TryToTokens::try_to_token_stream)
-                        .transpose()?
-                        .map(|title| quote! { .title(#title)});
+                        .transpose()?;
                     let variant_name_tokens = Enum::new([SimpleEnumVariant {
                         value: variant_name
                             .unwrap_or(Cow::Borrowed(name))
@@ -1106,7 +1176,7 @@ impl ComplexEnum<'_> {
                 // In this case `content` is simply ignored - there is nothing to put in it.
                 let mut unit_features =
                     feature::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as Title, Rename))
+                        Ok(parse_features!(input as Title, Rename, Skip))
                     })?
                     .unwrap_or_default();
 
@@ -1144,6 +1214,24 @@ impl ComplexEnum<'_> {
     }
 }
 
+#[cfg(test)]
+mod adjacent_title_tests {
+    use syn::parse_quote;
+
+    #[test]
+    fn adjacent_multifield_tuples_keep_their_representation_diagnostic() {
+        let error = crate::schema::to_schema(parse_quote! {
+            #[serde(tag = "kind", content = "data")]
+            enum Message {
+                #[salvo(schema(title = "Pair"))]
+                Pair(String, u32),
+            }
+        })
+        .unwrap_err();
+        assert!(error.emit_as_item_tokens().to_string().contains("tuple"));
+    }
+}
+
 impl TryToTokens for ComplexEnum<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let attributes = &self.attributes;
@@ -1176,7 +1264,19 @@ impl TryToTokens for ComplexEnum<'_> {
                 let variant_name = &*variant.ident.to_string();
 
                 let variant_untagged = variant_is_untagged(variant)?;
-                let variant_tokens = if variant_untagged {
+                let variant_tokens = if is_skipped_newtype_variant(variant)? {
+                    self.skipped_newtype_tokens(
+                        variant_name,
+                        variant,
+                        variant_serde_rules.as_ref(),
+                        container_rules.as_ref(),
+                        if variant_untagged {
+                            &SerdeEnumRepr::Untagged
+                        } else {
+                            &enum_repr
+                        },
+                    )
+                } else if variant_untagged {
                     self.untagged_variant_tokens(variant)
                 } else {
                     match &enum_repr {
