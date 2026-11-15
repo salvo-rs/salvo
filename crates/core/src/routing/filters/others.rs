@@ -185,7 +185,8 @@ impl Filter for HostFilter {
                 .get(crate::http::header::HOST)
                 .and_then(|h| h.to_str().ok())
         });
-        host.map(|h| split_host_port(h).0 == self.host)
+        // Host names are case-insensitive (RFC 9110 section 4.2.3).
+        host.map(|h| split_host_port(h).0.eq_ignore_ascii_case(&self.host))
             .unwrap_or(self.fallback)
     }
     #[inline]
@@ -318,6 +319,28 @@ mod tests {
                 .filter(&mut req, &mut state)
                 .await
         );
+    }
+
+    #[tokio::test]
+    async fn host_filter_ignores_ascii_case() {
+        for (configured, requested, expected) in [
+            ("admin.example.com", "http://admin.example.com/", true),
+            ("admin.example.com", "http://Admin.Example.COM/", true),
+            ("Admin.Example.com", "http://admin.example.com:8080/", true),
+            ("admin.example.com", "http://admin.example.org/", false),
+            ("admin.example.com", "http://xadmin.example.com/", false),
+        ] {
+            let mut req = Request::new();
+            *req.uri_mut() = requested.parse().unwrap();
+            let mut state = PathState::from_owned_path(req.uri().path().to_owned());
+            assert_eq!(
+                HostFilter::new(configured)
+                    .filter(&mut req, &mut state)
+                    .await,
+                expected,
+                "{configured} {requested}"
+            );
+        }
     }
 
     #[tokio::test]
