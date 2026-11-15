@@ -97,7 +97,7 @@ impl SerdeValue {
                     TokenTree::Ident(ident)
                         if ident == "skip"
                             || (!deserializing && ident == "skip_serializing")
-                            || ident == "skip_deserializing" =>
+                            || (deserializing && ident == "skip_deserializing") =>
                     {
                         value.skip = true
                     }
