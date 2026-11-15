@@ -160,6 +160,8 @@ impl Metadata {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Field {
+    /// Separator between serialized sequence elements, before query decoding.
+    pub value_delimiter: Option<char>,
     /// The field's declared name in the struct definition.
     pub decl_name: &'static str,
     /// Whether the field is flattened; this field will be extracted from the request.
@@ -188,6 +190,7 @@ impl Field {
     #[must_use]
     pub fn with_sources(decl_name: &'static str, sources: Vec<Source>) -> Self {
         Self {
+            value_delimiter: None,
             decl_name,
             flatten: false,
             defaulted: false,
@@ -197,6 +200,13 @@ impl Field {
             serde_rename: None,
             metadata: None,
         }
+    }
+
+    /// Set the separator used for a serialized sequence of field values.
+    #[must_use]
+    pub fn value_delimiter(mut self, delimiter: Option<char>) -> Self {
+        self.value_delimiter = delimiter;
+        self
     }
 
     /// Sets the flatten to the given value.
