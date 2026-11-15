@@ -713,7 +713,11 @@ where
     }
 }
 
-#[cfg(any(feature = "hyper-client", feature = "reqwest-client"))]
+#[cfg(any(
+    feature = "hyper-client",
+    feature = "reqwest-client",
+    all(unix, feature = "unix-sock-client")
+))]
 fn spawn_upgrade(
     conn_ctrl: Option<salvo_core::conn::ConnCtrl>,
     task: impl Future<Output = ()> + Send + 'static,

@@ -176,6 +176,15 @@ streams; HTTP/3 uses QUIC transport controls. `ResBody::observe` reports body pr
 not network delivery, and does not enforce an idle or total timeout. Once response headers
 are sent, body errors terminate the stream rather than produce a new error response.
 
+### Unix socket upstreams
+
+Use `Proxy::new("http://unix/", UnixSockClient::with_socket_path("/run/app.sock.d/server.sock"))`
+to configure the socket independently of the upstream HTTP path and query. This
+also supports directories whose names end in `.sock`. The legacy unit client
+infers the socket from the first complete path component ending in `.sock`.
+Both clients validate Upgrade selections and retain bidirectional tunnels in the
+server's connection lifecycle, including forceful and graceful shutdown.
+
 ### Failure logging
 
 Upstream request failures log the request method, path, and client error type.
