@@ -18,18 +18,23 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
             let sig = &mut item_fn.sig;
             let body = &item_fn.block;
             let name = &sig.ident;
-            let docs = item_fn
-                .attrs
+            // Only attributes applicable to the generated public type belong
+            // here; function-only attributes stay on the associated method.
+            let public_attrs = item_fn.attrs.iter().filter(|attr| {
+                ["doc", "deprecated", "allow", "warn", "deny", "forbid"]
+                    .iter()
+                    .any(|name| attr.path().is_ident(name))
+            });
+            let allow_deprecated = attrs
                 .iter()
-                .filter(|attr| attr.path().is_ident("doc"))
-                .cloned()
-                .collect::<Vec<_>>();
-
+                .any(|attr| attr.path().is_ident("deprecated"))
+                .then(|| quote!(#[allow(deprecated)]));
             let sdef = quote! {
-                #(#docs)*
+                #(#public_attrs)*
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 #vis struct #name;
+                #allow_deprecated
                 impl #name {
                     #(#attrs)*
                     #sig {
@@ -41,6 +46,7 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
             let hfn = handle_fn(&salvo, sig)?;
             Ok(quote! {
                 #sdef
+                #allow_deprecated
                 #[#salvo::async_trait]
                 impl #salvo::Handler for #name {
                     #hfn

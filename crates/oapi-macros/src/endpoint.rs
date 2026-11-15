@@ -149,12 +149,18 @@ fn metadata(
         resolve_self_types(&mut block, &owner);
         Some(quote! { #block })
     };
+    let allow_deprecated = attr
+        .deprecated
+        .unwrap_or_default()
+        .then(|| quote!(#[allow(deprecated)]));
     let stream = quote! {
         #(#cfg)*
+        #allow_deprecated
         fn #tfn() -> ::std::any::TypeId {
             ::std::any::TypeId::of::<#type_path>()
         }
         #(#cfg)*
+        #allow_deprecated
         fn #cfn() -> #oapi::oapi::Endpoint {
             let mut components = #oapi::oapi::Components::new();
             let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
@@ -206,11 +212,23 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 .cloned()
                 .collect::<Vec<_>>();
 
+            // Only attributes applicable to the generated public type belong
+            // here; function-only attributes stay on the associated method.
+            let public_attrs = item_fn.attrs.iter().filter(|attr| {
+                ["doc", "deprecated", "allow", "warn", "deny", "forbid"]
+                    .iter()
+                    .any(|name| attr.path().is_ident(name))
+            });
+            let allow_deprecated = attrs
+                .iter()
+                .any(|attr| attr.path().is_ident("deprecated"))
+                .then(|| quote!(#[allow(deprecated)]));
             let sdef = quote! {
-                #(#docs)*
+                #(#public_attrs)*
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 #vis struct #name;
+                #allow_deprecated
                 impl #name {
                     #(#attrs)*
                     #sig {
@@ -238,6 +256,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             )?;
             Ok(quote! {
                 #sdef
+                #allow_deprecated
                 #[#salvo::async_trait]
                 impl #salvo::Handler for #name {
                     #hfn

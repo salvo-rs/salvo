@@ -559,3 +559,15 @@ async fn get_user() -> Json<User> {
 [xml]: struct.Xml.html
 [const]: https://doc.rust-lang.org/std/keyword.const.html
 [expression]: https://spec.openapis.org/oas/latest.html#runtime-expressions
+
+Deprecated endpoint values retain caller-facing diagnostics:
+
+```compile_fail
+#![allow(deprecated)]
+use salvo_oapi::endpoint;
+#[endpoint]
+#[deprecated(note = "use the replacement endpoint")]
+fn old() -> &'static str { "old" }
+#[deny(deprecated)]
+fn caller() { let _endpoint = old; }
+```
