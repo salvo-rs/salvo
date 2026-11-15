@@ -261,13 +261,12 @@ impl SchemaReference {
 /// Represents _`nullable`_ type.
 ///
 /// This can be used anywhere where "nothing" needs to be evaluated.
-/// This will serialize to _`null`_ in JSON and [`schema::empty`] is used to create the
-/// [`schema::Schema`] for the type.
+/// This serializes to _`null`_ in JSON and its schema explicitly permits only null.
 pub type TupleUnit = ();
 
 impl ToSchema for TupleUnit {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
-        schema::empty().into()
+        schema::Object::with_type(schema::BasicType::Null).into()
     }
 }
 impl ComposeSchema for TupleUnit {
@@ -275,7 +274,7 @@ impl ComposeSchema for TupleUnit {
         _components: &mut Components,
         _generics: Vec<RefOr<schema::Schema>>,
     ) -> RefOr<schema::Schema> {
-        schema::empty().into()
+        schema::Object::with_type(schema::BasicType::Null).into()
     }
 }
 
@@ -357,7 +356,27 @@ impl ComposeSchema for std::net::IpAddr {
 }
 
 #[cfg(feature = "chrono")]
-impl_to_schema_primitive!(chrono::NaiveDate, chrono::Duration, chrono::NaiveDateTime);
+impl_to_schema_primitive!(chrono::NaiveDate, chrono::NaiveDateTime);
+#[cfg(feature = "chrono")]
+impl ToSchema for chrono::Duration {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        <Self as ComposeSchema>::compose(components, vec![])
+    }
+}
+#[cfg(feature = "chrono")]
+impl ComposeSchema for chrono::Duration {
+    fn compose(
+        components: &mut Components,
+        _generics: Vec<RefOr<schema::Schema>>,
+    ) -> RefOr<schema::Schema> {
+        schema::Array::new()
+            .prefix_items([i64::to_schema(components), i32::to_schema(components)])
+            .items(schema::ArrayItems::False)
+            .min_items(2)
+            .max_items(2)
+            .into()
+    }
+}
 #[cfg(feature = "chrono")]
 impl<T: chrono::TimeZone> ToSchema for chrono::DateTime<T> {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {

@@ -59,7 +59,12 @@ pub struct Link {
     /// called.
     ///
     /// [expression]: https://spec.openapis.org/oas/latest.html#runtime-expressions
-    #[serde(skip_serializing_if = "Option::is_none", alias = "request_body")]
+    #[serde(
+        default,
+        deserialize_with = "crate::openapi::deserialize_json_value",
+        skip_serializing_if = "Option::is_none",
+        alias = "request_body"
+    )]
     pub request_body: Option<serde_json::Value>,
 
     /// Description of the link. Value supports Markdown syntax.
@@ -71,6 +76,10 @@ pub struct Link {
     /// [server]: ../server/struct.Server.html
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server: Option<Server>,
+
+    /// Optional specification extensions (`x-something`).
+    #[serde(default, skip_serializing_if = "PropMap::is_empty", flatten)]
+    pub extensions: PropMap<String, serde_json::Value>,
 }
 
 #[cfg(test)]

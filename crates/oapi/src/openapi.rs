@@ -73,6 +73,14 @@ pub type PropMap<K, V> = std::collections::BTreeMap<K, V>;
 #[cfg(feature = "preserve-prop-order")]
 pub type PropMap<K, V> = indexmap::IndexMap<K, V>;
 
+// A present JSON null is a value, distinct from an omitted annotation.
+fn deserialize_json_value<'de, D>(deserializer: D) -> Result<Option<serde_json::Value>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    serde_json::Value::deserialize(deserializer).map(Some)
+}
+
 /// Root object of the OpenAPI document.
 ///
 /// You can use [`OpenApi::new`] function to construct a new [`OpenApi`] instance and then
@@ -349,11 +357,12 @@ impl OpenApi {
         let path: String = path.into();
 
         // Take paths out of other, prefix them, and insert into self
-        let other_paths = std::mem::take(&mut other.paths);
+        let mut other_paths = std::mem::take(&mut other.paths);
         for (item_path, item) in other_paths.iter() {
             let composed = composer(&path, item_path);
             self.paths.insert(composed, item.clone());
         }
+        other.paths.extensions = std::mem::take(&mut other_paths.extensions);
 
         // Merge the remaining parts (servers, components, security, tags)
         // Paths in other are already empty so merge won't duplicate them
