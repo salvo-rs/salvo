@@ -67,3 +67,25 @@ async fn no_acceptable_coding_returns_406() {
         .await;
     assert_eq!(res.status_code, Some(StatusCode::NOT_ACCEPTABLE));
 }
+
+#[handler]
+async fn bodyless(req: &mut Request, res: &mut Response) {
+    res.status_code(StatusCode::from_u16(req.query::<u16>("status").unwrap()).unwrap());
+}
+
+#[tokio::test]
+async fn bodyless_statuses_do_not_negotiate_a_prohibited_identity_body() {
+    let service = Service::new(Router::new().hoop(Compression::new()).goal(bodyless));
+    for status in [100, 101, 103, 204, 205, 304] {
+        let response = TestClient::get(format!("http://localhost/?status={status}"))
+            .add_header("accept-encoding", "identity;q=0, *;q=0", true)
+            .send(&service)
+            .await;
+        assert_eq!(
+            response.status_code,
+            Some(StatusCode::from_u16(status).unwrap())
+        );
+        assert!(response.body.is_none());
+        assert!(!response.headers().contains_key("content-encoding"));
+    }
+}

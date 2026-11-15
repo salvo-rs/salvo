@@ -514,6 +514,14 @@ impl Handler for Compression {
         ctrl: &mut FlowCtrl,
     ) {
         ctrl.call_next(req, depot, res).await;
+        // Informational, 204 and 205 responses have no representation body to
+        // negotiate. In particular identity;q=0 must not turn them into 406.
+        if res.status_code.is_some_and(|status| {
+            status.is_informational()
+                || matches!(status, StatusCode::NO_CONTENT | StatusCode::RESET_CONTENT)
+        }) {
+            return;
+        }
         // A range describes bytes of the selected representation. Re-encoding its
         // body would invalidate those offsets, including representation headers
         // synthesized for HEAD. Leave the body and headers together untouched.
@@ -694,7 +702,7 @@ fn identity_acceptable(req: &Request) -> bool {
 }
 
 fn strip_digests(headers: &mut http::HeaderMap) {
-    const DIGESTS: [&str; 3] = ["content-digest", "repr-digest", "content-md5"];
+    const DIGESTS: [&str; 4] = ["content-digest", "repr-digest", "content-md5", "digest"];
     for name in DIGESTS {
         headers.remove(name);
     }
