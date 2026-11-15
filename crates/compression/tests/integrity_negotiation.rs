@@ -37,6 +37,29 @@ async fn identity_rejection_overrides_the_size_threshold() {
 }
 
 #[tokio::test]
+async fn identity_responses_vary_when_a_rejected_identity_would_change_the_result() {
+    let service = Service::new(Router::new().hoop(Compression::new()).get(hello));
+    for no_transform in [false, true] {
+        let mut request =
+            TestClient::get("http://localhost/").add_header("accept-encoding", "gzip", true);
+        if no_transform {
+            request = request.add_header("cache-control", "no-transform", true);
+        }
+        let mut response = request.send(&service).await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert!(!response.headers().contains_key("content-encoding"));
+        assert!(response.headers().get_all("vary").iter().any(|value| {
+            value
+                .to_str()
+                .unwrap()
+                .split(',')
+                .any(|name| name.trim().eq_ignore_ascii_case("accept-encoding"))
+        }));
+        assert_eq!(response.take_string().await.unwrap(), "hello");
+    }
+}
+
+#[tokio::test]
 async fn compression_removes_digests_for_different_wire_bytes() {
     let mut res = TestClient::get("http://localhost/")
         .add_header("accept-encoding", "gzip", true)

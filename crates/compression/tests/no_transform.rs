@@ -50,7 +50,7 @@ async fn no_transform_preserves_response_representation() {
         assert!(response.headers().get(CONTENT_ENCODING).is_none());
         assert_eq!(response.headers()[CONTENT_LENGTH], "4096");
         assert_eq!(response.headers()[ETAG], "\"original\"");
-        assert!(response.headers().get(VARY).is_none());
+        assert_eq!(response.headers()[VARY], "accept-encoding");
         assert_eq!(response.take_bytes(None).await.unwrap(), "a".repeat(4096));
     }
 }
@@ -106,7 +106,11 @@ async fn no_transform_also_preserves_stream_head_and_not_modified_metadata() {
             .await;
         assert!(response.headers().get(CONTENT_ENCODING).is_none());
         assert_eq!(response.headers()[ETAG], "\"original\"");
-        assert!(response.headers().get(VARY).is_none());
+        if path == "not-modified" {
+            assert!(response.headers().get(VARY).is_none());
+        } else {
+            assert_eq!(response.headers()[VARY], "accept-encoding");
+        }
         if path == "stream" {
             assert_eq!(response.take_bytes(None).await.unwrap(), "a".repeat(4096));
         } else {
@@ -131,7 +135,7 @@ async fn obs_text_extensions_do_not_hide_request_or_response_no_transform() {
             assert!(response.headers().get(CONTENT_ENCODING).is_none(), "{name}");
             assert_eq!(response.headers()[CONTENT_LENGTH], "4096");
             assert_eq!(response.headers()[ETAG], "\"original\"");
-            assert!(response.headers().get(VARY).is_none());
+            assert_eq!(response.headers()[VARY], "accept-encoding");
             assert_eq!(response.take_bytes(None).await.unwrap(), "a".repeat(4096));
         }
     }

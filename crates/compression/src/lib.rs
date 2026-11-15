@@ -514,6 +514,15 @@ impl Compression {
         }) {
             return;
         }
+        // Even an identity response below the size threshold (or protected by
+        // no-transform/range) can become encoded or 406 when identity is rejected.
+        // Mark that dependency before any identity-preserving early return.
+        if !ceased
+            && !res.headers().contains_key(CONTENT_ENCODING)
+            && res.status_code != Some(StatusCode::NOT_MODIFIED)
+        {
+            append_vary_header(res.headers_mut(), "accept-encoding");
+        }
         // A range describes bytes of the selected representation. Re-encoding its
         // body would invalidate those offsets, including representation headers
         // synthesized for HEAD. Leave the body and headers together untouched.
