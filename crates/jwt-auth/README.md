@@ -75,14 +75,10 @@ RustCrypto provider for JWTs instead, disable Salvo's default features and
 select `jwt-auth-ring`. The separate `ring` feature selects ring for Salvo's
 rustls integration:
 
-**Current dependency limitation:** the RustCrypto JWT backend selected by
-`jwt-auth-ring` still resolves crypto-bigint 0.5 through jsonwebtoken 11.1's
-p256/p384 dependencies and is affected by
-[RUSTSEC-2026-0387](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
-There is no Salvo audit exception for it. Prefer the default AWS-LC JWT backend
-where suitable, audit your application's final lockfile, and see the repository's
-[dependency security policy](../../.github/DEPENDENCY_SECURITY.md) for the upstream
-blocker. The alternative configuration below retains this unresolved dependency.
+The JWT dependency is jsonwebtoken 12. Its RustCrypto backend uses the maintained
+p256/p384 0.14 and rsa 0.10 families. Audit your application's final lockfile;
+[the dependency security review](../../.github/DEPENDENCY_SECURITY.md) records
+the resolved versions and remaining exceptions in other dependency paths.
 
 ```toml
 salvo = { version = "*", default-features = false, features = [
@@ -114,12 +110,15 @@ AWS-LC takes precedence when both Salvo JWT provider features are enabled. If
 the application uses a custom process-wide `jsonwebtoken` provider, install
 that provider itself instead of calling `install_crypto_provider`.
 
-The RustCrypto JWT backend currently depends on crypto-bigint affected by
-[RUSTSEC-2026-0387](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
-Salvo's middleware uses it for public-key verification. Applications signing
-JWTs with EC private keys should use the default AWS-LC provider until upstream
-dependencies are fixed. See [the dependency security review](../../.github/DEPENDENCY_SECURITY.md)
-for the limited audit exception and its review deadline.
+## Upgrading to jsonwebtoken 12
+
+`ConstDecoder::from_secret` now returns `Result<ConstDecoder, JwtError>` and
+rejects empty HMAC secrets. Handle the result with `?` during configuration, or
+use `.expect("JWT secret must not be empty")` for a known nonempty constant.
+The re-exported `DecodingKey::from_secret` and jsonwebtoken's
+`EncodingKey::from_secret` are also fallible. Other constructors keep their
+existing signatures. Direct jsonwebtoken users should upgrade their dependency
+to version 12 so that key types and the process-wide crypto provider match.
 
 ## Quick Start
 
@@ -157,7 +156,7 @@ async fn main() {
     install_crypto_provider()
         .expect("install the JWT crypto provider before first use");
 
-    let auth = JwtAuth::<Claims, _>::new(ConstDecoder::from_secret(SECRET))
+    let auth = JwtAuth::<Claims, _>::new(ConstDecoder::from_secret(SECRET).expect("JWT secret must not be empty"))
         .finders(vec![Box::new(HeaderFinder::new())])
         .force_passed(true);
 
@@ -189,7 +188,7 @@ validation.set_audience(&["api://salvo-service"]);
 validation.required_spec_claims.insert("aud".to_owned());
 
 let decoder = ConstDecoder::with_validation(
-    DecodingKey::from_secret(SECRET),
+    DecodingKey::from_secret(SECRET).expect("JWT secret must not be empty"),
     validation,
 );
 ```

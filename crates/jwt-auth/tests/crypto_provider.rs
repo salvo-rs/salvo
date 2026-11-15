@@ -23,11 +23,11 @@ async fn explicit_initialization_precedes_direct_and_salvo_jwt_use() {
             sub: "test".into(),
             exp: 4_000_000_000,
         },
-        &EncodingKey::from_secret(b"secret"),
+        &EncodingKey::from_secret(b"secret").unwrap(),
     )
     .expect("AWS-LC should be selected when both provider features are enabled");
 
-    let decoder = ConstDecoder::new(DecodingKey::from_secret(b"secret"));
+    let decoder = ConstDecoder::new(DecodingKey::from_secret(b"secret").unwrap());
     let decoded = decoder
         .decode::<Claims>(&token, &mut Depot::new())
         .await
