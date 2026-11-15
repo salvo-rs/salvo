@@ -135,6 +135,9 @@ where
             res.status_code(StatusCode::PRECONDITION_FAILED);
             return;
         } else if not_modified {
+            if retrieval {
+                res.take_body();
+            }
             res.status_code(if retrieval {
                 StatusCode::NOT_MODIFIED
             } else {
@@ -210,6 +213,13 @@ where
                 .typed_insert(ContentLength(content_length));
             res.stream(ReaderStream::new(self.reader.take(content_length)));
         } else {
+            if let Err(error) = self.reader.seek(SeekFrom::Start(0)).await {
+                tracing::error!(?error, "seek representation start failed");
+                res.render(
+                    StatusError::internal_server_error().brief("seek representation start failed"),
+                );
+                return;
+            }
             res.status_code(StatusCode::OK);
             res.headers_mut().typed_insert(ContentLength(self.length));
             res.stream(ReaderStream::new(self.reader.take(self.length)));
