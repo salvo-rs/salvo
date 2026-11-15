@@ -11,6 +11,20 @@ struct Generic<T>(T, u32);
 #[derive(Serialize, ToSchema)]
 struct Homogeneous(String, String);
 
+#[derive(Serialize, ToSchema)]
+struct SkippedMiddle(String, #[serde(skip)] bool, u32);
+#[derive(Serialize, ToSchema)]
+struct OneRemaining(#[serde(skip_serializing)] bool, String);
+#[derive(Serialize, ToSchema)]
+struct AllSkipped(#[serde(skip)] bool, #[serde(skip)] u32);
+#[derive(Serialize, ToSchema)]
+struct SkippedNewtype(#[serde(skip)] bool);
+#[derive(Serialize, ToSchema)]
+struct InputOnlySkip(#[serde(skip_deserializing)] String, u32);
+#[derive(Serialize, ToSchema)]
+struct GenericSkipped<T>(String, #[serde(skip)] T);
+struct NoSchema;
+
 fn case<T: Serialize + ToSchema>(value: T, invalid: Vec<Value>) -> Value {
     let mut components = Components::new();
     let schema = T::to_schema(&mut components);
@@ -20,6 +34,21 @@ fn case<T: Serialize + ToSchema>(value: T, invalid: Vec<Value>) -> Value {
 #[test]
 fn tuple_struct_positions_match_serde() {
     let cases = vec![
+        case(
+            SkippedMiddle("one".into(), false, 7),
+            vec![json!(["one", false, 7]), json!(["one"])],
+        ),
+        case(
+            OneRemaining(false, "one".into()),
+            vec![json!("one"), json!([false, "one"])],
+        ),
+        case(AllSkipped(false, 7), vec![json!([false, 7]), json!(null)]),
+        case(SkippedNewtype(false), vec![json!(null), json!([])]),
+        case(InputOnlySkip("one".into(), 7), vec![json!([7])]),
+        case(
+            GenericSkipped("one".into(), NoSchema),
+            vec![json!(["one", null])],
+        ),
         case(
             Mixed("one".into(), 7),
             vec![json!([7, "one"]), json!(["one"]), json!(["one", 7, 8])],

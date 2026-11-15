@@ -642,19 +642,34 @@ impl UnnamedStructSchema<'_> {
 impl TryToTokens for UnnamedStructSchema<'_> {
     fn try_to_tokens(&self, tokens: &mut TokenStream) -> DiagResult<()> {
         let oapi = crate::oapi_crate();
-        let fields_len = self.fields.len();
-        let first_field = self.fields.first().ok_or_else(|| {
-            Diagnostic::spanned(
-                self.fields.span(),
-                DiagLevel::Error,
-                "a tuple struct used as a schema must have at least one field",
-            )
-        })?;
+        let is_newtype = self.fields.len() == 1;
+        let fields = self
+            .fields
+            .iter()
+            .map(|field| {
+                let rules = serde_util::parse_value(&field.attrs).map_err(Diagnostic::from)?;
+                // Serde's newtype serializer always serializes its single field.
+                Ok((is_newtype || is_not_skipped(rules.as_ref())).then_some(field))
+            })
+            .collect::<DiagResult<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let fields_len = fields.len();
+        let Some(first_field) = fields.first() else {
+            if is_newtype {
+                tokens.extend(
+                    quote! { #oapi::oapi::Object::with_type(#oapi::oapi::schema::BasicType::Null) },
+                );
+            } else {
+                tokens.extend(quote! { #oapi::oapi::schema::Array::new().items(#oapi::oapi::schema::ArrayItems::False).min_items(0).max_items(0) });
+            }
+            return Ok(());
+        };
         let first_part = &TypeTree::from_type(&first_field.ty)?;
 
         let all_fields_are_same = fields_len == 1
-            || self
-                .fields
+            || fields
                 .iter()
                 .skip(1)
                 .map(|field| TypeTree::from_type(&field.ty))
@@ -673,9 +688,7 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                 .map(|value_type| value_type.as_type_tree())
                 .transpose()?;
 
-            if fields_len == 1
-                && let Some(ref mut features) = unnamed_struct_features
-            {
+            if is_newtype && let Some(ref mut features) = unnamed_struct_features {
                 let inline = parse_schema_features_with(&first_field.attrs, |input| {
                     Ok(parse_features!(input as attributes::Inline))
                 })?
@@ -692,7 +705,7 @@ impl TryToTokens for UnnamedStructSchema<'_> {
             // The struct has multiple unnamed fields.
             // Validation related features are only allowed on unnamed structs with a single field
             // (i.e., newtype pattern).
-            if fields_len > 1
+            if !is_newtype
                 && let Some(ref mut features) = unnamed_struct_features
                 && let Some((name, span)) = features.iter().find_map(|feature| match feature {
                     Feature::MultipleOf(attr) => Some(("multiple_of", attr.span())),
@@ -738,8 +751,7 @@ impl TryToTokens for UnnamedStructSchema<'_> {
         } else {
             // JSON Schema 2020-12 describes heterogeneous serde tuples with
             // positional schemas, rather than requiring every item to be an object.
-            let items = self
-                .fields
+            let items = fields
                 .iter()
                 .map(|field| {
                     let type_tree = TypeTree::from_type(&field.ty)?;
@@ -773,7 +785,7 @@ impl TryToTokens for UnnamedStructSchema<'_> {
             }
         };
 
-        if fields_len > 1 {
+        if !is_newtype {
             let comments = CommentAttributes::from_attributes(self.attributes);
             let description = self
                 .description

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Exclude serde-skipped tuple fields from schema positions, lengths and generic bounds.
 - Include serde struct tags and serialized type names in generated schemas.
 - Apply serde `rename_all_fields` rules to enum variant schemas.
 - Use serde container default functions when generating schema default values.
