@@ -34,6 +34,8 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 #vis struct #name;
+            };
+            let inherent = quote! {
                 #allow_deprecated
                 impl #name {
                     #(#attrs)*
@@ -44,14 +46,18 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
             };
 
             let hfn = handle_fn(&salvo, sig)?;
-            Ok(quote! {
-                #sdef
-                #allow_deprecated
-                #[#salvo::async_trait]
-                impl #salvo::Handler for #name {
-                    #hfn
-                }
-            })
+            let implementations = parameter_binding_scope(
+                sig,
+                quote! {
+                    #inherent
+                    #allow_deprecated
+                    #[#salvo::async_trait]
+                    impl #salvo::Handler for #name {
+                        #hfn
+                    }
+                },
+            );
+            Ok(quote! { #sdef #implementations })
         }
         Item::Impl(item_impl) => {
             let methods = item_impl
@@ -97,6 +103,25 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
             "#[handler] must be applied to an `impl` block or `fn`",
         )),
     }
+}
+
+fn parameter_binding_scope(sig: &Signature, implementations: TokenStream) -> TokenStream {
+    let name = &sig.ident;
+    let collides = sig.inputs.iter().any(|input| matches!(input,
+        syn::FnArg::Typed(input) if matches!(&*input.pat, Pat::Ident(pattern) if pattern.ident == *name)
+    ));
+    if !collides {
+        return implementations;
+    }
+    // A unit constructor is a constant pattern, so an equally named parameter
+    // would not bind. A private function shadows that constructor for the impls
+    // only: function names can be shadowed by bindings. Keep the public unit
+    // value, Self, relative paths and the user's body (including macros) intact.
+    quote! { const _: () = {
+        #[allow(dead_code, non_snake_case)]
+        fn #name() {}
+        #implementations
+    }; }
 }
 
 fn handle_fn(salvo: &syn::Path, sig: &Signature) -> syn::Result<TokenStream> {

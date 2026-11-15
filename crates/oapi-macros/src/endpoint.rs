@@ -233,6 +233,8 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 #vis struct #name;
+            };
+            let inherent = quote! {
                 #allow_deprecated
                 impl #name {
                     #(#attrs)*
@@ -259,15 +261,18 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 modifiers,
                 &[],
             )?;
-            Ok(quote! {
-                #sdef
-                #allow_deprecated
-                #[#salvo::async_trait]
-                impl #salvo::Handler for #name {
-                    #hfn
-                }
-                #meta
-            })
+            let implementations = parameter_binding_scope(
+                sig,
+                quote! {
+                    #inherent
+                    #allow_deprecated
+                    #[#salvo::async_trait]
+                    impl #salvo::Handler for #name {
+                        #hfn
+                    }
+                },
+            );
+            Ok(quote! { #sdef #implementations #meta })
         }
         Item::Impl(item_impl) => {
             let attrs = &item_impl.attrs;
@@ -350,6 +355,23 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             "#[endpoint] must be added to `impl` or `fn`",
         )),
     }
+}
+
+fn parameter_binding_scope(sig: &Signature, implementations: TokenStream) -> TokenStream {
+    let name = &sig.ident;
+    let collides = sig.inputs.iter().any(|input| matches!(input,
+        syn::FnArg::Typed(input) if matches!(&*input.pat, Pat::Ident(pattern) if pattern.ident == *name)
+    ));
+    if !collides {
+        return implementations;
+    }
+    // Shadow the unit constructor with a private function in the impl scope.
+    // Parameters may bind function names, unlike constant constructor patterns.
+    quote! { const _: () = {
+        #[allow(dead_code, non_snake_case)]
+        fn #name() {}
+        #implementations
+    }; }
 }
 
 fn handle_fn(
