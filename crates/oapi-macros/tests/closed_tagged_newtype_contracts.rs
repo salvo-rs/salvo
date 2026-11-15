@@ -1,10 +1,11 @@
 //! Internal enum tags are exempt from the payload object's closure and map rules.
 #![allow(dead_code)]
+use std::collections::BTreeMap;
+
 use salvo::oapi::schema::{AdditionalProperties, BasicType, Schema};
 use salvo::oapi::{Components, ComposeSchema, Object, RefOr, ToSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
 
 #[derive(Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
