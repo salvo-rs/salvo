@@ -55,6 +55,14 @@ pub(crate) use self::type_tree::TypeTree;
 /// OpenAPI operation metadata. The generated endpoint can be registered on a
 /// router and later collected with `OpenApi::merge_router`.
 ///
+/// Parameters and local bindings may reuse the function's name. In functions
+/// with such bindings, use `Self` or a qualified path to refer to the generated
+/// handler value or match its constructor. The name check examines parsed Rust
+/// patterns before nested macros expand. Blocks with a same-named or glob import
+/// retain their existing name resolution. If this prevents a local binding,
+/// use an explicit import with a different name or move the import outside the
+/// handler function.
+///
 /// Function doc comments are used for generated operation text: the first
 /// paragraph becomes the summary and the remaining paragraphs become the
 /// description.

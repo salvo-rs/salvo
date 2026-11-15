@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Allow handler and endpoint local bindings to share their function's name, including zero-argument functions.
 - Decode built-in `HeaderParam` arrays using the default comma-separated header encoding while preserving scalar values.
 - Diagnose unsupported scalar/object `ToParameters` encodings instead of generating incompatible extractors.
 - Honor nested `salvo(schema(...))` attributes on enum variants, repr enums and newtype fields.

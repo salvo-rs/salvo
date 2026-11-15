@@ -249,8 +249,9 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 modifiers,
                 &[],
             )?;
-            let implementations = parameter_binding_scope(
+            let implementations = binding_scope(
                 sig,
+                body,
                 quote! {
                     #inherent
                     #allow_deprecated
@@ -343,16 +344,108 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
     }
 }
 
-fn parameter_binding_scope(sig: &Signature, implementations: TokenStream) -> TokenStream {
+fn binding_scope(sig: &Signature, body: &syn::Block, implementations: TokenStream) -> TokenStream {
+    use syn::visit::Visit;
+
+    struct Bindings<'a> {
+        name: &'a Ident,
+        found: bool,
+    }
+    impl Bindings<'_> {
+        fn matches(&self, ident: &Ident) -> bool {
+            ident.unraw() == self.name.unraw()
+        }
+
+        fn imported_name(&self, tree: &syn::UseTree, parent: Option<&Ident>) -> bool {
+            match tree {
+                syn::UseTree::Name(item) if item.ident == "self" => {
+                    parent.is_some_and(|ident| self.matches(ident))
+                }
+                syn::UseTree::Name(item) => self.matches(&item.ident),
+                syn::UseTree::Rename(item) => self.matches(&item.rename),
+                syn::UseTree::Path(item) => self.imported_name(&item.tree, Some(&item.ident)),
+                syn::UseTree::Group(item) => item
+                    .items
+                    .iter()
+                    .any(|tree| self.imported_name(tree, parent)),
+                syn::UseTree::Glob(_) => true,
+            }
+        }
+
+        fn declares_local_name(&self, item: &Item) -> bool {
+            match item {
+                Item::Fn(item) => self.matches(&item.sig.ident),
+                Item::Const(item) => self.matches(&item.ident),
+                Item::Static(item) => self.matches(&item.ident),
+                Item::Struct(item) if !matches!(item.fields, syn::Fields::Named(_)) => {
+                    self.matches(&item.ident)
+                }
+                Item::Use(item) => self.imported_name(&item.tree, None),
+                Item::ForeignMod(item) => item.items.iter().any(|item| match item {
+                    syn::ForeignItem::Fn(item) => self.matches(&item.sig.ident),
+                    syn::ForeignItem::Static(item) => self.matches(&item.ident),
+                    _ => false,
+                }),
+                _ => false,
+            }
+        }
+    }
+    impl<'ast> Visit<'ast> for Bindings<'_> {
+        fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
+            self.found |= self.matches(&pattern.ident);
+            syn::visit::visit_pat_ident(self, pattern);
+        }
+
+        fn visit_block(&mut self, block: &'ast syn::Block) {
+            // Preserve existing resolution beneath local values or imports.
+            // An import's namespace cannot be resolved from its syntax alone.
+            if block
+                .stmts
+                .iter()
+                .any(|stmt| matches!(stmt, syn::Stmt::Item(item) if self.declares_local_name(item)))
+            {
+                return;
+            }
+            syn::visit::visit_block(self, block);
+        }
+
+        fn visit_item_mod(&mut self, _: &'ast syn::ItemMod) {
+            // A nested module has its own item namespace.
+        }
+
+        fn visit_item_foreign_mod(&mut self, _: &'ast syn::ItemForeignMod) {
+            // Foreign declaration argument names do not bind values.
+        }
+
+        fn visit_trait_item_fn(&mut self, item: &'ast syn::TraitItemFn) {
+            if item.default.is_some() {
+                syn::visit::visit_trait_item_fn(self, item);
+            }
+        }
+
+        fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+            if item
+                .sig
+                .generics
+                .const_params()
+                .any(|param| self.matches(&param.ident))
+            {
+                return;
+            }
+            syn::visit::visit_item_fn(self, item);
+        }
+    }
+
     let name = &sig.ident;
-    let collides = sig.inputs.iter().any(|input| matches!(input,
-        syn::FnArg::Typed(input) if matches!(&*input.pat, Pat::Ident(pattern) if pattern.ident == *name)
-    ));
-    if !collides {
+    let mut bindings = Bindings { name, found: false };
+    bindings.visit_signature(sig);
+    bindings.visit_block(body);
+    if !bindings.found {
         return implementations;
     }
-    // Shadow the unit constructor with a private function in the impl scope.
-    // Parameters may bind function names, unlike constant constructor patterns.
+    // Function names can be shadowed by bindings; unit constructors cannot.
+    // Leave the user's body/tokens intact and retain the public handler value,
+    // Self, relative paths and the endpoint's external metadata registration.
     quote! { const _: () = {
         #[allow(dead_code, non_snake_case)]
         fn #name() {}
