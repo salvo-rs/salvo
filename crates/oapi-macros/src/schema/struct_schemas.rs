@@ -594,6 +594,24 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                 .iter()
                 .all(|schema_part| first_part == schema_part);
 
+        fn erase_array_lengths(mut part: TypeTree<'_>) -> TypeTree<'_> {
+            part.array_len = None;
+            part.children = part
+                .children
+                .map(|children| children.into_iter().map(erase_array_lengths).collect());
+            part
+        }
+        // Exact lengths can make formerly identical array shapes distinct. Keep
+        // those positions separate without treating their elements as objects.
+        let positional_arrays = !all_fields_are_same
+            && self
+                .fields
+                .iter()
+                .map(|field| TypeTree::from_type(&field.ty).map(erase_array_lengths))
+                .collect::<DiagResult<Vec<_>>>()?
+                .iter()
+                .all(|part| *part == erase_array_lengths(first_part.clone()));
+
         let deprecated = crate::get_deprecated(self.attributes);
         if all_fields_are_same {
             let mut unnamed_struct_features = self.features.clone();
@@ -672,9 +690,31 @@ impl TryToTokens for UnnamedStructSchema<'_> {
             // See: https://serde.rs/json.html
             // Typically OpenAPI does not support multi type arrays thus we simply consider the case
             // as generic object array
-            tokens.extend(quote! {
-                #oapi::oapi::Object::new()
-            });
+            if positional_arrays {
+                let items = self
+                    .fields
+                    .iter()
+                    .map(|field| {
+                        let type_tree = TypeTree::from_type(&field.ty)?;
+                        Ok(ComponentSchema::new(ComponentSchemaProps {
+                            type_tree: &type_tree,
+                            features: None,
+                            description: None,
+                            deprecated: None,
+                            object_name: self.struct_name.as_ref(),
+                            compose_context: self.compose_context.as_ref(),
+                        })?
+                        .to_token_stream())
+                    })
+                    .collect::<DiagResult<Vec<_>>>()?;
+                tokens.extend(quote! {
+                    #oapi::oapi::schema::Array::new()
+                        .items(#oapi::oapi::schema::ArrayItems::False)
+                        .prefix_items([#(Into::<#oapi::oapi::RefOr<#oapi::oapi::schema::Schema>>::into(#items)),*])
+                });
+            } else {
+                tokens.extend(quote! { #oapi::oapi::Object::new() });
+            }
 
             if let Some(deprecated) = deprecated {
                 tokens.extend(quote! { .deprecated(#deprecated) });
@@ -696,8 +736,10 @@ impl TryToTokens for UnnamedStructSchema<'_> {
                 .as_ref()
                 .map(ComponentDescription::Description)
                 .or(Some(ComponentDescription::CommentAttributes(&comments)));
+            if !positional_arrays {
+                tokens.extend(quote! { .to_array() });
+            }
             tokens.extend(quote! {
-            .to_array()
                 .max_items(#fields_len)
                 .min_items(#fields_len)
                 #description

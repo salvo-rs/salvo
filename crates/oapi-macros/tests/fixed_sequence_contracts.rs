@@ -17,6 +17,8 @@ struct Arrays<const N: usize> {
 struct Tuple {
     data: (String, u32),
 }
+#[derive(Serialize, ToSchema)]
+struct DifferentArrays([u8; 2], [u8; 3]);
 fn case<T: Serialize + ToSchema>(value: T, invalid: Vec<Value>) -> Value {
     let mut components = Components::new();
     let schema = T::to_schema(&mut components);
@@ -53,6 +55,10 @@ fn fixed_lengths_match_serde() {
         ),
         case([1_u8, 2, 3], vec![json!([1, 2]), json!([1, 2, 3, 4])]),
         case([] as [u8; 0], vec![json!([1])]),
+        case(
+            DifferentArrays([1, 2], [3, 4, 5]),
+            vec![json!([[1, 2], [3, 4]]), json!([[1, 2, 3], [3, 4, 5]])],
+        ),
         json!({"schema":composed,"valid":[[1,2,3]],"invalid":[[1,2],[1,2,3,4]]}),
     ];
     if let Some(path) = std::env::var_os("SALVO_SCHEMA_CONTRACT_OUTPUT") {
