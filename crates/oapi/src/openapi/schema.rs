@@ -21,6 +21,79 @@ use serde::{Deserialize, Serialize};
 
 use crate::{PropMap, RefOr};
 
+/// Describe an optional flattened field as either a valid child or an absent
+/// property group. Used by generated schemas.
+#[doc(hidden)]
+pub fn optional_flatten_schema(
+    schema: RefOr<Schema>,
+    parent: &Object,
+    components: &crate::Components,
+) -> RefOr<Schema> {
+    fn names(
+        schema: &RefOr<Schema>,
+        components: &crate::Components,
+        seen: &mut std::collections::HashSet<String>,
+        output: &mut std::collections::BTreeSet<String>,
+    ) {
+        match schema {
+            RefOr::Ref(reference) => {
+                if seen.insert(reference.ref_location.clone())
+                    && let Some(schema) = reference
+                        .ref_location
+                        .strip_prefix("#/components/schemas/")
+                        .and_then(|name| {
+                            components
+                                .schemas
+                                .get(&name.replace("~1", "/").replace("~0", "~"))
+                        })
+                {
+                    names(schema, components, seen, output);
+                }
+            }
+            RefOr::Type(Schema::Object(object)) => output.extend(object.properties.keys().cloned()),
+            RefOr::Type(Schema::AllOf(all)) => {
+                for item in &all.items {
+                    names(item, components, seen, output);
+                }
+            }
+            RefOr::Type(Schema::AnyOf(any)) => {
+                for item in &any.items {
+                    names(item, components, seen, output);
+                }
+            }
+            RefOr::Type(Schema::OneOf(one)) => {
+                for item in &one.items {
+                    names(item, components, seen, output);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut fields = std::collections::BTreeSet::new();
+    names(
+        &schema,
+        components,
+        &mut std::collections::HashSet::new(),
+        &mut fields,
+    );
+    if fields.is_empty() {
+        // Unknown/custom schemas retain their constraints; do not introduce a
+        // blanket permissive branch when no property group can be identified.
+        return schema;
+    }
+    fields.retain(|field| !parent.properties.contains_key(field));
+    let absent = if fields.is_empty() {
+        Object::new()
+    } else {
+        let any_present = fields
+            .into_iter()
+            .map(|field| serde_json::json!({"required":[field]}))
+            .collect::<Vec<_>>();
+        Object::new().add_extension("not", serde_json::json!({"anyOf":any_present}))
+    };
+    AnyOf::new().item(schema).item(absent).into()
+}
+
 /// Schemas collection for OpenApi.
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
