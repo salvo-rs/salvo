@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Respect explicit `deprecated = false` on schema properties.
 
+- Anchor every alternative of a regex path parameter, so `{fmt|js|json}` matches `json`
+  and a rest parameter such as `{**path|public/.*|assets/.*}` only matches whole paths.
+
 - Omit query strings from OpenTelemetry spans by default; opt in to selected
   non-sensitive fields with `Tracing::query_fields`.
 

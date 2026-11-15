@@ -595,6 +595,14 @@ pub struct RegexWisp {
 impl RegexWisp {
     #[inline]
     fn new(name: String, regex: &str) -> Result<Self, String> {
+        let original_regex = regex;
+        // Anchors added around `a|b` would bind to the first and last
+        // alternative only, so group a pattern that has alternatives first.
+        let regex = if regex.contains('|') {
+            &*format!("^(?:{regex})$")
+        } else {
+            regex
+        };
         let regex = if !regex.starts_with('^') {
             &*format!("^{regex}")
         } else {
@@ -607,7 +615,19 @@ impl RegexWisp {
         };
         Ok(Self {
             name,
-            regex: Regex::new(regex).map_err(|e| format!("invalid regex: `{regex}`, {e}"))?,
+            regex: Regex::new(regex)
+                .or_else(|error| {
+                    // A trailing comment in verbose mode can swallow the
+                    // group's closing delimiter. Try terminating that comment
+                    // only after grouping fails: an unconditional newline
+                    // would become a literal when verbose mode is disabled.
+                    if original_regex.contains('|') && Regex::new(original_regex).is_ok() {
+                        Regex::new(&format!("^(?:{original_regex}\n)$")).map_err(|_| error)
+                    } else {
+                        Err(error)
+                    }
+                })
+                .map_err(|e| format!("invalid regex: `{regex}`, {e}"))?,
         })
     }
 }
