@@ -27,13 +27,14 @@ async fn default_header_finder_authenticates_like_new() {
             sub: "alice".into(),
             exp: u64::MAX,
         },
-        &EncodingKey::from_secret(b"test-secret"),
+        &EncodingKey::from_secret(b"test-secret").unwrap(),
     )
     .unwrap();
 
     for finder in [HeaderFinder::new(), HeaderFinder::default()] {
         let auth: JwtAuth<Claims, _> =
-            JwtAuth::new(ConstDecoder::from_secret(b"test-secret")).finders(vec![Box::new(finder)]);
+            JwtAuth::new(ConstDecoder::from_secret(b"test-secret").unwrap())
+                .finders(vec![Box::new(finder)]);
         let service = Service::new(Router::new().hoop(auth).goal(identity));
         for method in [Method::GET, Method::POST, Method::QUERY] {
             let mut response = salvo_core::test::RequestBuilder::new("http://localhost/", method)

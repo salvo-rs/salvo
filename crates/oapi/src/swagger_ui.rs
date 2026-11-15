@@ -11,6 +11,7 @@ pub mod oauth;
 pub use config::Config;
 pub use oauth::Config as OauthConfig;
 use rust_embed::RustEmbed;
+use salvo_core::hyper::body::Bytes;
 use salvo_core::http::{HeaderValue, ResBody, StatusError, header};
 use salvo_core::routing::redirect_to_dir_url;
 use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response, Router, async_trait};
@@ -240,7 +241,11 @@ impl Handler for SwaggerUi {
                     header::CONTENT_TYPE,
                     HeaderValue::from_str(&file.content_type).expect("content type parse failed"),
                 );
-                res.body(ResBody::Once(file.bytes.to_vec().into()));
+                let bytes = match file.bytes {
+                    Cow::Borrowed(bytes) => Bytes::from_static(bytes),
+                    Cow::Owned(bytes) => Bytes::from(bytes),
+                };
+                res.body(ResBody::Once(bytes));
             }
             Ok(None) => {
                 tracing::warn!(path, "swagger ui file not found");
@@ -397,7 +402,7 @@ pub fn serve<'a>(
                 &format!("window.ui.initOAuth({});", &oauth_json),
             );
         }
-        Some(Cow::Owned(index.as_bytes().to_vec()))
+        Some(Cow::Owned(index.into_bytes()))
     } else {
         SwaggerUiDist::get(path).map(|f| f.data)
     };

@@ -74,6 +74,7 @@ impl CachePolicy {
         // on bytes so a legal opaque extension does not discard the whole field.
         let mut quoted = false;
         let mut escaped = false;
+        let mut max_age_seen = false;
         for token in value.split(|byte| {
             if escaped {
                 escaped = false;
@@ -106,6 +107,10 @@ impl CachePolicy {
             // Modify the default config based on the values that matter.
             // Any values here would be more permissive than the default behavior.
             if key.eq_ignore_ascii_case(b"max-age") {
+                if max_age_seen {
+                    continue;
+                }
+                max_age_seen = true;
                 // Freshness and refresh rate limiting are separate policies.
                 self.max_age = Duration::from_secs(secs.min(MAX_CACHE_AGE_SECS));
             } else if key.eq_ignore_ascii_case(b"stale-while-revalidate") {
@@ -309,8 +314,8 @@ impl Default for CacheState {
 /// Helper Struct for storing
 #[derive(Debug)]
 pub struct JwkSetStore {
-    /// The current JWKS
-    pub jwks: JwkSet,
+    // Mutating this independently of decoding_map could retain revoked keys.
+    pub(super) jwks: JwkSet,
     decoding_map: HashMap<String, Arc<DecodingInfo>>,
     /// The cache policy for this store
     pub cache_policy: CachePolicy,
@@ -323,14 +328,16 @@ impl JwkSetStore {
     /// Create a new `JwkSetStore`
     #[must_use]
     pub fn new(jwks: JwkSet, cache_policy: CachePolicy, validation: Validation) -> Self {
-        Self {
-            jwks,
+        let mut store = Self {
+            jwks: JwkSet { keys: Vec::new() },
             decoding_map: HashMap::new(),
             cache_policy,
             restrictions: CacheRestrictions::default(),
             validation,
             allow_symmetric_jwks: false,
-        }
+        };
+        store.update_jwks(jwks);
+        store
     }
 
     /// Allow symmetric (`kty: "oct"` / HS*) JWKs from this JWKS endpoint.
@@ -344,10 +351,18 @@ impl JwkSetStore {
     #[must_use]
     pub fn with_allow_symmetric_jwks(mut self, allow: bool) -> Self {
         self.allow_symmetric_jwks = allow;
+        self.update_jwks(self.jwks.clone());
         self
     }
 
-    fn update_jwks(&mut self, new_jwks: JwkSet) {
+    /// Returns the currently indexed JWKS. Use [`Self::update_jwks`] to replace it.
+    #[must_use]
+    pub fn jwks(&self) -> &JwkSet {
+        &self.jwks
+    }
+
+    /// Replaces the JWKS and rebuilds its decoding index using this store's policy.
+    pub fn update_jwks(&mut self, new_jwks: JwkSet) {
         self.jwks = new_jwks;
         let allow_symmetric = self.allow_symmetric_jwks;
         let keys = self

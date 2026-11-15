@@ -240,6 +240,18 @@ struct UploadWriter {
     file: std::fs::File,
     storage: Arc<TemporaryUpload>,
 }
+impl UploadWriter {
+    async fn write_chunk(mut self, chunk: Bytes) -> Result<Self, ParseError> {
+        tokio::task::spawn_blocking(move || -> std::io::Result<Self> {
+            self.file.write_all(&chunk)?;
+            Ok(self)
+        })
+        .await
+        .map_err(ParseError::other)?
+        .map_err(ParseError::other)
+    }
+}
+
 impl FilePart {
     /// Get file name.
     #[inline]
@@ -352,18 +364,32 @@ impl FilePart {
         })
         .await
         .map_err(ParseError::other)??;
+        const WRITE_BUFFER_SIZE: usize = 64 * 1024;
+        let mut buffered = Vec::new();
         let mut size = 0;
-        while let Some(chunk) = field.chunk().await? {
+        while let Some(mut chunk) = field.chunk().await? {
             size += chunk.len() as u64;
-            writer = tokio::task::spawn_blocking(move || -> std::io::Result<UploadWriter> {
-                writer.file.write_all(&chunk)?;
-                Ok(writer)
-            })
-            .await
-            .map_err(ParseError::other)??;
+            // Small transport fragments share one bounded payload buffer. If a
+            // large fragment arrives, fill the pending buffer and pass its rest
+            // directly to the disk task without copying the whole fragment.
+            if !buffered.is_empty() {
+                let remaining = WRITE_BUFFER_SIZE - buffered.len();
+                if chunk.len() >= remaining {
+                    buffered.extend_from_slice(&chunk.split_to(remaining));
+                    writer = writer
+                        .write_chunk(Bytes::from(std::mem::take(&mut buffered)))
+                        .await?;
+                }
+            }
+            if chunk.len() >= WRITE_BUFFER_SIZE {
+                writer = writer.write_chunk(chunk).await?;
+            } else {
+                buffered.extend_from_slice(&chunk);
+            }
         }
         let storage =
             tokio::task::spawn_blocking(move || -> std::io::Result<Arc<TemporaryUpload>> {
+                writer.file.write_all(&buffered)?;
                 writer.file.sync_all()?;
                 let UploadWriter { file, storage } = writer;
                 drop(file);
@@ -816,7 +842,7 @@ mod tests {
         .expect("temporary upload did not reach expected state");
     }
 
-    fn contains_written_file(root: &Path) -> bool {
+    fn contains_upload_file(root: &Path, minimum_length: u64) -> bool {
         std::fs::read_dir(root).unwrap().any(|directory| {
             std::fs::read_dir(directory.unwrap().path())
                 .unwrap()
@@ -828,21 +854,26 @@ mod tests {
                         .metadata()
                         .unwrap()
                         .len()
-                        > 0
+                        >= minimum_length
                 })
         })
     }
 
     #[tokio::test]
     async fn failed_or_cancelled_multipart_write_removes_partial_upload() {
-        for cancel in [false, true] {
+        for (cancel, written) in [(false, false), (true, false), (false, true), (true, true)] {
             let root = Builder::new().tempdir().unwrap();
             let root_path = root.path().to_owned();
             let (sender, receiver) = tokio::sync::mpsc::channel(1);
+            let mut initial = b"--boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.txt\"\r\n\r\n".to_vec();
+            // Exercise cancellation both before a buffered tail is written and
+            // after a large fragment has reached the temporary file.
+            initial.extend(std::iter::repeat_n(
+                b'x',
+                if written { 128 * 1024 } else { 16 },
+            ));
             sender
-                .send(Ok::<_, std::io::Error>(Bytes::from_static(
-                    b"--boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.txt\"\r\n\r\npartial upload",
-                )))
+                .send(Ok::<_, std::io::Error>(Bytes::from(initial)))
                 .await
                 .unwrap();
             let stream = futures_util::stream::unfold(receiver, |mut receiver| async {
@@ -855,7 +886,7 @@ mod tests {
             }));
             tokio::select! {
                 result = &mut create => panic!("upload finished before source ended: {result:?}"),
-                _ = wait_until(|| contains_written_file(root.path())) => {}
+                _ = wait_until(|| contains_upload_file(root.path(), u64::from(written))) => {}
             }
             if cancel {
                 drop(create);

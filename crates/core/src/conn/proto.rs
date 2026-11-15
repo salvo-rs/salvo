@@ -96,16 +96,16 @@ impl HttpBuilder {
         B::Error: Into<Box<dyn StdError + Send + Sync>>,
         I: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        // When both HTTP/1 and HTTP/2 are enabled, consume only enough bytes to
+        // Consume only enough bytes to
         // distinguish the HTTP/2 prior-knowledge preface. `Rewind` preserves
         // those bytes so the selected Hyper connection receives the full input.
         //
         // Detection and Hyper's own header-read timeout share one `http1_header_timeout`
         // budget: track when detection began so the remainder can be handed to Hyper,
         // rather than letting a client that stalls detection then get a fresh full timeout.
-        #[cfg(all(feature = "http1", feature = "http2"))]
+        #[cfg(any(feature = "http1", feature = "http2"))]
         let detect_started = tokio::time::Instant::now();
-        #[cfg(all(feature = "http1", feature = "http2"))]
+        #[cfg(any(feature = "http1", feature = "http2"))]
         let (version, socket) = {
             // The initial protocol-detection read is bounded by the HTTP/1 header timeout.
             // A disabled fuse (`disable_fuse()` → no config, or a config with this timeout
@@ -148,11 +148,8 @@ impl HttpBuilder {
         };
         #[cfg(all(not(feature = "http1"), not(feature = "http2")))]
         let version = Version::HTTP_11; // Just make the compiler happy.
-        #[cfg(all(feature = "http1", not(feature = "http2")))]
-        let version = Version::HTTP_11;
-        #[cfg(all(not(feature = "http1"), feature = "http2"))]
-        let version = Version::HTTP_2;
 
+        let version = conn_ctrl.select_http_version(version)?;
         match version {
             Version::HTTP_10 | Version::HTTP_11 => {
                 #[cfg(not(feature = "http1"))]
@@ -170,7 +167,6 @@ impl HttpBuilder {
                         // When both protocols are enabled, the detection read already spent part
                         // of this budget; subtract it so the whole header-read window stays a
                         // single `http1_header_timeout` instead of restarting after detection.
-                        #[cfg(feature = "http2")]
                         let timeout = timeout.saturating_sub(detect_started.elapsed());
                         http1.header_read_timeout(Some(timeout));
                     }

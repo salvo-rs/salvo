@@ -18,3 +18,7 @@ accepts libsqlite3-sys >=0.39. Refresh the lockfile, run the SQLite smoke test,
 check all SQLx/SeaORM examples, and audit the complete examples resolution when
 removing or refreshing the patch. Review the upstream diff before copying a
 new release; do not silently widen unrelated dependencies here.
+
+The local `.gitattributes` preserves the upstream Markdown hard-line-break
+whitespace in `src/connection/deserialize.rs`; other files retain normal
+whitespace checks. This does not alter any upstream production source bytes.

@@ -50,7 +50,7 @@ dotenvy = "0.15.6"
 tokio-stream = "0.1.14"
 async-stream = "0.3.5"
 futures-util = { version = "0.3.31", default-features = true }
-jsonwebtoken = "10.2.0"
+jsonwebtoken = "12"
 parking_lot = "0.12.5"
 password-hash = "0.5.0"
 reqwest = "0.13.1"
@@ -84,3 +84,5 @@ jiff = "0.2.23"
 [patch.crates-io]
 # SQLx 0.9 still caps libsqlite3-sys below its patched SQLite release.
 sqlx-sqlite = { path = "vendor/sqlx-sqlite" }
+# Published Toasty PostgreSQL drivers still depend on unmaintained rustls-pemfile.
+toasty-driver-postgresql = { path = "vendor/toasty-driver-postgresql" }

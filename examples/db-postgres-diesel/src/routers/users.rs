@@ -373,7 +373,7 @@ fn get_access_token(
     let token = encode(
         &jsonwebtoken::Header::default(),
         &claim,
-        &EncodingKey::from_secret(SECRET_KEY.as_bytes()),
+        &EncodingKey::from_secret(SECRET_KEY.as_bytes()).expect("JWT secret must not be empty"),
     )
     .expect("failed to encode jwt token");
 

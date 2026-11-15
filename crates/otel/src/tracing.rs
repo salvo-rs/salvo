@@ -5,7 +5,6 @@ use opentelemetry::trace::{FutureExt, Span, SpanKind, Status, TraceContextExt, T
 use opentelemetry::{Context, KeyValue, global};
 use opentelemetry_http::HeaderExtractor;
 use opentelemetry_semantic_conventions::attribute;
-use salvo_core::http::headers::{HeaderMap, HeaderName, HeaderValue};
 use salvo_core::prelude::*;
 
 use crate::semconv::{self, KnownMethods, OTHER};
@@ -123,27 +122,10 @@ where
         res: &mut Response,
         ctrl: &mut FlowCtrl,
     ) {
-        // TODO: Will remove after opentelemetry_http updated
-        let mut headers = HeaderMap::with_capacity(req.headers().len());
-        for (name, value) in req.headers() {
-            // The names/values come from a `HeaderMap`, so they were already
-            // valid for `HeaderName`/`HeaderValue`. Skip silently in the
-            // unlikely event that round-tripping through bytes fails — losing
-            // a propagated header is preferable to panicking the request task.
-            let Ok(name) = HeaderName::from_bytes(name.as_ref()) else {
-                continue;
-            };
-            let Ok(value) = HeaderValue::from_bytes(value.as_ref()) else {
-                continue;
-            };
-            // Use `append` so multi-value headers (e.g. `baggage`) keep all
-            // their values; `insert` would collapse them to the last one and
-            // produce an incomplete parent context for `HeaderExtractor`.
-            headers.append(name, value);
-        }
-
         let parent_cx = global::get_text_map_propagator(|propagator| {
-            propagator.extract(&HeaderExtractor(&headers))
+            // Both crates now use http 1.x. Borrow the original map, including
+            // repeated baggage values, without copying unrelated credentials.
+            propagator.extract(&HeaderExtractor(req.headers()))
         });
 
         let mut attributes = Vec::with_capacity(10);
