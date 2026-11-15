@@ -30,7 +30,10 @@ fn resolved<T: ToSchema>() -> Value {
     let schema = T::to_schema(&mut components);
     let document = json!({"components":components});
     match schema {
-        RefOr::Ref(reference) => document.pointer(&reference.ref_location[1..]).unwrap().clone(),
+        RefOr::Ref(reference) => document
+            .pointer(&reference.ref_location[1..])
+            .unwrap()
+            .clone(),
         RefOr::Type(schema) => json!(schema),
     }
 }
@@ -38,7 +41,10 @@ fn resolved<T: ToSchema>() -> Value {
 #[test]
 fn serialized_fields_and_variants_remain_in_output_schema() {
     assert_eq!(json!(Directional::OutputOnly), "OutputOnly");
-    assert_eq!(resolved::<Directional>()["enum"], json!(["Shared", "OutputOnly"]));
+    assert_eq!(
+        resolved::<Directional>()["enum"],
+        json!(["Shared", "OutputOnly"])
+    );
     let fields = resolved::<Fields>();
     assert_eq!(fields["properties"]["output"]["type"], "string");
     assert_eq!(fields["required"], json!(["output"]));
@@ -48,8 +54,14 @@ fn serialized_fields_and_variants_remain_in_output_schema() {
     let response = Directional::to_response(&mut components);
     let document = json!({"components":components});
     let response = match response {
-        RefOr::Ref(reference) => document.pointer(&reference.ref_location[1..]).unwrap().clone(),
+        RefOr::Ref(reference) => document
+            .pointer(&reference.ref_location[1..])
+            .unwrap()
+            .clone(),
         RefOr::Type(response) => json!(response),
     };
-    assert_eq!(response["content"]["application/json"]["schema"]["enum"], json!(["Shared", "OutputOnly"]));
+    assert_eq!(
+        response["content"]["application/json"]["schema"]["enum"],
+        json!(["Shared", "OutputOnly"])
+    );
 }
