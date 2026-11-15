@@ -176,6 +176,8 @@ pub struct SerdeContainer {
     pub enum_repr: SerdeEnumRepr,
     /// Is default.
     pub is_default: bool,
+    /// Function supplied by `#[serde(default = "path")]`.
+    pub default_path: Option<syn::Path>,
     /// Deny unknown fields.
     pub deny_unknown_fields: bool,
 }
@@ -252,6 +254,10 @@ impl SerdeContainer {
             }
             "default" => {
                 self.is_default = true;
+                if let Some((literal, span)) = parse_next_lit_str(next) {
+                    self.default_path =
+                        Some(syn::parse_str(&literal).map_err(|error| Error::new(span, error))?);
+                }
             }
             "deny_unknown_fields" => {
                 self.deny_unknown_fields = true;
