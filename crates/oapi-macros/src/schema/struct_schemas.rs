@@ -121,6 +121,19 @@ fn transparent_schema(
         .unwrap_or_else(|| syn::Member::Unnamed(index.into()));
     if pop_feature!(features => Feature::Default(Default(None))).is_some() {
         features.push(Feature::Default(Default::new_default_trait(member)));
+    } else if !features
+        .iter()
+        .any(|feature| matches!(feature, Feature::Default(_)))
+        && let Some(rules) = serde_util::parse_container(attributes).map_err(Diagnostic::from)?
+        && rules.is_default
+    {
+        let constructor = match rules.default_path {
+            Some(path) => quote! { #path() },
+            None => quote! { Self::default() },
+        };
+        features.push(Feature::Default(Default(Some(AnyValue::Json(quote! {
+            (#constructor).#member
+        })))));
     }
     let comments = CommentAttributes::from_attributes(attributes);
     let field_comments = CommentAttributes::from_attributes(&field.attrs);

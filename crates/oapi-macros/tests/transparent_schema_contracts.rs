@@ -56,6 +56,67 @@ fn custom_string() -> Object {
     Object::with_type(BasicType::String).pattern("^custom")
 }
 
+#[derive(Default, Serialize, ToSchema)]
+#[serde(transparent, default)]
+struct SerdeDefault {
+    value: u32,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(transparent, default = "factory_default")]
+struct FactoryDefault {
+    value: String,
+}
+fn factory_default() -> FactoryDefault {
+    FactoryDefault {
+        value: "factory".into(),
+    }
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(transparent, default = "tuple_factory")]
+struct TupleFactory(#[serde(skip)] bool, String);
+fn tuple_factory() -> TupleFactory {
+    TupleFactory(false, "tuple factory".into())
+}
+
+#[derive(Default, Serialize, ToSchema)]
+#[serde(transparent, default = "explicit_factory")]
+#[salvo(schema(default))]
+struct ExplicitTrait {
+    value: String,
+}
+fn explicit_factory() -> ExplicitTrait {
+    ExplicitTrait {
+        value: "factory".into(),
+    }
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(transparent, default = "explicit_value_factory")]
+struct ExplicitValue {
+    #[salvo(schema(default = "explicit"))]
+    value: String,
+}
+fn explicit_value_factory() -> ExplicitValue {
+    ExplicitValue {
+        value: "factory".into(),
+    }
+}
+
+fn value_schema<T: ComposeSchema>() -> Value {
+    json!(T::compose(&mut Components::new(), vec![]))
+}
+
+#[test]
+fn transparent_values_retain_serde_defaults_and_schema_precedence() {
+    assert_eq!(value_schema::<SerdeDefault>()["default"], 0);
+    assert_eq!(value_schema::<FactoryDefault>()["default"], "factory");
+    assert_eq!(value_schema::<TupleFactory>()["default"], "tuple factory");
+    assert_eq!(value_schema::<ExplicitTrait>()["default"], "");
+    assert_eq!(value_schema::<ExplicitValue>()["default"], "explicit");
+}
+
 #[test]
 fn transparent_selected_fields_keep_constraints() {
     let mut components = Components::new();
