@@ -707,9 +707,11 @@ impl OpenApi {
             })
             .collect::<Vec<_>>();
 
-        if let Some(handler_type_id) = &node.handler_type_id
-            && let Some(creator) = crate::EndpointRegistry::find(handler_type_id)
-        {
+        if let Some(creator) = node.handler_creator.or_else(|| {
+            node.handler_type_id
+                .as_ref()
+                .and_then(crate::EndpointRegistry::find)
+        }) {
             // `query` operations and `additionalOperations` were both added in OpenAPI 3.2.
             // Emitting either into a document that still declares 3.1 would make it invalid,
             // so drop the slot and tell the user how to opt in.

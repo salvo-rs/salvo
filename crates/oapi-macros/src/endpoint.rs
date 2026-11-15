@@ -32,8 +32,21 @@ fn metadata(
     attr: &EndpointAttr,
     name: &Ident,
     type_path: &TokenStream,
+    modifiers: Vec<TokenStream>,
+    cfg: &[syn::Attribute],
+) -> DiagResult<TokenStream> {
+    metadata_inner(salvo, oapi, attr, name, type_path, modifiers, cfg, None)
+}
+
+fn metadata_inner(
+    salvo: &syn::Path,
+    oapi: &syn::Path,
+    attr: &EndpointAttr,
+    name: &Ident,
+    type_path: &TokenStream,
     mut modifiers: Vec<TokenStream>,
     cfg: &[syn::Attribute],
+    associated: Option<(&Ident, &Ident, &Ident)>,
 ) -> DiagResult<TokenStream> {
     let name = name.unraw();
     let tfn = Ident::new(
@@ -103,13 +116,25 @@ fn metadata(
         .deprecated
         .unwrap_or_default()
         .then(|| quote!(#[allow(deprecated)]));
+    let auto_operation_id = match associated {
+        Some((_, method, endpoint_type_id)) => {
+            quote!(#oapi::oapi::naming::namer().assign_name(
+                #endpoint_type_id,
+                ::std::any::type_name_of_val(&Self::#method),
+                #oapi::oapi::naming::NameRule::Auto,
+            ))
+        }
+        None => {
+            quote!(#oapi::oapi::naming::assign_name::<#type_path>(#oapi::oapi::naming::NameRule::Auto))
+        }
+    };
     let creator_body = quote! {
         let mut components = #oapi::oapi::Components::new();
         let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
         let mut operation = #oapi::oapi::Operation::new();
         #modifiers
         if operation.operation_id.is_none() {
-            operation.assign_auto_operation_id(#oapi::oapi::naming::assign_name::<#type_path>(#oapi::oapi::naming::NameRule::Auto));
+            operation.assign_auto_operation_id(#auto_operation_id);
         }
         if !status_codes.is_empty() {
             let responses = ::std::ops::DerefMut::deref_mut(&mut operation.responses);
@@ -127,6 +152,12 @@ fn metadata(
         }
         #oapi::oapi::Endpoint { operation, components, }
     };
+    if let Some((creator, _, endpoint_type_id)) = associated {
+        return Ok(quote! {
+            #allow_deprecated
+            fn #creator(#endpoint_type_id: ::std::any::TypeId) -> #oapi::oapi::Endpoint { #creator_body }
+        });
+    }
     let stream = quote! {
         #(#cfg)*
         #allow_deprecated
@@ -590,4 +621,99 @@ mod conditional_diagnostic_tests {
         assert!(generated.contains("the inputs parameters must be Request"));
         assert!(generated.contains("cfg (all ())"));
     }
+}
+
+pub(crate) struct CraftArgs<'a> {
+    dispatch: Ident,
+    creator: Ident,
+    request_lifetime: syn::Lifetime,
+    method: Ident,
+    reserved: TokenStream,
+    attr: EndpointAttr<'a>,
+}
+
+impl syn::parse::Parse for CraftArgs<'_> {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let dispatch = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let creator = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let request_lifetime = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let method = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let reserved;
+        syn::parenthesized!(reserved in input);
+        let reserved = reserved.parse()?;
+        input.parse::<syn::Token![;]>()?;
+        Ok(Self {
+            dispatch,
+            creator,
+            request_lifetime,
+            method,
+            reserved,
+            attr: input.parse()?,
+        })
+    }
+}
+
+pub(crate) fn craft_helper(
+    mut args: CraftArgs,
+    mut helper: syn::ItemFn,
+) -> syn::Result<TokenStream> {
+    let salvo = crate::salvo_crate();
+    let oapi = crate::oapi_crate();
+    let reserved_tokens = &args.reserved;
+    let mut reserved = reserved_identifiers(quote!(#helper #reserved_tokens));
+    let endpoint_type_id = fresh_binding("__salvo_endpoint_type_id", &mut reserved);
+    let (hfn, modifiers) = handle_fn(&salvo, &oapi, &helper.sig, &reserved)?;
+    args.attr.doc_comments = Some(CommentAttributes::from_attributes(&helper.attrs).0);
+    args.attr.deprecated = args.attr.deprecated.or_else(|| {
+        helper
+            .attrs
+            .iter()
+            .any(|attr| attr.path().is_ident("deprecated"))
+            .then_some(true)
+    });
+    let creator = metadata_inner(
+        &salvo,
+        &oapi,
+        &args.attr,
+        &helper.sig.ident,
+        &quote!(Self),
+        modifiers,
+        &[],
+        Some((&args.creator, &args.method, &endpoint_type_id)),
+    )?;
+    let mut creator: syn::ImplItemFn = syn::parse2(creator)?;
+    creator.sig.generics.where_clause = helper.sig.generics.where_clause.clone();
+    creator
+        .attrs
+        .push(syn::parse_quote!(#[allow(non_snake_case)]));
+    let mut dispatch: syn::ImplItemFn = syn::parse2(hfn)?;
+    let lifetime = &args.request_lifetime;
+    dispatch.sig.ident = args.dispatch;
+    dispatch
+        .attrs
+        .push(syn::parse_quote!(#[allow(non_snake_case)]));
+    dispatch.sig.asyncness = None;
+    dispatch.sig.inputs = dispatch.sig.inputs.into_iter().skip(1).collect();
+    for input in &mut dispatch.sig.inputs {
+        if let syn::FnArg::Typed(input) = input
+            && let Type::Reference(reference) = input.ty.as_mut()
+        {
+            reference.lifetime = Some(lifetime.clone());
+        }
+    }
+    dispatch.sig.generics = syn::parse_quote!(<#lifetime>);
+    dispatch.sig.generics.where_clause = helper.sig.generics.where_clause.clone();
+    dispatch.sig.output = syn::parse_quote!(-> ::std::pin::Pin<::std::boxed::Box<
+        dyn ::std::future::Future<Output = ()> + ::std::marker::Send + #lifetime
+    >>);
+    let body = dispatch.block;
+    dispatch.block = syn::parse_quote!({ ::std::boxed::Box::pin(async move #body) });
+    helper
+        .attrs
+        .retain(|attr| !attr.path().is_ident("deprecated"));
+    Ok(quote! { #helper #dispatch #creator })
 }

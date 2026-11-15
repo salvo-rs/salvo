@@ -267,3 +267,58 @@ mod conditional_diagnostic_tests {
         assert!(generated.contains("cfg (all ())"));
     }
 }
+
+pub(crate) struct CraftArgs {
+    pub(crate) dispatch: Ident,
+    pub(crate) request_lifetime: syn::Lifetime,
+    reserved: TokenStream,
+}
+
+impl syn::parse::Parse for CraftArgs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let dispatch = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let request_lifetime = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let reserved;
+        syn::parenthesized!(reserved in input);
+        Ok(Self {
+            dispatch,
+            request_lifetime,
+            reserved: reserved.parse()?,
+        })
+    }
+}
+
+pub(crate) fn craft_helper(args: CraftArgs, mut helper: syn::ItemFn) -> syn::Result<TokenStream> {
+    let salvo = salvo_crate();
+    let reserved_tokens = &args.reserved;
+    let reserved = reserved_identifiers(quote!(#helper #reserved_tokens));
+    let hfn = handle_fn(&salvo, &helper.sig, &reserved)?;
+    let mut dispatch: syn::ImplItemFn = syn::parse2(hfn)?;
+    let lifetime = &args.request_lifetime;
+    dispatch.sig.ident = args.dispatch;
+    dispatch
+        .attrs
+        .push(syn::parse_quote!(#[allow(non_snake_case)]));
+    dispatch.sig.asyncness = None;
+    dispatch.sig.inputs = dispatch.sig.inputs.into_iter().skip(1).collect();
+    for input in &mut dispatch.sig.inputs {
+        if let syn::FnArg::Typed(input) = input
+            && let Type::Reference(reference) = input.ty.as_mut()
+        {
+            reference.lifetime = Some(lifetime.clone());
+        }
+    }
+    dispatch.sig.generics = syn::parse_quote!(<#lifetime>);
+    dispatch.sig.generics.where_clause = helper.sig.generics.where_clause.clone();
+    dispatch.sig.output = syn::parse_quote!(-> ::std::pin::Pin<::std::boxed::Box<
+        dyn ::std::future::Future<Output = ()> + ::std::marker::Send + #lifetime
+    >>);
+    let body = dispatch.block;
+    dispatch.block = syn::parse_quote!({ ::std::boxed::Box::pin(async move #body) });
+    helper
+        .attrs
+        .retain(|attr| !attr.path().is_ident("deprecated"));
+    Ok(quote! { #helper #dispatch })
+}
