@@ -61,6 +61,8 @@ pub(crate) enum ChunkedState<T> {
     File(Option<T>),
     /// Waiting for a blocking read operation to complete.
     Future(tokio::task::JoinHandle<IoResult<(T, Bytes)>>),
+    /// A read failed and the error has already been yielded.
+    Done,
 }
 
 /// A streaming file reader that yields data in configurable chunks.
@@ -150,8 +152,12 @@ where
                 self.poll_next(cx)
             }
             ChunkedState::Future(ref mut fut) => {
-                let (file, bytes) = ready!(Pin::new(fut).poll(cx))
-                    .map_err(|_| IoError::other("`ChunkedFile` block error"))??;
+                let result = ready!(Pin::new(fut).poll(cx));
+                // The completed task cannot be polled again, including when
+                // either the task or the file read failed.
+                self.state = ChunkedState::Done;
+                let (file, bytes) =
+                    result.map_err(|_| IoError::other("`ChunkedFile` block error"))??;
                 self.state = ChunkedState::File(Some(file));
 
                 self.offset += bytes.len() as u64;
@@ -159,6 +165,7 @@ where
 
                 Poll::Ready(Some(Ok(bytes)))
             }
+            ChunkedState::Done => Poll::Ready(None),
         }
     }
 }
@@ -197,6 +204,34 @@ mod test {
 
         assert_eq!(mock.into_inner(), result)
     }
+
+    #[tokio::test]
+    async fn blocking_read_panic_yields_one_error_then_eof() {
+        struct PanickingReader;
+
+        impl Read for PanickingReader {
+            fn read(&mut self, _: &mut [u8]) -> IoResult<usize> {
+                panic!("reader failed inside the blocking task");
+            }
+        }
+        impl Seek for PanickingReader {
+            fn seek(&mut self, _: io::SeekFrom) -> IoResult<u64> {
+                Ok(0)
+            }
+        }
+
+        let mut chunk = ChunkedFile {
+            total_size: 1,
+            read_size: 0,
+            buffer_size: 1,
+            offset: 0,
+            state: ChunkedState::File(Some(PanickingReader)),
+        };
+
+        assert!(chunk.next().await.unwrap().is_err());
+        assert!(chunk.next().await.is_none());
+    }
+
     #[tokio::test]
     async fn test_named_file_builder() {
         let src = "Cargo.toml";
