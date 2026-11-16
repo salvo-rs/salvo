@@ -1,0 +1,13 @@
+[package]
+name = "http-size-axum"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[features]
+path-route = []
+
+[dependencies]
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "tokio"] }
+tokio = { workspace = true }

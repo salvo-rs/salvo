@@ -1,0 +1,13 @@
+[package]
+name = "http-size-salvo"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[features]
+path-route = []
+
+[dependencies]
+salvo = { path = "../../../crates/salvo", default-features = false, features = ["server", "http1"] }
+tokio = { workspace = true }
