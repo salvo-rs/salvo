@@ -1,5 +1,18 @@
-param([string]$OutputDirectory = 'D:/BuildCache/salvo-mtls-example/certs')
+param([string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
+
+if (-not $PSBoundParameters.ContainsKey('OutputDirectory')) {
+    Push-Location (Split-Path -Parent $PSScriptRoot)
+    try {
+        $metadataJson = & cargo metadata --no-deps --format-version 1
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to read the examples workspace metadata' }
+        $metadata = $metadataJson | ConvertFrom-Json
+        $OutputDirectory = Join-Path $metadata.target_directory 'verification/salvo-mtls-example/certs'
+    } finally {
+        Pop-Location
+    }
+}
+
 New-Item -ItemType Directory -Path $OutputDirectory -ErrorAction Stop | Out-Null
 Push-Location $OutputDirectory
 try {

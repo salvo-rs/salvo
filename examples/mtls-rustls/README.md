@@ -9,22 +9,32 @@ certificate from the same CA with a different identity receives HTTP 403.
 Install OpenSSL 3, then run these PowerShell commands from the repository root.
 The generation script creates a new directory and refuses to overwrite an
 existing one. These unencrypted example keys are for local development only.
+By default, it writes to `verification/salvo-mtls-example/certs` beneath the
+examples workspace's Cargo `target_directory`. Use `-OutputDirectory <path>`
+to choose another directory.
 
 ```powershell
 ./examples/mtls-rustls/generate-certs.ps1
-$env:MTLS_CERT_DIR = 'D:/BuildCache/salvo-mtls-example/certs'
-$env:CARGO_TARGET_DIR = 'D:/BuildCache/salvo-mtls-example/target'
-$env:TEMP = 'D:/BuildCache/salvo-mtls-example/tmp'
-$env:TMP = $env:TEMP
-New-Item -ItemType Directory -Force $env:TEMP | Out-Null
-cargo metadata --manifest-path examples/Cargo.toml --no-deps --format-version 1
+Push-Location ./examples
+try {
+    $metadata = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json
+} finally {
+    Pop-Location
+}
+$env:MTLS_CERT_DIR = Join-Path $metadata.target_directory 'verification/salvo-mtls-example/certs'
 cargo run --manifest-path examples/Cargo.toml -p example-mtls-rustls
 ```
 
-In another PowerShell terminal:
+In another PowerShell terminal, from the repository root:
 
 ```powershell
-$certs = 'D:/BuildCache/salvo-mtls-example/certs'
+Push-Location ./examples
+try {
+    $metadata = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json
+} finally {
+    Pop-Location
+}
+$certs = Join-Path $metadata.target_directory 'verification/salvo-mtls-example/certs'
 # Trusted certificate with the authorized URI: HTTP 200.
 curl.exe --cacert "$certs/ca.pem" --cert "$certs/reader.pem" --key "$certs/reader.key" https://localhost:8698/
 # Trusted certificate with another URI: HTTP 403.
