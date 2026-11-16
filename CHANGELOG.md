@@ -6,166 +6,115 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-17
+
 ### Added
 
 - Make regex routing and built-in HTML, JSON, and XML error responses optional
   through `routing-regex`, `catcher-html`, `catcher-json`, and `catcher-xml`.
   All remain enabled by default and by `full`; minimal builds retain basic path
   routing and plain-text errors.
+- Add router-owned extensions, one-shot `Response::after_response_hook` callbacks,
+  and connection-control injection for OpenAPI endpoints.
+- Expose complete TUS configuration through `Tus::with_options`, `options`, and
+  `options_mut`, and complete ACME configuration through `AcmeListener::config`.
+- Allow Unix socket proxy clients to configure the socket independently of the
+  upstream HTTP path and query with `UnixSockClient::with_socket_path`.
+
+### Changed
+
+- Upgrade JWT support to jsonwebtoken 12 and patched RustCrypto dependencies.
+  `ConstDecoder::from_secret`, the re-exported `DecodingKey::from_secret`, and
+  jsonwebtoken's `EncodingKey::from_secret` now return `Result` and reject empty
+  secrets. Handle these results when upgrading, and use jsonwebtoken 12 for
+  direct dependencies so key and crypto-provider types match.
+- Remove the unused `TusOptions::post_receive_interval` field.
+  `lock_drain_timeout` now bounds upload lock acquisition and returns 503 on
+  timeout; it does not shorten an acquired streaming download's lock lifetime.
+- Bound automatic directory listings by scanned entries and encoded output
+  bytes, returning 503 on overflow. Configure budgets with `listing_limits`.
+- Extend runtime comparisons, multipart and streaming compression benchmarks,
+  and downstream macro and schema contract validation.
+- Patch example database dependencies for SQLite, RBatis caching, and PostgreSQL
+  PEM parsing, and update dependency audit evidence and CI actions.
 
 ### Fixed
 
-- Allow handler and endpoint local bindings to share their function's name, including zero-argument functions.
-- Decode built-in `HeaderParam` arrays using the default comma-separated header encoding while preserving scalar values.
-- Diagnose unsupported scalar/object `ToParameters` encodings instead of generating incompatible extractors.
-- Honor nested `salvo(schema(...))` attributes on enum variants, repr enums and newtype fields.
-- Describe serde-skipped enum newtypes as unit variants without unused generic bounds.
-- Generate valid adjacent enum variant titles and retain object schema titles.
-- Preserve conditional serde tuple skips, including shifted item positions, in schemas.
-- Preserve object closure, property-count bounds and map constraints when adding internally tagged newtype enum tags.
-- Match adjacent unit-enum schemas to serde's tag-only representation.
-- Drop untrusted `X-Forwarded-For` values on non-IP peers when proxy client-IP forwarding is enabled.
-- Generate transparent serde schemas from the serialized field and omit skipped generic bounds.
-- Decode documented delimited query/header arrays and diagnose unsupported derived array encodings.
-- Allow handler and endpoint parameters to share their function's name.
-- Exclude serde-skipped tuple fields from schema positions, lengths and generic bounds.
-- Include serde struct tags and serialized type names in generated schemas.
-- Apply serde `rename_all_fields` rules to enum variant schemas.
-- Use serde container default functions when generating schema default values.
-- Retain method-level where clauses in crafted handler factories and wrappers.
-- Preserve adjacent enum tags and content across separate serde attributes.
-
-- Preserve flattened map key constraints alongside conditional flattened fields,
-  including nested schemas, without exempting inactive fields or map values.
-
-- Attach internally tagged enum discriminators to the generated schema shape,
-  including flattened maps and skipped or ignored flattened fields.
-
-- Honor schema/serde skips and conditional ignores on flattened schema fields,
-  including their generated defaults.
-
-- Fix `ToSchema` expansion for `#[serde(flatten)]` map fields.
-
-- Match exactly the given width for path parameters such as `{id:num[6]}` and
-  `{id:hex[6]}`, which also accepted longer values.
-
-- Use `anyOf` for untagged enum alternatives, including per-variant fallbacks,
-  so overlapping valid serde representations remain accepted.
-
-- Respect explicit `deprecated = false` on schema properties.
-
-- Anchor every alternative of a regex path parameter, so `{fmt|js|json}` matches `json`
-  and a rest parameter such as `{**path|public/.*|assets/.*}` only matches whole paths.
-
+- Allow handler and endpoint names to coexist with parameter and local binding
+  names, including zero-argument functions, raw identifiers, and extractor error
+  bindings. Resolve generated dependency paths for renamed and direct crate use.
+- Preserve conditional compilation, lint and deprecation attributes, borrowed
+  lifetimes, and effective generic bounds in handler and extractor macros.
+- Preserve service `Self`, `Arc<Self>`, explicit receiver lifetimes, method-level
+  where clauses, and associated types and constants in crafted handlers and
+  endpoint metadata, including stateless methods in generic impls.
+- Match request extraction to directional serde renames, aliases, tuple field
+  order, defaults, field sources, and optional flattened values. Try later
+  sources when a body field is absent and propagate invalid header text.
+- Decode documented delimited query and header arrays, including the default
+  comma-separated `HeaderParam` encoding, honor explicit JSON parsers, and
+  diagnose unsupported derived parameter encodings.
+- Keep serialization-skipped request parameters available and conditionally
+  serialized non-optional inputs required; preserve parameter options with
+  `schema_with` and features on explicitly inline parameters.
+- Match generated schemas to serde enum tags, adjacent unit variants,
+  `rename_all_fields`, directional skips, transparent structs, container defaults,
+  and conditional tuple positions. Honor nested public schema attributes on
+  variants and fields, and avoid bounds on skipped or unused generic arguments.
+- Compose actual generic schema types, including aliases and recursive types,
+  without losing field annotations or requiring unrelated `ToSchema` bounds.
+  Preserve object closure, property-count bounds, map key/value constraints,
+  references, and parent properties across flattened and internally tagged schemas.
+- Use `anyOf` for overlapping untagged and nullable alternatives; preserve fixed
+  sequence lengths and heterogeneous tuple positions, serialized JSON map keys,
+  arbitrary JSON values, zero bounds, and negative numeric constraints.
+- Allocate valid, collision-resistant OpenAPI schema and response component names
+  atomically, retain document model values, and disambiguate automatic operation IDs.
+- Fix facade `request_body`, response `links`, and parameter `allow_reserved`
+  expansions; accept URI string schema references and preserve inferred body
+  schemas under description-only overrides. Require only `ToResponse` for
+  reusable responses and reject unsupported multi-field response tuple derives.
+- Resolve endpoint `Self` types and standard HTTP status constants, document
+  wildcard path names and the catcher's `StatusError` body correctly, support
+  unit output metadata, and retain every configured Swagger UI document.
+- Honor explicit deprecation flags, array-level examples, empty example lists,
+  named example precedence, and serialized schema titles.
+- Anchor every regex route alternative while retaining verbose-mode comments,
+  enforce exact character-class widths, and compare `HostFilter` names without
+  case sensitivity.
+- Close connections without a request during graceful shutdown while serving
+  already-arrived HTTP/1 requests. Honor transport protocol selection and QUIC
+  listener addresses, and record ACME TLS negotiation before protocol detection.
+- Report and validate HTTP/3 request body lengths; preserve cached body bytes and
+  framing when proxying inspected payloads and URL-encoded forms. Retain failures
+  after failed or cancelled body reads instead of forwarding an empty body.
+- Preserve raw request cookie names and serialize cookie changes once without
+  overwriting unrelated response metadata. Apply HEAD and bodyless-status rules
+  consistently, including HTTP/3, and negotiate supported catcher formats using
+  Accept quality and exclusion rules.
+- Preserve proxied percent-encoded paths, replace stale upstream representation
+  metadata, validate WebSocket handshakes and Unix socket upgrade selections,
+  and retain upgraded tunnels in the server connection lifecycle.
+- Drop untrusted forwarded client IPs for non-IP peers, recognize IPv4-mapped
+  trusted proxies, and isolate cache key components and conflicting authorities.
+  Keep the default cache skipper limited to GET, including extension methods.
+- Make CORS policies own their response grants, honor compression and static
+  encoding exclusions, remove transformed representation digests, and stop static
+  lookup at the first matching root. Preserve deferred compression errors.
+- Honor JWKS revalidation and zero freshness, expose typed authentication errors,
+  return 401 for failed JWT authentication, and skip blank tokens in finders.
 - Omit query strings from OpenTelemetry spans by default; opt in to selected
   non-sensitive fields with `Tracing::query_fields`.
-
-- Accept documented `ref("...")` schema references in endpoint request bodies
-  and responses, while retaining `ref(Type)` support.
-- Honor directional serde `rename` and `rename_all` for request extraction and
-  serialized schemas.
-- Keep `serde(skip_serializing)` fields available to `ToParameters` request extraction.
-- Keep non-optional input parameters required when serde only skips their
-  serialization conditionally.
 - Run middleware bcrypt CSRF operations on bounded blocking workers while
-  retaining capacity until cancelled work actually finishes.
-- Extract tuple `ToParameters` fields in declaration order and honor field sources
-  and renames, including serde defaults for absent tuple fields.
-- Restore stateless crafted handlers and endpoints in generic service impls.
-
-- Skip blank values in the form, query and cookie JWT finders, so they no longer hide a
-  token that a later finder would return.
-- Serve only the committed TUS upload prefix and retain read locks while
-  streamed downloads use the file.
-
-- Attach array `examples(...)` to the array schema rather than its items.
-
-- Compare host names case-insensitively in `HostFilter`.
-
-- Allow empty `examples()` lists in `ToSchema` attributes without generating
-  an invalid builder call.
-- Defer small-file preloading until conditional and range handling completes,
-  and bound automatic directory listings by scanned entries and output bytes.
-
-- Preserve conditional compilation on handler, endpoint, and crafted impl methods,
-  including disabled-method diagnostics and nested `cfg_attr` conditions.
-
-- Fix OpenAPI macros with renamed `salvo` dependencies, `craft(endpoint)` with
-  direct `salvo_core`/`salvo-oapi` dependencies, extractor error handling without
-  a `Writer` import, endpoint functions and parameters using raw identifiers,
-  raw field extraction in `ToParameters`, crafted handlers on private service types,
-  and description-only overrides of inferred request bodies.
-
-- Keep service `Self` predicates attached to the service type when crafting
-  handler wrappers, including associated constants and nested generic arguments.
-
-- Preserve service `Self` and `Arc<Self>` receiver semantics in crafted method bodies.
-
-- Close connections that have not sent a request yet when the server stops gracefully,
-  instead of waiting for the header timeout, and serve an HTTP/1 request that has already
-  arrived instead of closing its connection.
-
-- Recognize a trusted proxy in `TrustedProxyIssuer` when a dual-stack listener reports
-  its IPv4 address as an IPv4-mapped IPv6 address.
-
-- Preserve generic schema composition in every enum representation without
-  requiring `ToSchema` on composition-only type arguments.
-
-- Preserve generic type arguments when deriving schema defaults for named,
-  newtype, and flattened structs.
-
-- Preserve all borrowed lifetimes when deriving request extractors and parameters.
-
-- Report the `content-length` of HTTP/3 request bodies through their size hint, so `Proxy`
-  forwards the length instead of using chunked transfer encoding, and fail an HTTP/3 request
-  whose content is longer or shorter than that length.
-
-- Skip extension methods in `MethodSkipper::skip_all`, so the default cache skipper
-  stores responses to `GET` requests only.
-
-- Require `Extractible` only for flattened generic child fields, allowing ordinary
-  generic request values to use `Deserialize`.
-
-- Accept all serde aliases when extracting named and tuple request parameters.
-
-- Preserve parameter descriptions, requiredness, and options when using `schema_with`.
-
-- Resolve service `Self` response types in generated endpoint metadata.
-
-- Document wildcard routes such as `{**rest}` with the name of their path parameter.
-
-- Describe the JSON body of a `StatusError` response as the default catcher sends it.
-
-- Keep every document, with a name, in `SwaggerUi::url`, and select the primary one in
-  `SwaggerUi::urls`.
-
-- Fix `#[endpoint(request_body(...))]` failing to compile through the `salvo` facade
-  with `cannot find RefOr in salvo` (regression in 1.1.2).
-
-- Encode generic schema names as valid OpenAPI component keys while retaining
-  legal names and collision disambiguation.
-
-- Give derived reusable responses distinct component names across modules and
-  generic instantiations, using valid OpenAPI component keys.
-
-- Reject unsupported multi-field tuple structs and variants in response derives
-  instead of silently documenting only their first field.
-
-- Require only `ToResponse` for reusable `#[endpoint]` response types, without an
-  unrelated `ToSchema` bound.
-
-- Fix `links(...)` in `#[endpoint]` responses failing to compile with `cannot find link in oapi`,
-  and `allow_reserved` on `#[endpoint]` parameters and `ToParameters` fields failing with a
-  `bool`/`Option<bool>` mismatch.
-
-- Avoid eager schema registration for generic parameters used only by
-  `PhantomData`, including skipped marker fields.
-
-- Keep `max_properties` and `min_properties` usable in `ToSchema` structs with
-  flattened struct fields.
-
-- Fix `#[handler]` and `#[endpoint]` functions with extractor arguments failing to compile when
-  a handler named `data`, `e` or `status_code` is in scope.
+  retaining capacity until cancelled work finishes. Defer small-file preloading
+  until conditional and range handling completes and buffer fragmented multipart
+  file writes within a fixed budget.
+- Serve only the committed TUS upload prefix and hold read locks through streamed
+  downloads. Apply configured policies and normalized paths consistently, enforce
+  upload ownership, and generate usable upload locations from trusted connection
+  information.
+- Apply ACME account, solver, storage, on-demand and renewal configuration, and
+  tie certificate maintenance tasks to the listener lifecycle.
 
 ## [1.1.2] - 2026-11-10
 
