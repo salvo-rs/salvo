@@ -17,3 +17,5 @@ does not claim that an absent advisory warning means the dependency graph is saf
 Run `python3 .github/scripts/test_release_preflight.py` for the offline contracts.
 
 Only `push` runs qualify as exact-commit evidence. Pull-request runs check out synthetic merge trees and are excluded even when their API `head_sha` matches the tag.
+
+When bumping workspace versions, also follow the [HTTP server size fixture's lock maintenance](../benchmarks/http-server-size/README.md#lock-maintenance).

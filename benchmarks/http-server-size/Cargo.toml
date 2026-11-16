@@ -1,0 +1,14 @@
+[workspace]
+members = ["salvo", "axum"]
+resolver = "3"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["rt", "net", "time"] }
+
+[profile.size]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
