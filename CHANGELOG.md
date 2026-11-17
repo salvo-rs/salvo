@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-17
+
+### Added
+
+- Expose `PathParams::tail_segments()` and `tail_raw_segments()` so custom
+  wildcard consumers can retain segment boundaries and original encoded spelling.
+
 ### Fixed
 
 - Preserve encoded separators inside individual route parameters, including Matrix
@@ -15,6 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Static handlers reject embedded separators before resource lookup, and proxies
   re-encode each segment while retaining their default strict escape checks.
   Windows filesystem-name restrictions apply to static resources, not API routes.
+- Publish versioned development dependencies before dependent crates so release
+  packaging can resolve the synchronized workspace versions.
 
 ## [1.2.0] - 2026-11-17
 

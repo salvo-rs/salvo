@@ -691,14 +691,14 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "salvo"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "salvo_core",
 ]
 
 [[package]]
 name = "salvo-serde-util"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -707,7 +707,7 @@ dependencies = [
 
 [[package]]
 name = "salvo_core"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -746,7 +746,7 @@ dependencies = [
 
 [[package]]
 name = "salvo_macros"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
