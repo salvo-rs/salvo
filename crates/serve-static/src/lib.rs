@@ -13,9 +13,13 @@
 
 pub mod dir;
 mod file;
+mod path_policy;
+mod resource;
 
 pub use dir::StaticDir;
 pub use file::StaticFile;
+pub use path_policy::SymlinkPolicy;
+pub use resource::{StaticResource, StaticResourceAuthorizer};
 use salvo_core::cfg_feature;
 
 #[doc(hidden)]

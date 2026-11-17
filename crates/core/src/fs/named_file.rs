@@ -7,6 +7,7 @@ use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use enumflags2::{BitFlags, bitflags};
@@ -177,6 +178,7 @@ pub struct NamedFile {
 #[derive(Clone, Debug)]
 pub struct NamedFileBuilder {
     path: PathBuf,
+    file: Option<Arc<Mutex<Option<std::fs::File>>>>,
     attached_name: Option<String>,
     disposition_name: Option<String>,
     disposition_type: Option<String>,
@@ -188,6 +190,23 @@ pub struct NamedFileBuilder {
     flags: BitFlags<Flag>,
 }
 impl NamedFileBuilder {
+    /// Uses an already-open file instead of opening the builder's path.
+    ///
+    /// The path remains the logical name used for MIME inference and
+    /// `Content-Disposition`. Metadata and response bytes come from this handle,
+    /// which is rewound to the start during [`Self::build`]. Callers must prevent
+    /// concurrent modification of the file or its position through other handles.
+    ///
+    /// The supplied handle is consumed by the first build attempt. Cloned
+    /// builders share this single-use handle, so subsequent attempts return an
+    /// error instead of opening the path or sharing the handle's position.
+    #[inline]
+    #[must_use]
+    pub fn file(mut self, file: std::fs::File) -> Self {
+        self.file = Some(Arc::new(Mutex::new(Some(file))));
+        self
+    }
+
     /// Sets attached filename and returns `Self`.
     #[inline]
     #[must_use]
@@ -324,7 +343,7 @@ impl NamedFileBuilder {
 
     /// Build a new `NamedFile` and send it.
     pub async fn send(self, req_headers: &HeaderMap, res: &mut Response) {
-        if !self.path.exists() {
+        if self.file.is_none() && !self.path.exists() {
             res.render(StatusError::not_found());
         } else {
             match self.build().await {
@@ -338,6 +357,7 @@ impl NamedFileBuilder {
     pub async fn build(self) -> Result<NamedFile> {
         let Self {
             path,
+            file,
             content_type,
             content_encoding,
             buffer_size,
@@ -392,7 +412,17 @@ impl NamedFileBuilder {
         }
         let blocking_path = path.clone();
         let info = tokio::task::spawn_blocking(move || -> std::io::Result<FileInfo> {
-            let mut file = std::fs::File::open(&blocking_path)?;
+            let mut file = match file {
+                Some(file) => file
+                    .lock()
+                    .map_err(|_| std::io::Error::other("supplied file handle lock poisoned"))?
+                    .take()
+                    .ok_or_else(|| {
+                        std::io::Error::other("supplied file handle has already been consumed")
+                    })?,
+                None => std::fs::File::open(&blocking_path)?,
+            };
+            file.seek(SeekFrom::Start(0))?;
             let metadata = file.metadata()?;
             let length = metadata.len().min(max_length.unwrap_or(u64::MAX));
             let detection_sample = if needs_detection_sample {
@@ -606,6 +636,7 @@ impl NamedFile {
     pub fn builder(path: impl Into<PathBuf>) -> NamedFileBuilder {
         NamedFileBuilder {
             path: path.into(),
+            file: None,
             attached_name: None,
             disposition_name: None,
             disposition_type: None,
@@ -1143,6 +1174,98 @@ fn none_match(etag: Option<&ETag>, req_headers: &HeaderMap) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn supplied_file_uses_handle_bytes_and_logical_name() {
+        use crate::test::ResponseExt;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let physical_path = temp_dir.path().join("physical-file");
+        let contents = b"authorized file contents";
+        std::fs::write(&physical_path, contents).unwrap();
+
+        // Exercise both MIME sampling and extension-only inference, with both
+        // preloaded and streamed response bodies.
+        for (extension, expected_type) in
+            [("txt", "text/plain"), ("bin", "application/octet-stream")]
+        {
+            for preload in [0, 64] {
+                let logical_path = temp_dir.path().join(format!("download.{extension}"));
+                assert!(!logical_path.exists());
+                let mut handle = std::fs::File::open(&physical_path).unwrap();
+                handle.seek(SeekFrom::Start(7)).unwrap();
+                let mut file = NamedFile::builder(&logical_path)
+                    .file(handle)
+                    .disposition_type("attachment")
+                    .preload_threshold(preload)
+                    .build()
+                    .await
+                    .unwrap();
+
+                assert_eq!(file.path(), logical_path.as_path());
+                assert_eq!(file.content_type().essence_str(), expected_type);
+                assert_eq!(file.file.stream_position().await.unwrap(), 0);
+
+                let mut response = Response::new();
+                file.send(&HeaderMap::new(), &mut response).await;
+                assert_eq!(response.status_code, Some(StatusCode::OK));
+                assert_eq!(
+                    response.headers()["content-length"],
+                    contents.len().to_string()
+                );
+                assert_eq!(
+                    response.headers()[CONTENT_DISPOSITION],
+                    format!("attachment; filename=\"download.{extension}\"")
+                );
+                assert_eq!(response.take_bytes(None).await.unwrap().as_ref(), contents);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn builder_send_uses_supplied_file_for_missing_logical_path() {
+        use crate::test::ResponseExt;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let physical_path = temp_dir.path().join("physical-file");
+        std::fs::write(&physical_path, b"authorized file contents").unwrap();
+        let logical_path = temp_dir.path().join("missing.txt");
+        let mut handle = std::fs::File::open(&physical_path).unwrap();
+        handle.seek(SeekFrom::Start(7)).unwrap();
+        let mut response = Response::new();
+        NamedFile::builder(logical_path)
+            .file(handle)
+            .send(&HeaderMap::new(), &mut response)
+            .await;
+
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(
+            response.take_bytes(None).await.unwrap().as_ref(),
+            b"authorized file contents"
+        );
+    }
+
+    #[tokio::test]
+    async fn cloned_builders_consume_supplied_file_only_once() {
+        use crate::test::ResponseExt;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let physical_path = temp_dir.path().join("physical-file");
+        std::fs::write(&physical_path, b"authorized file contents").unwrap();
+        let builder = NamedFile::builder(temp_dir.path().join("missing.txt"))
+            .file(std::fs::File::open(physical_path).unwrap());
+        let cloned_builder = builder.clone();
+        let file = builder.build().await.unwrap();
+        let error = cloned_builder.build().await.unwrap_err();
+        assert!(error.to_string().contains("already been consumed"));
+
+        let mut response = Response::new();
+        file.send(&HeaderMap::new(), &mut response).await;
+        assert_eq!(
+            response.take_bytes(None).await.unwrap().as_ref(),
+            b"authorized file contents"
+        );
+    }
 
     #[tokio::test]
     async fn if_match_takes_precedence_over_if_unmodified_since() {

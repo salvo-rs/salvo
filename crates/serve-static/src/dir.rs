@@ -7,6 +7,7 @@ use std::fmt::{self, Debug, Display, Formatter, Write};
 use std::fs::Metadata;
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::SystemTime;
 
 use salvo_core::fs::{NamedFile, extension_content_encoding};
@@ -24,7 +25,8 @@ use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use time::macros::format_description;
 
-use super::join_path;
+use super::path_policy::{self, Resolution};
+use super::{StaticResource, StaticResourceAuthorizer, SymlinkPolicy};
 
 /// Supported compression algorithms for serving compressed file variants
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
@@ -190,10 +192,18 @@ pub struct StaticDir {
     pub preload_threshold: Option<u64>,
     /// Whether to include dot files (files/directories starting with .)
     pub include_dot_files: bool,
+    /// Require each requested path component to use its actual filesystem spelling.
+    /// Enabled by default, including on case-insensitive filesystems.
+    pub strict_path_check: bool,
+    /// Policy for symbolic links and junctions beneath a configured root.
+    /// Defaults to [`SymlinkPolicy::Deny`].
+    pub symlink_policy: SymlinkPolicy,
+    authorizer: Option<Arc<dyn StaticResourceAuthorizer>>,
     exclude_filters: Vec<Box<dyn Fn(&str) -> bool + Send + Sync>>,
     /// Whether to automatically list directories when default file isn't found
     pub auto_list: bool,
-    /// Maximum directory entries examined for a listing, including hidden/excluded entries.
+    /// Maximum directory entries examined for a listing, including hidden/excluded
+    /// entries and internal enumeration needed to verify link targets.
     /// Defaults to 10,000. Exceeding it returns 503 without a partial listing.
     pub listing_max_entries: usize,
     /// Maximum encoded listing body size in bytes. Defaults to 2 MiB.
@@ -217,6 +227,9 @@ impl Debug for StaticDir {
             .field("chunk_size", &self.chunk_size)
             .field("preload_threshold", &self.preload_threshold)
             .field("include_dot_files", &self.include_dot_files)
+            .field("strict_path_check", &self.strict_path_check)
+            .field("symlink_policy", &self.symlink_policy)
+            .field("has_authorizer", &self.authorizer.is_some())
             .field("auto_list", &self.auto_list)
             .field("listing_max_entries", &self.listing_max_entries)
             .field("listing_max_bytes", &self.listing_max_bytes)
@@ -243,6 +256,9 @@ impl StaticDir {
             chunk_size: None,
             preload_threshold: None,
             include_dot_files: false,
+            strict_path_check: true,
+            symlink_policy: SymlinkPolicy::Deny,
+            authorizer: None,
             exclude_filters: vec![],
             auto_list: false,
             listing_max_entries: 10_000,
@@ -291,6 +307,44 @@ impl StaticDir {
         self
     }
 
+    /// Authorize the resolved resource before sending content, metadata, redirects,
+    /// or directory listings. Returning `false` produces a terminal 404; fallback
+    /// files and later roots are not tried after a denial.
+    ///
+    /// Policies also inspect default files, fallback files, compressed sidecars,
+    /// and individual directory-listing entries. A synchronous closure can be used
+    /// directly; implement [`StaticResourceAuthorizer`] for asynchronous checks.
+    #[inline]
+    #[must_use]
+    pub fn authorize<A: StaticResourceAuthorizer + 'static>(mut self, authorizer: A) -> Self {
+        self.authorizer = Some(Arc::new(authorizer));
+        self
+    }
+
+    /// Require exact filesystem component spelling, including case and long names.
+    ///
+    /// Enabled by default. A spelling mismatch returns a terminal 404. Disabling
+    /// this permits operating-system filename aliases; use resource authorization
+    /// whenever the configured root contains non-public files.
+    #[inline]
+    #[must_use]
+    pub fn strict_path_check(mut self, enabled: bool) -> Self {
+        self.strict_path_check = enabled;
+        self
+    }
+
+    /// Choose whether links beneath a configured root may be followed.
+    ///
+    /// The default rejects them. [`SymlinkPolicy::WithinRoot`] permits explicit
+    /// links whose resolved targets remain inside that root. A configured root
+    /// itself is an explicit mount and may be a link.
+    #[inline]
+    #[must_use]
+    pub fn symlink_policy(mut self, policy: SymlinkPolicy) -> Self {
+        self.symlink_policy = policy;
+        self
+    }
+
     /// Exclude files.
     ///
     /// The filter function returns true to exclude the file.
@@ -308,7 +362,8 @@ impl StaticDir {
     ///
     /// At most `max_entries + 1` entries are fetched (the extra detects overflow),
     /// before metadata lookup or sorting beyond the budget. All entries count, including
-    /// hidden and excluded names. The encoded response is buffered up to `max_bytes`.
+    /// hidden and excluded names, and internal directory entries read to verify
+    /// link targets. The encoded response is buffered up to `max_bytes`.
     /// A budget overflow returns `503 Service Unavailable`, never a truncated `200`.
     /// Zero permits only an empty directory / empty output, respectively.
     #[inline]
@@ -402,8 +457,11 @@ struct CanonicalRoot {
 
 struct ResolvedPath {
     path: PathBuf,
+    logical_path: PathBuf,
+    configured_root: PathBuf,
     canonical_root: PathBuf,
     metadata: Metadata,
+    file: Option<std::fs::File>,
 }
 
 impl StaticDir {
@@ -426,17 +484,55 @@ impl StaticDir {
         root: &CanonicalRoot,
         path: PathBuf,
         apply_exclude_filters: bool,
-    ) -> Option<ResolvedPath> {
+    ) -> Result<Option<ResolvedPath>, ()> {
         if apply_exclude_filters {
             let raw_path = path_slash::PathBufExt::to_slash_lossy(&path);
             if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
-                return None;
+                return Ok(None);
             }
         }
 
-        let metadata = tokio::fs::symlink_metadata(&path).await.ok()?;
-        let canonical_path = tokio::fs::canonicalize(&path).await.ok()?;
-        let relative_path = canonical_path.strip_prefix(&root.canonical_path).ok()?;
+        let Ok(requested_relative) = path.strip_prefix(&root.path) else {
+            return Err(());
+        };
+        let (canonical_path, metadata) = match path_policy::resolve(
+            &root.canonical_path,
+            requested_relative,
+            self.strict_path_check,
+            self.symlink_policy,
+        )
+        .await
+        {
+            Resolution::Found { path, metadata } => (path, metadata),
+            Resolution::Missing => return Ok(None),
+            Resolution::Rejected => return Err(()),
+        };
+        self.filter_resolved_path(
+            &root.path,
+            &root.canonical_path,
+            path,
+            canonical_path,
+            metadata,
+            apply_exclude_filters,
+        )
+    }
+
+    fn filter_resolved_path(
+        &self,
+        configured_root: &Path,
+        root: &Path,
+        logical_path: PathBuf,
+        canonical_path: PathBuf,
+        metadata: Metadata,
+        apply_exclude_filters: bool,
+    ) -> Result<Option<ResolvedPath>, ()> {
+        let relative_path = canonical_path.strip_prefix(root).map_err(|_| ())?;
+        if apply_exclude_filters {
+            let resolved = path_slash::PathBufExt::to_slash_lossy(&canonical_path);
+            if self.exclude_filters.iter().any(|filter| filter(&resolved)) {
+                return Ok(None);
+            }
+        }
         // Windows 8.3 aliases can resolve to dot files even when the requested
         // path has no dot segments. Check the resolved path below the root too;
         // the configured root itself may legitimately have a dot-prefixed name.
@@ -445,32 +541,78 @@ impl StaticDir {
                 .components()
                 .any(|component| component.as_os_str().as_encoded_bytes().starts_with(b"."))
         {
-            return None;
+            return Ok(None);
         }
-        Some(ResolvedPath {
-            path,
-            canonical_root: root.canonical_path.clone(),
+        Ok(Some(ResolvedPath {
+            path: canonical_path,
+            logical_path,
+            configured_root: configured_root.to_owned(),
+            canonical_root: root.to_owned(),
             metadata,
-        })
+            file: None,
+        }))
     }
 
     async fn resolve_relative_path(
         &self,
         root: &CanonicalRoot,
         rel_path: impl AsRef<Path>,
-    ) -> Option<ResolvedPath> {
+    ) -> Result<Option<ResolvedPath>, ()> {
         self.resolve_root_path(root, root.path.join(rel_path), true)
             .await
     }
 
-    async fn resolve_child_path(&self, root: &Path, path: PathBuf) -> Option<ResolvedPath> {
+    async fn resolve_child_path(
+        &self,
+        configured_root: &Path,
+        root: &Path,
+        path: PathBuf,
+    ) -> Result<Option<ResolvedPath>, ()> {
         let synthetic_root = CanonicalRoot {
-            path: root.to_owned(),
+            path: configured_root.to_owned(),
             canonical_path: root.to_owned(),
         };
         // Apply exclude filters here too: default files (e.g. `index.html`) and
         // compressed variants (e.g. `.gz`) must not bypass `exclude_filters`.
         self.resolve_root_path(&synthetic_root, path, true).await
+    }
+
+    async fn authorize_path(&self, req: &Request, depot: &Depot, path: &mut ResolvedPath) -> bool {
+        if !path.metadata.is_file() && !path.metadata.is_dir() {
+            return false;
+        }
+        // Retain the selected handle across asynchronous policy checks and response
+        // construction. NamedFile must not reopen a pathname after authorization.
+        if path.metadata.is_file() {
+            let Ok(file) = tokio::fs::File::open(&path.path).await else {
+                return false;
+            };
+            let Ok(metadata) = file.metadata().await else {
+                return false;
+            };
+            if !metadata.is_file() {
+                return false;
+            }
+            path.metadata = metadata;
+            path.file = Some(file.into_std().await);
+        }
+        self.authorize_resource(req, depot, path).await
+    }
+
+    async fn authorize_resource(&self, req: &Request, depot: &Depot, path: &ResolvedPath) -> bool {
+        if !path.metadata.is_file() && !path.metadata.is_dir() {
+            return false;
+        }
+        if let Some(authorizer) = &self.authorizer {
+            let resource = StaticResource::new(
+                path.canonical_root.clone(),
+                path.path.clone(),
+                path.metadata.clone(),
+            );
+            authorizer.authorize(req, depot, &resource).await
+        } else {
+            true
+        }
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -528,7 +670,7 @@ impl Handler for StaticDir {
     async fn handle(
         &self,
         req: &mut Request,
-        _depot: &mut Depot,
+        depot: &mut Depot,
         res: &mut Response,
         _ctrl: &mut FlowCtrl,
     ) {
@@ -556,9 +698,17 @@ impl Handler for StaticDir {
                     canonical_path,
                 });
                 let root = roots.last().expect("root was inserted");
-                // Use a single async symlink_metadata call for file type checks, then verify
-                // the canonical target stays under the canonical root before serving it.
-                if let Some(path) = self.resolve_relative_path(root, &rel_path).await {
+                // Check each component before following links or handing the
+                // resolved resource to the authorization policy.
+                let Ok(candidate) = self.resolve_relative_path(root, &rel_path).await else {
+                    res.render(StatusError::not_found());
+                    return;
+                };
+                if let Some(mut path) = candidate {
+                    if !self.authorize_path(req, depot, &mut path).await {
+                        res.render(StatusError::not_found());
+                        return;
+                    }
                     if path.metadata.is_dir() {
                         if !req_path.ends_with('/') && !req_path.is_empty() {
                             redirect_to_dir_url(req.uri(), res);
@@ -566,14 +716,26 @@ impl Handler for StaticDir {
                         }
 
                         for default_file in &self.defaults {
-                            let default_path = path.path.join(default_file);
-                            let Some(default_path) = self
-                                .resolve_child_path(&path.canonical_root, default_path)
+                            let default_path = path.logical_path.join(default_file);
+                            let Ok(candidate) = self
+                                .resolve_child_path(
+                                    &path.configured_root,
+                                    &path.canonical_root,
+                                    default_path,
+                                )
                                 .await
                             else {
+                                res.render(StatusError::not_found());
+                                return;
+                            };
+                            let Some(mut default_path) = candidate else {
                                 continue;
                             };
                             if default_path.metadata.is_file() {
+                                if !self.authorize_path(req, depot, &mut default_path).await {
+                                    res.render(StatusError::not_found());
+                                    return;
+                                }
                                 abs_path = Some(default_path);
                                 break;
                             }
@@ -598,9 +760,17 @@ impl Handler for StaticDir {
                 roots = self.canonical_roots().await;
             }
             for root in &roots {
-                if let Some(path) = self.resolve_relative_path(root, fallback).await {
+                let Ok(candidate) = self.resolve_relative_path(root, fallback).await else {
+                    res.render(StatusError::not_found());
+                    return;
+                };
+                if let Some(mut path) = candidate {
                     if !path.metadata.is_file() {
                         continue;
+                    }
+                    if !self.authorize_path(req, depot, &mut path).await {
+                        res.render(StatusError::not_found());
+                        return;
                     }
                     abs_path = Some(path);
                     break;
@@ -615,10 +785,13 @@ impl Handler for StaticDir {
 
         let is_file = abs_path.metadata.is_file();
         let canonical_root = abs_path.canonical_root;
+        let configured_root = abs_path.configured_root;
+        let mut opened_file = abs_path.file;
+        let logical_path = abs_path.logical_path;
         let abs_path = abs_path.path;
 
         if is_file {
-            let ext = abs_path
+            let ext = logical_path
                 .extension()
                 .and_then(|s| s.to_str())
                 .map(|s| s.to_lowercase());
@@ -636,11 +809,11 @@ impl Handler for StaticDir {
             // The selected representation or a 406 can depend on Accept-Encoding,
             // including files whose extension implies a stored content coding.
             let mut varies_on_accept_encoding = true;
-            let content_type = mime_infer::from_path(&abs_path).first();
+            let content_type = mime_infer::from_path(&logical_path).first();
             // Captured before the compressed-variant lookup may replace the path:
             // a download must be named after the resource that was requested, not
             // after the sidecar the bytes happen to be read from.
-            let requested_name = abs_path
+            let requested_name = logical_path
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned());
 
@@ -721,15 +894,25 @@ impl Handler for StaticDir {
                                     continue;
                                 };
                                 for zip_ext in exts {
-                                    let mut path = abs_path.clone();
+                                    let mut path = logical_path.clone();
                                     path.as_mut_os_string().push(".");
                                     path.as_mut_os_string().push(zip_ext.as_str());
-                                    if self
-                                        .resolve_child_path(&canonical_root, path.clone())
+                                    let Ok(candidate) = self
+                                        .resolve_child_path(&configured_root, &canonical_root, path)
                                         .await
-                                        .is_some_and(|path| path.metadata.is_file())
+                                    else {
+                                        res.render(StatusError::not_found());
+                                        return;
+                                    };
+                                    if let Some(mut sidecar) = candidate
+                                        && sidecar.metadata.is_file()
                                     {
-                                        new_abs_path = Some(path);
+                                        if !self.authorize_path(req, depot, &mut sidecar).await {
+                                            res.render(StatusError::not_found());
+                                            return;
+                                        }
+                                        opened_file = sidecar.file;
+                                        new_abs_path = Some(sidecar.logical_path);
                                         content_encoding = Some(algo.to_string());
                                         break 'accepted_encoding;
                                     }
@@ -742,12 +925,12 @@ impl Handler for StaticDir {
                         append_vary_header(res.headers_mut(), "accept-encoding");
                         return;
                     }
-                    new_abs_path.unwrap_or(abs_path)
+                    new_abs_path.unwrap_or(logical_path)
                 } else {
-                    abs_path
+                    logical_path
                 }
             } else {
-                abs_path
+                logical_path
             };
 
             if content_encoding.is_none() && !is_self_coded_ext && !identity {
@@ -757,7 +940,11 @@ impl Handler for StaticDir {
             }
 
             let (builder, varies_on_accept_encoding) = {
-                let mut builder = NamedFile::builder(named_path);
+                let Some(file) = opened_file else {
+                    res.render(StatusError::not_found());
+                    return;
+                };
+                let mut builder = NamedFile::builder(named_path).file(file);
                 if let Some(content_encoding) = content_encoding {
                     builder = builder.content_encoding(content_encoding);
                 }
@@ -795,28 +982,57 @@ impl Handler for StaticDir {
         } else if !is_file {
             // list the dir
             if let Ok(mut entries) = tokio::fs::read_dir(&abs_path).await {
-                let mut examined = 0usize;
+                let mut budget = path_policy::EntryBudget::new(self.listing_max_entries);
                 while let Ok(Some(entry)) = entries.next_entry().await {
-                    if examined >= self.listing_max_entries {
+                    if !budget.visit() {
                         res.render(
                             StatusError::service_unavailable()
                                 .brief("Directory listing entry limit exceeded"),
                         );
                         return;
                     }
-                    examined += 1;
                     let file_name = entry.file_name().to_string_lossy().into_owned();
                     if self.include_dot_files || !file_name.starts_with('.') {
-                        let raw_path = join_path!(&abs_path, &file_name);
+                        let logical_entry_path = logical_path.join(entry.file_name());
+                        let raw_path = path_slash::PathBufExt::to_slash_lossy(&logical_entry_path);
                         if self.exclude_filters.iter().any(|filter| filter(&raw_path)) {
                             continue;
                         }
-                        if let Ok(metadata) = entry.metadata().await {
-                            if metadata.is_dir() {
-                                dirs.entry(file_name).or_insert(metadata);
-                            } else {
-                                files.entry(file_name).or_insert(metadata);
-                            }
+                        let resolved = path_policy::resolve_entry(
+                            &canonical_root,
+                            &entry,
+                            self.strict_path_check,
+                            self.symlink_policy,
+                            &mut budget,
+                        )
+                        .await;
+                        if budget.exceeded() {
+                            res.render(
+                                StatusError::service_unavailable()
+                                    .brief("Directory listing entry limit exceeded"),
+                            );
+                            return;
+                        }
+                        let Resolution::Found { path, metadata } = resolved else {
+                            continue;
+                        };
+                        let Ok(Some(path)) = self.filter_resolved_path(
+                            &configured_root,
+                            &canonical_root,
+                            logical_entry_path,
+                            path,
+                            metadata,
+                            true,
+                        ) else {
+                            continue;
+                        };
+                        if !self.authorize_resource(req, depot, &path).await {
+                            continue;
+                        }
+                        if path.metadata.is_dir() {
+                            dirs.entry(file_name).or_insert(path.metadata);
+                        } else if path.metadata.is_file() {
+                            files.entry(file_name).or_insert(path.metadata);
                         }
                     }
                 }

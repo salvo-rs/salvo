@@ -3,6 +3,8 @@
 use salvo_core::prelude::*;
 use salvo_core::test::{ResponseExt, TestClient};
 use salvo_serve_static::StaticDir;
+#[cfg(unix)]
+use salvo_serve_static::SymlinkPolicy;
 
 fn service(directory: StaticDir) -> Service {
     Service::new(Router::with_path("{**path}").goal(directory))
@@ -71,8 +73,11 @@ async fn visible_alias_to_dot_directory_respects_opt_in() {
     std::fs::write(temp.path().join(".git/config"), "repository").unwrap();
     std::os::unix::fs::symlink(".git", temp.path().join("alias")).unwrap();
     for include in [false, true] {
-        let directory =
-            service(StaticDir::new(temp.path().to_path_buf()).include_dot_files(include));
+        let directory = service(
+            StaticDir::new(temp.path().to_path_buf())
+                .include_dot_files(include)
+                .symlink_policy(SymlinkPolicy::WithinRoot),
+        );
         check_file(&directory, "alias/config", include.then_some("repository")).await;
     }
 }
@@ -109,8 +114,13 @@ async fn windows_short_names_cannot_expose_dot_files() {
     assert!(!env.starts_with('.'));
     assert!(!git.starts_with('.'));
     for include in [false, true] {
-        let directory =
-            service(StaticDir::new(temp.path().to_path_buf()).include_dot_files(include));
+        // This test isolates dot-file policy after explicitly allowing short-name
+        // compatibility. Strict path spelling rejects these aliases by default.
+        let directory = service(
+            StaticDir::new(temp.path().to_path_buf())
+                .include_dot_files(include)
+                .strict_path_check(false),
+        );
         check_file(&directory, &env, include.then_some("secret")).await;
         check_file(
             &directory,
