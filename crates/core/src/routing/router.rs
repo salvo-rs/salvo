@@ -1161,13 +1161,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_router_rejects_encoded_path_separators() {
+    async fn test_router_keeps_encoded_separator_inside_one_parameter() {
         let router = Router::new().path("api/{p}").get(fake_handler);
         let mut req = TestClient::get("http://127.0.0.1:6060/api/a%2fb%2fc").build();
         let mut path_state = PathState::from_owned_path(req.uri().path().to_owned());
         let matched = router.detect(&mut req, &mut path_state).await;
-        assert!(matched.is_none());
-        assert!(path_state.params.is_empty());
+        assert!(matched.is_some());
+        assert_eq!(path_state.params["p"], "a/b/c");
     }
 
     #[tokio::test]

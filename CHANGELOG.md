@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve encoded separators inside individual route parameters, including Matrix
+  user IDs, and allow URL colons on Windows. Routing leaves the original request
+  URI unchanged and rejects NUL, literal backslashes, and invalid UTF-8.
+- Preserve wildcard segment boundaries for static resources and proxy forwarding.
+  Static handlers reject embedded separators before resource lookup, and proxies
+  re-encode each segment while retaining their default strict escape checks.
+  Windows filesystem-name restrictions apply to static resources, not API routes.
+
 ## [1.2.0] - 2026-11-17
 
 ### Added

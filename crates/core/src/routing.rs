@@ -15,11 +15,18 @@
 //! # Request path normalization
 //!
 //! Dot segments (`.` and `..`), including percent-encoded forms, are normalized
-//! before route matching. Encoded path separators, literal backslashes, and NUL
-//! bytes are rejected with `400 Bad Request`. On Windows, paths containing
-//! colon-bearing segments or reserved device names are also rejected. This
-//! prevents downstream path normalization from changing the authorization scope
-//! selected by the router.
+//! before route matching, without rewriting the request URI. Only literal `/`
+//! characters separate segments. Parameters are decoded once, so `%2F` remains
+//! data inside one parameter. This supports identifiers such as Matrix user IDs.
+//! Routing has the same semantics on all operating systems; filesystem filename
+//! restrictions belong to resource handlers. Literal backslashes, NUL bytes and
+//! invalid UTF-8 are rejected with `400 Bad Request`.
+//!
+//! Wildcard consumers must retain these boundaries: use [`PathParams::tail_segments`]
+//! rather than splitting its decoded [`PathParams::tail`] string again. Static
+//! resources reject separators inside a decoded segment. Proxies re-encode each
+//! segment separately and reject ambiguous escapes by default. Use the original
+//! request path and query, not reconstructed parameters, for signature verification.
 //!
 //! # Write in flat way
 //!
@@ -501,13 +508,13 @@ pub fn encode_url_path(path: &str) -> String {
 
 #[doc(hidden)]
 #[must_use]
+/// Normalizes literal URL separators and dot segments without filesystem rules.
+/// This is not a filesystem path sanitizer; validate decoded segments before joining them.
 pub fn normalize_url_path(path: &str) -> String {
     let final_slash = if path.ends_with('/') { "/" } else { "" };
     let mut used_parts = Vec::with_capacity(8);
-    for part in path.split(['/', '\\']) {
-        // Routing rejects invalid components before matching. Keep the legacy
-        // normalizer's component policy shared with that validation.
-        if part.is_empty() || part == "." || is_invalid_path_segment(part) {
+    for part in path.split('/') {
+        if part.is_empty() || part == "." {
             continue;
         }
         // Handle parent directory references
@@ -518,12 +525,6 @@ pub fn normalize_url_path(path: &str) -> String {
         }
     }
     used_parts.join("/") + final_slash
-}
-
-/// Components omitted by normalization must not reach route matching, where
-/// retaining them could select a different authorization scope.
-fn is_invalid_path_segment(part: &str) -> bool {
-    part.contains('\0') || (cfg!(windows) && (part.contains(':') || is_windows_reserved_name(part)))
 }
 
 #[doc(hidden)]
@@ -552,36 +553,12 @@ pub fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
     res.render(crate::writing::Redirect::found(redirect_uri));
 }
 
-/// Check if a path component is a Windows reserved device name.
-/// These names are reserved regardless of extension (e.g., "CON.txt" is also reserved).
-fn is_windows_reserved_name(name: &str) -> bool {
-    // Get the base name without extension
-    let base = name.split('.').next().unwrap_or(name);
-    let is_numbered_device = match base.as_bytes() {
-        [first, second, third, digit] => {
-            let prefix = [
-                first.to_ascii_uppercase(),
-                second.to_ascii_uppercase(),
-                third.to_ascii_uppercase(),
-            ];
-            (prefix == *b"COM" || prefix == *b"LPT") && digit.is_ascii_digit() && *digit != b'0'
-        }
-        _ => false,
-    };
-
-    base.eq_ignore_ascii_case("CON")
-        || base.eq_ignore_ascii_case("PRN")
-        || base.eq_ignore_ascii_case("AUX")
-        || base.eq_ignore_ascii_case("NUL")
-        || is_numbered_device
-}
-
 #[cfg(test)]
 mod tests {
     use crate::http::header::LOCATION;
     use crate::http::uri::Uri;
     use crate::prelude::*;
-    use crate::routing::{decode_url_path, is_windows_reserved_name, normalize_url_path};
+    use crate::routing::{decode_url_path, normalize_url_path};
     use crate::test::{ResponseExt, TestClient};
 
     #[tokio::test]
@@ -709,8 +686,8 @@ mod tests {
         assert_eq!(normalize_url_path("a/./b"), "a/b");
 
         // Backslash handling
-        assert_eq!(normalize_url_path("a\\b\\c"), "a/b/c");
-        assert_eq!(normalize_url_path("a\\..\\b"), "b");
+        assert_eq!(normalize_url_path("a\\b\\c"), "a\\b\\c");
+        assert_eq!(normalize_url_path("a\\..\\b"), "a\\..\\b");
 
         // Empty parts
         assert_eq!(normalize_url_path("a//b"), "a/b");
@@ -753,52 +730,20 @@ mod tests {
     }
 
     #[test]
-    #[cfg(windows)]
-    fn test_normalize_url_path_windows() {
-        // Windows drive letters
-        assert_eq!(normalize_url_path("C:/Windows"), "Windows");
-        assert_eq!(normalize_url_path("a/C:/b"), "a/b");
-
-        // Windows reserved device names
-        assert_eq!(normalize_url_path("CON"), "");
-        assert_eq!(normalize_url_path("a/CON/b"), "a/b");
-        assert_eq!(normalize_url_path("a/con.txt/b"), "a/b");
-        assert_eq!(normalize_url_path("PRN"), "");
-        assert_eq!(normalize_url_path("AUX"), "");
-        assert_eq!(normalize_url_path("NUL"), "");
-        assert_eq!(normalize_url_path("COM1"), "");
-        assert_eq!(normalize_url_path("LPT1"), "");
-
-        let cyrillic = "\u{0413}\u{0413}";
-        assert_eq!(normalize_url_path(cyrillic), cyrillic);
-        assert_eq!(
-            normalize_url_path("a/\u{0413}\u{0413}/b"),
-            "a/\u{0413}\u{0413}/b"
-        );
-    }
-
-    #[test]
-    fn test_is_windows_reserved_name() {
-        // Test reserved names
-        assert!(is_windows_reserved_name("CON"));
-        assert!(is_windows_reserved_name("con"));
-        assert!(is_windows_reserved_name("Con"));
-        assert!(is_windows_reserved_name("CON.txt"));
-        assert!(is_windows_reserved_name("PRN"));
-        assert!(is_windows_reserved_name("AUX"));
-        assert!(is_windows_reserved_name("NUL"));
-        assert!(is_windows_reserved_name("COM1"));
-        assert!(is_windows_reserved_name("COM9"));
-        assert!(is_windows_reserved_name("LPT1"));
-        assert!(is_windows_reserved_name("LPT9"));
-
-        // Test non-reserved names
-        assert!(!is_windows_reserved_name("file.txt"));
-        assert!(!is_windows_reserved_name("CONSOLE"));
-        assert!(!is_windows_reserved_name("COM10"));
-        assert!(!is_windows_reserved_name("LPT10"));
-        assert!(!is_windows_reserved_name("\u{0413}\u{0413}"));
-        assert!(!is_windows_reserved_name("\u{1F600}"));
-        assert!(!is_windows_reserved_name(""));
+    fn url_normalization_is_independent_of_filesystem_names() {
+        for path in [
+            "C:/Windows",
+            "a/C:/b",
+            "CON",
+            "a/CON/b",
+            "a/con.txt/b",
+            "PRN",
+            "AUX",
+            "NUL",
+            "COM1",
+            "LPT1",
+        ] {
+            assert_eq!(normalize_url_path(path), path);
+        }
     }
 }

@@ -16,9 +16,7 @@ use salvo_core::http::header::ACCEPT_ENCODING;
 use salvo_core::http::{
     self, HeaderValue, Method, Request, Response, StatusCode, StatusError, append_vary_header, mime,
 };
-use salvo_core::routing::{
-    decode_url_path, encode_url_path, normalize_url_path, redirect_to_dir_url,
-};
+use salvo_core::routing::{decode_url_path, encode_url_path, redirect_to_dir_url};
 use salvo_core::writing::Text;
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 use serde::{Deserialize, Serialize};
@@ -675,14 +673,10 @@ impl Handler for StaticDir {
         _ctrl: &mut FlowCtrl,
     ) {
         let req_path = req.uri().path();
-        let decoded_path;
-        let rel_path = if let Some(rest) = req.params().tail() {
-            rest
-        } else {
-            decoded_path = decode_url_path(req_path);
-            decoded_path.as_ref()
+        let Some(rel_path) = crate::resource_path(req, path_policy::valid_fs_component) else {
+            res.render(StatusError::bad_request().brief("invalid static resource path"));
+            return;
         };
-        let rel_path = normalize_url_path(rel_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let has_dot_segment = rel_path.split('/').any(|part| part.starts_with('.'));

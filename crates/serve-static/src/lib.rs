@@ -22,6 +22,35 @@ pub use path_policy::SymlinkPolicy;
 pub use resource::{StaticResource, StaticResourceAuthorizer};
 use salvo_core::cfg_feature;
 
+/// Convert routed segments to a resource key only after rejecting embedded separators.
+fn resource_path(
+    req: &salvo_core::Request,
+    valid_component: impl Fn(&str) -> bool,
+) -> Option<String> {
+    use std::borrow::Cow;
+    let parts: Vec<Cow<'_, str>> = if let Some(parts) = req.params().tail_segments() {
+        parts.map(Cow::Borrowed).collect()
+    } else {
+        req.uri()
+            .path()
+            .trim_start_matches('/')
+            .split('/')
+            .map(|part| {
+                percent_encoding::percent_decode_str(part)
+                    .decode_utf8()
+                    .ok()
+            })
+            .collect::<Option<_>>()?
+    };
+    if parts
+        .iter()
+        .any(|part| part.contains(['/', '\\', '\0']) || !valid_component(part))
+    {
+        return None;
+    }
+    Some(salvo_core::routing::normalize_url_path(&parts.join("/")))
+}
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! join_path {

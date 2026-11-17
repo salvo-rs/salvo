@@ -546,13 +546,9 @@ mod tests {
             tokio::spawn(server.try_serve(Router::with_path("{**rest}").goal(unreachable_goal)));
         for method in ["GET", "POST", "HEAD", "OPTIONS"] {
             for path in [
-                "/%2freport_note/secret.txt",
-                "/%5creport_note/secret.txt",
                 "/%00/report_note/secret.txt",
-                #[cfg(windows)]
-                "/C:/report_note/secret.txt",
-                #[cfg(windows)]
-                "/CON/report_note/secret.txt",
+                "/%FF/report_note/secret.txt",
+                "/report_note\\secret.txt",
             ] {
                 let mut client = tokio::net::TcpStream::connect(addr).await.unwrap();
                 client.write_all(format!(

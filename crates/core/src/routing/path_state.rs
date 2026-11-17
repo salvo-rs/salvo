@@ -2,20 +2,18 @@ use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::ops::Range;
 
-use super::{PathParams, decode_url_path, is_invalid_path_segment};
+use super::PathParams;
+use super::path_params::CapturedPath;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-enum PathPart {
-    Raw(Range<usize>),
-    Decoded(String),
+struct PathPart {
+    raw: Range<usize>,
+    decoded: Option<Box<str>>,
 }
 impl PathPart {
     #[inline]
     fn as_str<'a>(&'a self, source: &'a str) -> &'a str {
-        match self {
-            Self::Raw(range) => &source[range.clone()],
-            Self::Decoded(value) => value,
-        }
+        self.decoded.as_deref().unwrap_or(&source[self.raw.clone()])
     }
 
     #[inline]
@@ -210,6 +208,81 @@ impl<'a> PathState<'a> {
         }
     }
 
+    pub(crate) fn rest_segments_len(&self) -> usize {
+        self.parts.len().saturating_sub(self.cursor.0)
+    }
+
+    /// Capture before advancing the cursor so a wildcard never loses segment boundaries.
+    pub(crate) fn capture_tail(&mut self, name: &str, value: String) -> bool {
+        let mut ranges = Vec::new();
+        let mut encoded = String::with_capacity(value.len());
+        let mut value_offset = 0;
+        for (index, part) in self.parts.iter().enumerate().skip(self.cursor.0) {
+            let offset = if index == self.cursor.0 {
+                self.cursor.1
+            } else {
+                0
+            };
+            let Some(segment) = part.as_str(&self.path).get(offset..) else {
+                return false;
+            };
+            let raw = &self.path[part.raw.clone()];
+            // The cursor counts decoded UTF-8 bytes. Each valid percent triplet
+            // contributes one byte, even when several triplets form one character.
+            let mut raw_offset = 0;
+            for _ in 0..offset {
+                raw_offset += if raw.as_bytes()[raw_offset] == b'%'
+                    && raw
+                        .as_bytes()
+                        .get(raw_offset + 1)
+                        .is_some_and(u8::is_ascii_hexdigit)
+                    && raw
+                        .as_bytes()
+                        .get(raw_offset + 2)
+                        .is_some_and(u8::is_ascii_hexdigit)
+                {
+                    3
+                } else {
+                    1
+                };
+            }
+            if !ranges.is_empty() {
+                if value.as_bytes().get(value_offset) != Some(&b'/') {
+                    return false;
+                }
+                value_offset += 1;
+                encoded.push('/');
+            }
+            if value.get(value_offset..value_offset + segment.len()) != Some(segment) {
+                return false;
+            }
+            ranges.push(value_offset..value_offset + segment.len());
+            value_offset += segment.len();
+            encoded.push_str(&raw[raw_offset..]);
+        }
+        if self.end_slash && !ranges.is_empty() {
+            if value.as_bytes().get(value_offset) != Some(&b'/') {
+                return false;
+            }
+            value_offset += 1;
+            ranges.push(value_offset..value_offset);
+            encoded.push('/');
+        }
+        if value_offset != value.len() || self.params.greedy() {
+            return false;
+        }
+        self.params.insert_tail_tracked(
+            name,
+            value,
+            CapturedPath {
+                index: 0,
+                ranges,
+                encoded,
+            },
+        );
+        true
+    }
+
     #[inline]
     pub fn forward(&mut self, steps: usize) {
         let mut steps = steps + self.cursor.1;
@@ -264,13 +337,16 @@ fn parse_path_parts(path: &str) -> (Vec<PathPart>, bool) {
         if start == cursor {
             continue;
         }
-        let decoded = decode_url_path(&path[start..cursor]);
-        if decoded
-            .as_bytes()
-            .iter()
-            .any(|byte| matches!(byte, b'/' | b'\\'))
-            || is_invalid_path_segment(&decoded)
-        {
+        let raw = &path[start..cursor];
+        let decoded = if raw.as_bytes().contains(&b'%') {
+            let Ok(decoded) = percent_encoding::percent_decode_str(raw).decode_utf8() else {
+                return (parts, false);
+            };
+            decoded
+        } else {
+            Cow::Borrowed(raw)
+        };
+        if raw.contains('\\') || decoded.contains('\0') {
             valid_path = false;
         }
         match decoded.as_ref() {
@@ -278,10 +354,13 @@ fn parse_path_parts(path: &str) -> (Vec<PathPart>, bool) {
             ".." => {
                 parts.pop();
             }
-            _ => match decoded {
-                Cow::Borrowed(_) => parts.push(PathPart::Raw(start..cursor)),
-                Cow::Owned(decoded) => parts.push(PathPart::Decoded(decoded)),
-            },
+            _ => parts.push(PathPart {
+                raw: start..cursor,
+                decoded: match decoded {
+                    Cow::Borrowed(_) => None,
+                    Cow::Owned(value) => Some(value.into_boxed_str()),
+                },
+            }),
         }
     }
     (parts, valid_path)
@@ -351,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_encoded_and_literal_path_separators() {
+    fn encoded_separators_remain_segment_data() {
         for path in [
             "/%2freport_note/secret.txt",
             "/%2Freport_note/secret.txt",
@@ -359,11 +438,9 @@ mod tests {
             "/%5Creport_note/secret.txt",
             "/report_note%2fsecret.txt",
             "/report_note%5csecret.txt",
-            r"/\report_note/secret.txt",
-            r"/report_note\secret.txt",
         ] {
             assert!(
-                !PathState::from_borrowed_path(path).is_valid_path(),
+                PathState::from_borrowed_path(path).is_valid_path(),
                 "{path}"
             );
         }
@@ -416,12 +493,12 @@ mod tests {
         ] {
             let path = format!("/{part}/report_note/secret.txt");
             let state = PathState::from_borrowed_path(&path);
-            assert_eq!(state.is_valid_path(), !cfg!(windows), "{path}");
+            assert!(state.is_valid_path(), "{path}");
         }
     }
 
     #[test]
-    fn accepted_paths_keep_the_same_downstream_namespace() {
+    fn unambiguous_paths_keep_url_normalization() {
         use super::super::{decode_url_path, normalize_url_path};
 
         // Exercise every transformation that downstream path normalization
@@ -448,7 +525,11 @@ mod tests {
             for suffix in ["/report_note/secret.txt", "/report_note/secret.txt/"] {
                 let path = format!("/{prefix}{suffix}");
                 let state = PathState::from_borrowed_path(&path);
-                if state.is_valid_path() {
+                if state.is_valid_path()
+                    && !path
+                        .split('/')
+                        .any(|part| decode_url_path(part).contains('/'))
+                {
                     assert_eq!(
                         state.all_rest().unwrap_or_default(),
                         normalize_url_path(&decode_url_path(&path)),
@@ -460,7 +541,7 @@ mod tests {
     }
 
     #[test]
-    fn combined_path_components_keep_routing_and_downstream_in_agreement() {
+    fn unambiguous_component_combinations_keep_url_normalization() {
         use super::super::{decode_url_path, normalize_url_path};
 
         // Combine components in different positions so parent references, empty
@@ -489,7 +570,11 @@ mod tests {
                     for trailing in ["", "/"] {
                         let path = format!("/{first}/{second}/{third}{trailing}");
                         let state = PathState::from_borrowed_path(&path);
-                        if state.is_valid_path() {
+                        if state.is_valid_path()
+                            && !path
+                                .split('/')
+                                .any(|part| decode_url_path(part).contains('/'))
+                        {
                             let expected = normalize_url_path(&decode_url_path(&path));
                             let rest = state.all_rest().unwrap_or_default();
                             // The empty root has no captured tail, even when the

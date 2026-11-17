@@ -22,6 +22,31 @@ pub(crate) enum Resolution {
     Rejected,
 }
 
+pub(crate) fn valid_fs_component(part: &str) -> bool {
+    #[cfg(windows)]
+    {
+        if part.contains(':') {
+            return false;
+        }
+        let base = part.split('.').next().unwrap_or(part).trim_end_matches(' ');
+        let numbered = base.get(..3).is_some_and(|prefix| {
+            prefix.eq_ignore_ascii_case("COM") || prefix.eq_ignore_ascii_case("LPT")
+        }) && matches!(
+            base.get(3..),
+            Some("1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³")
+        );
+        !numbered
+            && !["CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"]
+                .iter()
+                .any(|name| base.eq_ignore_ascii_case(name))
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = part;
+        true
+    }
+}
+
 /// Counts both visible listing entries and internal link-target name lookups.
 pub(crate) struct EntryBudget {
     remaining: usize,
@@ -69,7 +94,7 @@ pub(crate) async fn resolve(
                     let bytes = name.as_encoded_bytes();
                     // A drive designator in a later component must not reset
                     // PathBuf::join, and ambiguous Win32 suffixes are terminal.
-                    if bytes.contains(&b':')
+                    if !valid_fs_component(&name.to_string_lossy())
                         || bytes.contains(&0)
                         || strict && bytes.last().is_some_and(|byte| matches!(byte, b'.' | b' '))
                     {
@@ -310,6 +335,59 @@ mod tests {
     use std::fs;
 
     use super::*;
+
+    #[test]
+    fn filesystem_components_are_validated_at_the_resource_boundary() {
+        for part in [
+            "C:",
+            "file:stream",
+            "CON",
+            "con.txt",
+            "CON .txt",
+            "PRN",
+            "AUX",
+            "NUL",
+            "COM1",
+            "LPT9",
+            "COM¹",
+            "LPT²",
+            "CONIN$",
+            "CONOUT$",
+        ] {
+            assert_eq!(valid_fs_component(part), !cfg!(windows), "{part}");
+        }
+        for part in ["CONSOLE", "COM10", "LPT0", "file.txt", "用户"] {
+            assert!(valid_fs_component(part), "{part}");
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_device_and_stream_names_are_rejected_at_the_resource_boundary() {
+        for part in [
+            "C:",
+            "file:stream",
+            "CON",
+            "con.txt",
+            "CON .txt",
+            "PRN",
+            "AUX",
+            "NUL",
+            "COM1",
+            "COM9",
+            "LPT1",
+            "LPT9",
+            "COM¹",
+            "LPT²",
+            "CONIN$",
+            "CONOUT$",
+        ] {
+            assert!(!valid_fs_component(part), "{part}");
+        }
+        for part in ["CONSOLE", "COM10", "LPT10", "ordinary.txt", "文件"] {
+            assert!(valid_fs_component(part), "{part}");
+        }
+    }
 
     #[tokio::test]
     async fn rejects_non_relative_components_before_looking_up_entries() {

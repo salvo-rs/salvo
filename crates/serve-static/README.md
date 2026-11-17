@@ -75,6 +75,20 @@ unauthenticated requests. A hoop protects requests routed through it. `StaticDir
 infer the authorization rules on another route: mounting a parent directory elsewhere can
 publish a private descendant through that other mount.
 
+URL route parameters may contain data such as a Matrix ID `@a/b:example.org`,
+encoded as `@a%2Fb:example.org`. Static resource handlers apply a narrower policy:
+`StaticDir` and `StaticEmbed` reject `/`, backslash or NUL inside any decoded
+segment with **400 Bad Request**, before file lookup, defaults or fallbacks.
+Windows colon-bearing and reserved-device components are rejected at this resource
+boundary too. Disabling strict filename spelling does not disable these checks.
+
+Custom wildcard consumers should use `req.params().tail_segments()` to retain the
+router's segment boundaries. Splitting the decoded `tail()` string again loses
+the distinction between data and path structure. `tail_raw_segments()` exposes
+the encoded segment spellings; dot and empty-segment normalization may already
+have occurred. Signature verification must use the original request URI's
+`path_and_query()` instead. Routing does not rewrite that URI.
+
 `StaticDir` now uses these security defaults, which can change behavior for existing mounts:
 
 - `strict_path_check(true)` requires the exact spelling of every filesystem component. On
