@@ -528,20 +528,17 @@ impl PathWisp for CombWisp {
             // (e.g. `.ext` for `/first{id}world{**rest}` vs `first123world.ext`).
             let wild_path_buf = state.all_rest().unwrap_or_default().into_owned();
             let wild_path: &str = &wild_path_buf;
-            if wild_start.starts_with("*?")
-                && wild_path
-                    .trim_start_matches('/')
-                    .trim_end_matches('/')
-                    .contains('/')
-            {
+            if wild_start.starts_with("*?") && state.rest_segments_len() > 1 {
                 return false;
             }
             if !wild_path.is_empty() || !wild_start.starts_with("*+") {
                 let cap = wild_regex.captures(wild_path).and_then(|caps| caps.get(0));
                 if let Some(cap) = cap {
                     let cap = cap.as_str().to_owned();
-                    state.forward(cap.len());
-                    state.params.insert_tracked(wild_name, cap);
+                    if !state.capture_tail(&format!("{wild_start}{wild_name}"), cap) {
+                        return false;
+                    }
+                    state.cursor.0 = state.parts_len();
                     #[cfg(feature = "matched-path")]
                     push_named_part(&mut state.matched_parts, wild_name);
                     true
@@ -566,17 +563,14 @@ impl PathWisp for NamedWisp {
     fn detect(&self, state: &mut PathState<'_>) -> bool {
         if self.0.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
-            if self.0.starts_with("*?")
-                && rest
-                    .trim_start_matches('/')
-                    .trim_end_matches('/')
-                    .contains('/')
-            {
+            if self.0.starts_with("*?") && state.rest_segments_len() > 1 {
                 return false;
             }
             if !rest.is_empty() || !self.0.starts_with("*+") {
                 let rest = rest.into_owned();
-                state.params.insert_tracked(&self.0, rest);
+                if !state.capture_tail(&self.0, rest) {
+                    return false;
+                }
                 state.cursor.0 = state.parts_len();
                 #[cfg(feature = "matched-path")]
                 push_named_part(&mut state.matched_parts, &self.0);
@@ -662,12 +656,7 @@ impl PathWisp for RegexWisp {
     fn detect(&self, state: &mut PathState<'_>) -> bool {
         if self.name.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
-            if self.name.starts_with("*?")
-                && rest
-                    .trim_start_matches('/')
-                    .trim_end_matches('/')
-                    .contains('/')
-            {
+            if self.name.starts_with("*?") && state.rest_segments_len() > 1 {
                 return false;
             }
             if !rest.is_empty() || !self.name.starts_with("*+") {
@@ -675,8 +664,10 @@ impl PathWisp for RegexWisp {
 
                 if let Some(cap) = cap {
                     let cap = cap.as_str().to_owned();
-                    state.forward(cap.len());
-                    state.params.insert_tracked(&self.name, cap);
+                    if !state.capture_tail(&self.name, cap) {
+                        return false;
+                    }
+                    state.cursor.0 = state.parts_len();
                     #[cfg(feature = "matched-path")]
                     push_named_part(&mut state.matched_parts, &self.name);
                     true

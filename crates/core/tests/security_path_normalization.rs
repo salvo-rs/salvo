@@ -57,7 +57,7 @@ async fn invalid_paths_keep_service_middleware_and_custom_catchers() {
     .hoop(observe)
     .catcher(Catcher::default().hoop(catch));
 
-    for path in ["/%2fprivate", "/%5cprivate", "/%00/private"] {
+    for path in ["/%00/private", "/%FF/private", "/a\\b"] {
         let mut res = service
             .handle(request(
                 Method::GET,
@@ -117,7 +117,7 @@ async fn normalized_paths_keep_method_discovery_and_unknown_paths() {
     assert!(!res.headers().contains_key("allow"));
     for method in [Method::GET, Method::HEAD, Method::DELETE, Method::OPTIONS] {
         let mut res = service.handle(request(method.clone(), "/items%2f42")).await;
-        assert_eq!(res.status_code, Some(StatusCode::BAD_REQUEST));
+        assert_eq!(res.status_code, Some(StatusCode::NOT_FOUND));
         assert!(!res.headers().contains_key("allow"));
         if method == Method::HEAD {
             assert!(res.body.is_none());
@@ -126,7 +126,7 @@ async fn normalized_paths_keep_method_discovery_and_unknown_paths() {
                 res.take_string()
                     .await
                     .expect("read error body")
-                    .contains("invalid request path")
+                    .contains("Not Found")
             );
         }
     }

@@ -15,7 +15,7 @@ use salvo_core::http::headers::{
 };
 use salvo_core::http::mime::fill_mime_charset_if_need;
 use salvo_core::http::{HeaderValue, HttpRange, Method, Mime, Request, Response, StatusCode};
-use salvo_core::routing::{decode_url_path, normalize_url_path, redirect_to_dir_url};
+use salvo_core::routing::redirect_to_dir_url;
 use salvo_core::{Depot, FlowCtrl, IntoVecString, async_trait};
 
 /// Handler that serves embedded files using `rust-embed`.
@@ -360,14 +360,10 @@ where
         res: &mut Response,
         _ctrl: &mut FlowCtrl,
     ) {
-        let decoded_path;
-        let req_path = if let Some(rest) = req.params().tail() {
-            rest
-        } else {
-            decoded_path = decode_url_path(req.uri().path());
-            decoded_path.as_ref()
+        let Some(req_path) = crate::resource_path(req, crate::path_policy::valid_fs_component) else {
+            res.status_code(StatusCode::BAD_REQUEST);
+            return;
         };
-        let req_path = normalize_url_path(req_path);
         let mut key_path = Cow::Borrowed(&*req_path);
         let mut embedded_file = T::get(req_path.as_str());
         if embedded_file.is_none() {

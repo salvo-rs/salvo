@@ -43,7 +43,7 @@ fn request(path: &str) -> Request {
 }
 
 #[tokio::test]
-async fn path_separators_are_rejected_before_routing() {
+async fn embedded_separators_are_rejected_by_static_resources() {
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("report_note")).unwrap();
     std::fs::write(
@@ -106,6 +106,7 @@ async fn dot_segments_are_normalized_before_routing() {
         "/public/../report_note/secret.txt",
         "/public/%2e%2e/report_note/secret.txt",
         "/public/%2E%2E/report_note/secret.txt",
+        "/CON/../report_note/secret.txt",
     ] {
         calls.store(0, Ordering::SeqCst);
         let mut response = service.handle(request(path)).await;
@@ -154,8 +155,6 @@ async fn discarded_path_segments_are_rejected_before_static_routing() {
         "/COM1/report_note/secret.txt",
         #[cfg(windows)]
         "/LPT9/report_note/secret.txt",
-        #[cfg(windows)]
-        "/CON/../report_note/secret.txt",
     ] {
         calls.store(0, Ordering::SeqCst);
         let mut response = service.handle(request(path)).await;
@@ -206,4 +205,94 @@ async fn safe_encoded_paths_still_serve_public_files() {
         );
     }
     assert_eq!(calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn invalid_segments_never_reach_static_defaults_fallbacks_or_alias_compatibility() {
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir(root.path().join("report_note")).unwrap();
+    std::fs::write(
+        root.path().join("report_note/secret.txt"),
+        "PRIVATE_SENTINEL",
+    )
+    .unwrap();
+    std::fs::write(root.path().join("public.txt"), "FALLBACK_SENTINEL").unwrap();
+    for pattern in ["{**rest}", "prefix{**rest}", "{name}"] {
+        let service = Service::new(
+            Router::with_path(pattern).goal(
+                StaticDir::new(root.path().to_path_buf())
+                    .strict_path_check(false)
+                    .defaults("public.txt")
+                    .fallback("public.txt"),
+            ),
+        );
+        for encoded in ["%2f", "%2F", "%5c", "%5C"] {
+            let prefix = if pattern.starts_with("prefix") {
+                "prefix"
+            } else {
+                ""
+            };
+            let target = format!("/{prefix}report_note{encoded}secret.txt");
+            for method in ["GET", "HEAD"] {
+                let mut req = request(&target);
+                *req.method_mut() = method.parse().unwrap();
+                req.headers_mut()
+                    .insert("range", "bytes=0-1".parse().unwrap());
+                req.headers_mut()
+                    .insert("if-none-match", "*".parse().unwrap());
+                let mut response = service.handle(req).await;
+                assert_eq!(
+                    response.status_code,
+                    Some(StatusCode::BAD_REQUEST),
+                    "{pattern}: {target}"
+                );
+                let body = response.take_string().await.unwrap();
+                assert!(!body.contains("PRIVATE_SENTINEL") && !body.contains("FALLBACK_SENTINEL"));
+                assert!(!response.headers().contains_key("etag"));
+                assert!(!response.headers().contains_key("last-modified"));
+            }
+        }
+    }
+}
+
+#[cfg(feature = "embed")]
+#[tokio::test]
+async fn embedded_resources_keep_the_same_separator_boundary() {
+    use rust_embed::RustEmbed;
+    use salvo_serve_static::StaticEmbed;
+    #[derive(RustEmbed)]
+    #[folder = "test/static/"]
+    struct Assets;
+    let guards = Arc::new(AtomicUsize::new(0));
+    let service = Service::new(
+        Router::new()
+            .push(
+                Router::with_path("dir1/{**rest}")
+                    .hoop(Deny(guards.clone()))
+                    .goal(StaticEmbed::<Assets>::new()),
+            )
+            .push(
+                Router::with_path("{**rest}")
+                    .goal(StaticEmbed::<Assets>::new().fallback("index.html")),
+            ),
+    );
+    for path in [
+        "/%2fdir1/test3.txt",
+        "/%2Fdir1/test3.txt",
+        "/%5cdir1/test3.txt",
+        "/%5Cdir1/test3.txt",
+        "/dir1%2Ftest3.txt",
+    ] {
+        assert_eq!(
+            service.handle(request(path)).await.status_code,
+            Some(StatusCode::BAD_REQUEST),
+            "{path}"
+        );
+    }
+    assert_eq!(guards.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        service.handle(request("/dir1/test3.txt")).await.status_code,
+        Some(StatusCode::FORBIDDEN)
+    );
+    assert_eq!(guards.load(Ordering::SeqCst), 1);
 }

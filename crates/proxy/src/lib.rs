@@ -103,6 +103,7 @@ const PATH_ENCODE_SET: &AsciiSet = &QUERY_ENCODE_SET
     .add(b'`')
     .add(b'{')
     .add(b'}');
+const SEGMENT_ENCODE_SET: &AsciiSet = &PATH_ENCODE_SET.add(b'%').add(b'/').add(b'\\');
 
 /// Encode URL path. This can be used when building a custom URL path getter.
 ///
@@ -215,11 +216,20 @@ pub type HostHeaderGetter =
 /// This getter gets the last param as the rest URL path from the request.
 /// In most cases you should use a wildcard param, like `{**rest}`, `{*+rest}`.
 ///
-/// The router has already decoded that param, so a `%` in it is a literal percent
-/// sign. It is returned as `%25`, which the upstream decodes back to the same
-/// path instead of reading the following characters as an escape.
+/// Re-encodes each decoded routing segment independently. An encoded separator
+/// remains data in one segment, and a literal percent sign becomes `%25` rather
+/// than starting a second decoding pass. The original request URI is unchanged.
 pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> {
-    req.params().tail().map(|tail| tail.replace('%', "%25"))
+    use std::fmt::Write as _;
+    let segments = req.params().tail_segments()?;
+    let mut path = String::new();
+    for (index, segment) in segments.enumerate() {
+        if index > 0 {
+            path.push('/');
+        }
+        let _ = write!(path, "{}", utf8_percent_encode(segment, SEGMENT_ENCODE_SET));
+    }
+    Some(path)
 }
 
 fn contains_ambiguous_path_escape(path: &str) -> bool {
@@ -243,7 +253,7 @@ fn contains_ambiguous_path_escape(path: &str) -> bool {
             // An escaped unreserved character is equivalent to the character
             // itself (RFC 3986 section 2.3), so an upstream that decodes again
             // sees a different path than the one Salvo routed.
-            } else if matches!(decoded, b'.' | b'/' | b'\\' | b'-' | b'_' | b'~')
+            } else if matches!(decoded, 0 | b'.' | b'/' | b'\\' | b'-' | b'_' | b'~')
                 || decoded.is_ascii_alphanumeric()
             {
                 return true;
@@ -553,8 +563,11 @@ where
             tracing::debug!("url_path_getter returned None; forwarding to upstream root path");
             String::new()
         });
+        if path.contains('\0') {
+            return Err(Error::other("NUL in proxy path"));
+        }
         if self.strict_path_normalization_enabled {
-            if contains_ambiguous_path_escape(&path) {
+            if path.contains('\\') || contains_ambiguous_path_escape(&path) {
                 return Err(Error::other("ambiguous percent-encoded path"));
             }
             if contains_parent_dir_component(&path) {
@@ -1681,7 +1694,7 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
     }
 
     #[tokio::test]
-    async fn test_build_proxied_request_normalizes_safe_tail() {
+    async fn test_build_proxied_request_does_not_turn_backslashes_into_separators() {
         let mut request = Request::new();
         request
             .params_mut()
@@ -1689,13 +1702,20 @@ Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
         let depot = Depot::new();
         let proxy = Proxy::new(vec!["http://example.com/api"], HyperClient::default());
 
+        assert!(
+            proxy
+                .build_proxied_request(&mut request, &depot)
+                .await
+                .is_err()
+        );
+        let proxy = proxy.strict_path_normalization(false);
         let proxied_request = proxy
             .build_proxied_request(&mut request, &depot)
             .await
             .unwrap();
         assert_eq!(
             proxied_request.uri().to_string(),
-            "http://example.com/api/guide/index.html"
+            "http://example.com/api/guide%5Cindex.html"
         );
     }
 

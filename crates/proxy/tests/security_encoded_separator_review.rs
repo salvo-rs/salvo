@@ -64,7 +64,7 @@ fn request(path: &str) -> Request {
 }
 
 #[tokio::test]
-async fn path_separators_are_rejected_before_proxy_routing() {
+async fn embedded_separators_are_rejected_before_proxy_forwarding() {
     let calls = Arc::new(AtomicUsize::new(0));
     let proxy = Proxy::new("http://upstream.invalid", EchoUpstream);
     assert!(proxy.strict_path_normalization_enabled);
@@ -104,6 +104,7 @@ async fn dot_segments_use_the_protected_proxy_route() {
         "/public/../report_note/secret.txt",
         "/public/%2e%2e/report_note/secret.txt",
         "/public/%2E%2E/report_note/secret.txt",
+        "/CON/../report_note/secret.txt",
     ] {
         calls.store(0, Ordering::SeqCst);
         let response = service.handle(request(path)).await;
@@ -121,24 +122,6 @@ async fn discarded_path_segments_are_rejected_before_proxy_routing() {
         "/ignored%00segment/report_note/secret.txt",
         "/%00/../report_note/secret.txt",
         "/report_note/secret.txt%00",
-        #[cfg(windows)]
-        "/C:/report_note/secret.txt",
-        #[cfg(windows)]
-        "/C%3a/report_note/secret.txt",
-        #[cfg(windows)]
-        "/CON/report_note/secret.txt",
-        #[cfg(windows)]
-        "/%43%4f%4e/report_note/secret.txt",
-        #[cfg(windows)]
-        "/NUL.txt/report_note/secret.txt",
-        #[cfg(windows)]
-        "/pRn/report_note/secret.txt",
-        #[cfg(windows)]
-        "/COM1/report_note/secret.txt",
-        #[cfg(windows)]
-        "/LPT9/report_note/secret.txt",
-        #[cfg(windows)]
-        "/CON/../report_note/secret.txt",
     ] {
         calls.store(0, Ordering::SeqCst);
         let response = service.handle(request(path)).await;
@@ -223,4 +206,102 @@ async fn literal_percent_signs_reach_the_upstream_escaped() {
             "{path}"
         );
     }
+}
+
+#[tokio::test]
+async fn matrix_path_data_is_reencoded_per_segment_without_mutating_the_request_uri() {
+    #[handler]
+    async fn unchanged(
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
+        let uri = req.uri().clone();
+        ctrl.call_next(req, depot, res).await;
+        assert_eq!(req.uri(), &uri);
+    }
+    let service = Service::new(Router::with_path("{**rest}").hoop(unchanged).goal(
+        Proxy::new("http://upstream.invalid", EchoUpstream).strict_path_normalization(false),
+    ));
+    for (target, expected) in [
+        (
+            "/_matrix/profile/@alice:example.org",
+            "/_matrix/profile/@alice:example.org",
+        ),
+        (
+            "/_matrix/profile/@a%2fb%3Aexample.org",
+            "/_matrix/profile/@a%2Fb:example.org",
+        ),
+        (
+            "/_matrix/profile/@a%252Fb:example.org",
+            "/_matrix/profile/@a%252Fb:example.org",
+        ),
+        (
+            "/_matrix/profile/@a%5Cb:example.org",
+            "/_matrix/profile/@a%5Cb:example.org",
+        ),
+        ("/CON/C%3A/file", "/CON/C:/file"),
+    ] {
+        assert_eq!(
+            forwarded_path(&service, target).await,
+            (Some(StatusCode::OK), expected.to_owned()),
+            "{target}"
+        );
+    }
+}
+
+struct CountUpstream(Arc<AtomicUsize>);
+impl Client for CountUpstream {
+    type Error = Infallible;
+    async fn execute(
+        &self,
+        _: hyper::Request<ReqBody>,
+        _: Option<hyper::upgrade::OnUpgrade>,
+    ) -> Result<hyper::Response<ResBody>, Self::Error> {
+        self.0.fetch_add(1, Ordering::SeqCst);
+        Ok(hyper::Response::new(ResBody::from("PRIVATE_SENTINEL")))
+    }
+}
+
+#[tokio::test]
+async fn default_proxy_never_contacts_upstream_for_encoded_separators_or_nested_escapes() {
+    use salvo_core::test::ResponseExt;
+    let calls = Arc::new(AtomicUsize::new(0));
+    let service = Service::new(Router::with_path("{**rest}").goal(Proxy::new(
+        "http://upstream.invalid",
+        CountUpstream(calls.clone()),
+    )));
+    for path in [
+        "/%2freport_note/secret.txt",
+        "/%2Freport_note/secret.txt",
+        "/%5creport_note/secret.txt",
+        "/%5Creport_note/secret.txt",
+        "/%252freport_note/secret.txt",
+        "/%255creport_note/secret.txt",
+        "/%2572eport_note/secret.txt",
+    ] {
+        for method in ["GET", "HEAD"] {
+            let mut req = request(path);
+            *req.method_mut() = method.parse().unwrap();
+            req.headers_mut()
+                .insert("range", "bytes=0-1".parse().unwrap());
+            req.headers_mut()
+                .insert("if-none-match", "*".parse().unwrap());
+            let mut response = service.handle(req).await;
+            assert_eq!(
+                response.status_code,
+                Some(StatusCode::BAD_REQUEST),
+                "{method} {path}"
+            );
+            assert!(
+                !response
+                    .take_string()
+                    .await
+                    .unwrap()
+                    .contains("PRIVATE_SENTINEL")
+            );
+        }
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
 }

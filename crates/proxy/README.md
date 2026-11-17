@@ -84,12 +84,15 @@ let router = Router::with_path("api/{**rest}").goal(
 );
 ```
 
-The default path getter re-escapes literal percent signs in the already-decoded
-route tail, preserving a client path such as `/files/50%25off.txt` on the upstream
-request. This also applies when strict normalization is disabled.
+The default path getter re-encodes each decoded routing segment independently,
+using the boundaries retained by `req.params().tail_segments()`. A slash decoded
+from `%2F` stays encoded within one segment; literal percent signs become `%25`.
+This also applies when strict normalization is disabled. For example,
+`/_matrix/profile/@a%2Fb:example.org` can be forwarded with the ID in one segment
+after an explicit opt-out for a backend that supports this interpretation.
 
 Strict path normalization rejects literal parent-directory components and
-remaining escapes for `.`, `/`, `\`, and unreserved characters (letters, digits,
+remaining escapes for NUL, `.`, `/`, `\`, and unreserved characters (letters, digits,
 `-`, `_`, `~`). A percent sign that could introduce another escape is also
 rejected: `/files/a%2541.txt`, `/%2572eport_note/secret.txt`, and `/files/x%2500y`
 return `400`. Literal percent signs without two following hex digits remain
@@ -101,6 +104,13 @@ percent sign as `%25`. The same strict checks apply to custom getters, and
 `strict_path_normalization(false)` allows their escapes to pass through.
 Backends should still validate and normalize their own routes and file paths;
 this option only prevents common proxy/backend path interpretation mismatches.
+
+The original inbound request URI is unchanged. For Matrix federation and other
+signed requests, verify signatures against its original `path_and_query()` before
+forwarding. The proxy may change the mount prefix and encoded spelling, so its
+rewritten upstream target is not interchangeable with the signed inbound target.
+URL normalization is independent of Windows filesystem naming rules; backends
+must perform their own resource authorization and filesystem validation.
 
 ### Forwarded headers
 
