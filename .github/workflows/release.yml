@@ -49,18 +49,19 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Packaging also resolves versioned development dependencies.
           crates=(
             "salvo-serde-util:crates/serde-util"
             "salvo_macros:crates/macros"
             "salvo_core:crates/core"
             "salvo_extra:crates/extra"
-            "salvo-proxy:crates/proxy"
             "salvo-compression:crates/compression"
             "salvo-jwt-auth:crates/jwt-auth"
             "salvo-session:crates/session"
             "salvo-flash:crates/flash"
             "salvo-cors:crates/cors"
             "salvo-csrf:crates/csrf"
+            "salvo-proxy:crates/proxy"
             "salvo-cache:crates/cache"
             "salvo-rate-limiter:crates/rate-limiter"
             "salvo-serve-static:crates/serve-static"
