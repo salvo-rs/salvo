@@ -325,7 +325,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature = "serve-static"]
-        pub use salvo_serve_static::{StaticFile, StaticDir};
+        pub use salvo_serve_static::{StaticFile, StaticDir, StaticResource, StaticResourceAuthorizer, SymlinkPolicy};
     }
     cfg_feature! {
         #![feature = "acme"]

@@ -56,6 +56,14 @@ async fn path_separators_are_rejected_before_routing() {
     for (path, expected, guard_calls) in [
         ("/report_note/secret.txt", StatusCode::FORBIDDEN, 1),
         ("/%72eport_note/secret.txt", StatusCode::FORBIDDEN, 1),
+        #[cfg(windows)]
+        ("/REPORT_NOTE/secret.txt", StatusCode::NOT_FOUND, 0),
+        #[cfg(windows)]
+        ("/%52eport_note/secret.txt", StatusCode::NOT_FOUND, 0),
+        #[cfg(windows)]
+        ("/report_note./secret.txt", StatusCode::NOT_FOUND, 0),
+        #[cfg(windows)]
+        ("/report_note%2e/secret.txt", StatusCode::NOT_FOUND, 0),
         ("/%2freport_note/secret.txt", StatusCode::BAD_REQUEST, 0),
         ("/%2Freport_note/secret.txt", StatusCode::BAD_REQUEST, 0),
         ("/%5creport_note/secret.txt", StatusCode::BAD_REQUEST, 0),
