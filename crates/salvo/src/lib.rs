@@ -62,6 +62,8 @@
 //! | `serve-static` | Static file / directory serving | ❌ |
 //! | `session` | Cookie-based session middleware | ❌ |
 //! | `tus` | [tus.io](https://tus.io) resumable upload protocol | ❌ |
+//! | `rt_lambda` | AWS Lambda serverless runtime support | ❌ |
+//! | `rt_worker` | Cloudflare Workers serverless runtime support (WASM targets; requires a direct `worker` dependency for the generated entry point) | ❌ |
 //!
 //! `jwt-auth` and `jwt-auth-ring` enable the same middleware with different
 //! cryptography providers. Enable only one in normal builds. If Cargo feature
@@ -236,6 +238,11 @@ cfg_feature! {
     #[doc(no_inline)]
     pub use salvo_tus as tus;
 }
+cfg_feature! {
+    #![any(feature = "rt_lambda", feature = "rt_worker")]
+    #[doc(no_inline)]
+    pub use salvo_serverless as serverless;
+}
 
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
@@ -316,8 +323,12 @@ pub mod prelude {
         pub use salvo_extra::tower_compat::{TowerServiceCompat, TowerLayerCompat};
     }
     cfg_feature! {
-        #![feature = "websocket"]
+        #![all(feature = "websocket", not(all(feature = "rt_worker", target_arch = "wasm32")))]
         pub use salvo_extra::websocket::WebSocketUpgrade;
+    }
+    cfg_feature! {
+        #![all(feature = "rt_worker", target_arch = "wasm32")]
+        pub use salvo_serverless_extra::worker::websocket::WebSocketUpgrade;
     }
     cfg_feature! {
         #![feature = "request-id"]
@@ -330,6 +341,10 @@ pub mod prelude {
     cfg_feature! {
         #![feature = "acme"]
         pub use salvo_acme::AcmeListener;
+    }
+    cfg_feature! {
+        #![any(feature = "rt_lambda", feature = "rt_worker")]
+        pub use salvo_serverless::prelude::*;
     }
     cfg_feature! {
         #![feature = "oapi"]

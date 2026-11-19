@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Add `salvo-serverless`, `salvo-serverless-macros`, and `salvo-serverless-extra`
+  so a Salvo `Router` can be served from AWS Lambda and Cloudflare Workers. The
+  `#[service]` attribute turns a zero-argument router builder into a runtime
+  entry point, with optional one-time `start = <path>` initialization.
+- Add opt-in `rt_lambda` and `rt_worker` features on `salvo`. The existing
+  request pipeline is reused as-is, and the workspace MSRV is unchanged at
+  1.95.
+- Add a Workers websocket compatibility layer that mirrors
+  `salvo_extra::websocket`, allowing existing `WebSocketUpgrade` handlers to be
+  reused on `wasm32` targets with `rt_worker`.
+- Route all serverless adapters through the core `Service::serve` pipeline, so
+  catchers, hoops, and allowed media types behave the same as on a normal Salvo
+  server.
+
 ## [1.2.1] - 2026-11-17
 
 ### Added

@@ -14,10 +14,13 @@ pub use http::response::Parts;
 use http::version::Version;
 use mime::Mime;
 
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
 use crate::fs::NamedFile;
 use crate::fuse::TransProto;
 pub use crate::http::body::{BodySender, BytesFrame, ResBody};
-use crate::http::{StatusCode, StatusError};
+use crate::http::StatusCode;
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+use crate::http::StatusError;
 use crate::{BoxedError, Error, Request, Scribe};
 
 type ResponseHook = Box<dyn FnOnce(&Request, &mut Response) + Send + 'static>;
@@ -667,6 +670,7 @@ impl Response {
     ///
     /// If you want more settings, you can use `NamedFile::builder` to create a new
     /// [`NamedFileBuilder`](crate::fs::NamedFileBuilder).
+    #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
     pub async fn send_file<P>(&mut self, path: P, req_headers: &HeaderMap)
     where
         P: Into<PathBuf> + Send,
@@ -680,6 +684,19 @@ impl Response {
                 Err(_) => self.render(StatusError::internal_server_error()),
             }
         }
+    }
+
+    /// Attempts to send a file. On wasm targets local file system access is
+    /// unavailable and an internal server error is rendered instead.
+    #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+    pub async fn send_file<P>(&mut self, _path: P, _req_headers: &HeaderMap)
+    where
+        P: Into<PathBuf> + Send,
+    {
+        let error = "wasm target does not support local file system access";
+        tracing::error!("{error}");
+        self.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+        self.render(crate::writing::Text::Plain(error));
     }
 
     /// Write bytes data to body.

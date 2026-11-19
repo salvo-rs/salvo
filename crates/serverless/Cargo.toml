@@ -1,0 +1,56 @@
+[package]
+name = "salvo-serverless"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Serverless runtime adapters and helpers for the Salvo web framework"
+homepage.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/salvo-serverless/"
+readme.workspace = true
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+rt_lambda = [
+    "dep:lambda_http",
+    "dep:tokio",
+    "salvo-serverless-macros/rt_lambda",
+]
+rt_worker = [
+    "dep:worker",
+    "salvo-serverless-macros/rt_worker",
+]
+
+[dependencies]
+salvo_core.workspace = true
+bytes.workspace = true
+http.workspace = true
+hyper.workspace = true
+http-body-util.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "ansi", "json"] }
+thiserror.workspace = true
+salvo-serverless-macros.workspace = true
+
+[target.'cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))'.dependencies]
+lambda_http = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["macros", "rt-multi-thread"] }
+
+[target.'cfg(any(target_arch = "wasm32", target_arch = "wasm64"))'.dependencies]
+worker = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[target.'cfg(any(target_arch = "wasm32", target_arch = "wasm64"))'.dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[lints]
+workspace = true

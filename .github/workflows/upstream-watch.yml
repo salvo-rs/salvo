@@ -1,0 +1,83 @@
+name: upstream-watch
+
+# 定时感知上游 salvo-rs/salvo 的新提交，有更新时在 fork 上自动创建 issue 提醒。
+# 注意：schedule 只从仓库默认分支运行，因此本文件需位于默认分支（feat/serverless）。
+
+on:
+  schedule:
+    # 每天 UTC 00:00（北京时间 08:00）检查一次
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch upstream and origin main
+        run: |
+          git remote add upstream https://github.com/salvo-rs/salvo.git
+          git fetch --no-tags origin main
+          git fetch --no-tags upstream main
+
+      - name: Detect drift
+        id: drift
+        run: |
+          COUNT=$(git rev-list --count origin/main..upstream/main)
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "上游新增提交数：$COUNT"
+          if [ "$COUNT" -gt 0 ]; then
+            git --no-pager log --oneline origin/main..upstream/main
+          fi
+
+      - name: Create or skip issue
+        if: steps.drift.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COUNT: ${{ steps.drift.outputs.count }}
+        run: |
+          set -euo pipefail
+
+          # 确保标签存在（幂等）
+          gh label create upstream-sync --color "FBCA04" --force >/dev/null 2>&1 || true
+
+          # 已有未关闭的提醒 issue 则跳过，避免每天重复创建
+          EXISTING=$(gh issue list --label upstream-sync --state open --json number --jq 'length')
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "已存在未关闭的 upstream-sync issue，跳过创建"
+            exit 0
+          fi
+
+          BODY="/tmp/issue-body.md"
+          {
+            echo "上游 [salvo-rs/salvo](https://github.com/salvo-rs/salvo) 有 **${COUNT}** 个新提交待同步。"
+            echo ""
+            echo "请在本地执行同步脚本："
+            echo ""
+            echo '```powershell'
+            echo '.\scripts\sync-upstream.ps1'
+            echo '```'
+            echo ""
+            echo "新增提交："
+            echo ""
+            echo '```'
+            git --no-pager log --oneline origin/main..upstream/main
+            echo '```'
+          } > "$BODY"
+
+          gh issue create \
+            --title "上游 salvo-rs/salvo 有 ${COUNT} 个新提交待同步" \
+            --label upstream-sync \
+            --body-file "$BODY"
