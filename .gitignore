@@ -6,6 +6,7 @@ Cargo.lock
 /.vscode
 **/target
 /.vs
+/scripts/
 /examples/_*.rs
 /examples/_test*
 /examples/target
