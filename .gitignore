@@ -23,3 +23,5 @@ examples/**/pnpm-lock.yaml
 .DS_Store
 .claude
 _*.md
+
+/.workbuddy

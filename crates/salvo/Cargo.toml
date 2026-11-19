@@ -152,6 +152,13 @@ ring = ["salvo_core/ring", "salvo-proxy?/ring"]
 matched-path = ["salvo_core/matched-path", "salvo-otel?/matched-path"]
 tls12 = ["salvo_core/tls12"]
 tus = ["dep:salvo-tus"]
+rt_lambda = ["dep:salvo-serverless", "salvo-serverless/rt_lambda"]
+rt_worker = [
+    "dep:salvo-serverless",
+    "salvo-serverless/rt_worker",
+    "dep:salvo-serverless-extra",
+    "salvo-serverless-extra/rt_worker",
+]
 
 [dependencies]
 salvo_core = { workspace = true }
@@ -171,6 +178,8 @@ salvo-otel = { workspace = true, optional = true }
 salvo-oapi = { workspace = true, features = ["full"], optional = true }
 salvo-craft = { workspace = true, optional = true }
 salvo-tus = { workspace = true, optional = true }
+salvo-serverless = { workspace = true, optional = true }
+salvo-serverless-extra = { workspace = true, optional = true }
 
 [lints]
 workspace = true

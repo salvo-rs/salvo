@@ -49,6 +49,8 @@ argon2 = "0.5.3"
 dotenvy = "0.15.6"
 tokio-stream = "0.1.14"
 async-stream = "0.3.5"
+bytes = "1"
+http-body-util = "0.1"
 futures-util = { version = "0.3.31", default-features = true }
 jsonwebtoken = "12"
 parking_lot = "0.12.5"

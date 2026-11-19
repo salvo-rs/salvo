@@ -109,8 +109,11 @@ cfg_feature! {
 pub mod addr;
 pub use addr::SocketAddr;
 
-pub mod tcp;
-pub use tcp::TcpListener;
+cfg_feature! {
+    #![not(any(target_arch = "wasm32", target_arch = "wasm64"))]
+    pub mod tcp;
+    pub use tcp::TcpListener;
+}
 
 mod joined;
 pub use joined::{JoinedAcceptor, JoinedListener};

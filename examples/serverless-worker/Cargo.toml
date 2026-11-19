@@ -1,0 +1,29 @@
+[package]
+name = "example-serverless-worker"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+salvo = { workspace = true, features = ["rt_worker"] }
+# The `#[worker::event]` macro emitted by `#[service]` expands to hard-coded
+# `::worker::` paths, so this crate must depend on `worker` directly.
+# `queue` enables the `Queue` binding demo; KV, D1 and R2 are always available.
+worker = { version = "0.9.0", default-features = false, features = ["http", "d1", "queue"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+bytes = { workspace = true }
+# Provides `BodyExt::into_data_stream` to bridge Salvo's request body into a
+# workers `ReadableStream` for zero-copy streaming uploads to R2.
+# 提供 `BodyExt::into_data_stream`，将 Salvo 请求体桥接为 Workers 的
+# `ReadableStream`，实现到 R2 的零拷贝流式上传。
+http-body-util = { workspace = true }
+# `StreamExt` maps the request body stream into the `Result<Vec<u8>>` shape
+# required by `worker::FixedLengthStream::wrap`.
+# `StreamExt` 用于把请求体流映射为 `worker::FixedLengthStream::wrap` 所需的
+# `Result<Vec<u8>>` 形态。
+futures-util = { workspace = true }
