@@ -1,4 +1,5 @@
 //! HTTP request.
+use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Formatter};
 #[cfg(feature = "quinn")]
@@ -9,6 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, Weak};
 
 use bytes::Bytes;
+use compact_str::CompactString;
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
 use http::Extensions;
@@ -226,7 +228,7 @@ pub struct Request {
 
     pub(crate) params: PathParams,
 
-    pub(crate) queries: OnceLock<MultiMap<String, String>>,
+    pub(crate) queries: OnceLock<MultiMap<CompactString, CompactString>>,
     pub(crate) form_data: tokio::sync::OnceCell<FormData>,
     pub(crate) payload: tokio::sync::OnceCell<Bytes>,
     // Set before a parsing helper takes the stream, including across cancellation.
@@ -1126,15 +1128,23 @@ impl Request {
     }
 
     /// Get queries reference.
-    pub fn queries(&self) -> &MultiMap<String, String> {
+    pub fn queries(&self) -> &MultiMap<CompactString, CompactString> {
         self.queries.get_or_init(|| {
+            // Convert decoded `Cow`s straight into `CompactString`: typical query
+            // keys/values are short enough to stay inline, so this avoids the heap
+            // allocation `into_owned()` would otherwise perform per pair.
             form_urlencoded::parse(self.uri.query().unwrap_or_default().as_bytes())
-                .into_owned()
+                .map(|(key, value)| {
+                    (
+                        CompactString::from(key.as_ref()),
+                        CompactString::from(value.as_ref()),
+                    )
+                })
                 .collect()
         })
     }
     /// Get mutable queries reference.
-    pub fn queries_mut(&mut self) -> &mut MultiMap<String, String> {
+    pub fn queries_mut(&mut self) -> &mut MultiMap<CompactString, CompactString> {
         let _ = self.queries();
         self.queries
             .get_mut()
@@ -1178,7 +1188,9 @@ impl Request {
         self.queries()
             .get_vec(key)
             .ok_or(ParseError::NotExist)
-            .and_then(|vs| from_str_multi_val(vs).map_err(Into::into))
+            .and_then(|vs| {
+                from_str_multi_val(vs.iter().map(|v| Cow::Borrowed(v.as_str()))).map_err(Into::into)
+            })
     }
 
     /// Gets a form field value by key, deserializing it to type `T`.
@@ -1624,7 +1636,15 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        let queries = self.queries().iter_all();
+        let queries = self.queries().iter_all().map(|(key, values)| {
+            (
+                Cow::Borrowed(key.as_str()),
+                values
+                    .iter()
+                    .map(|value| Cow::Borrowed(value.as_str()))
+                    .collect::<Vec<_>>(),
+            )
+        });
         from_str_multi_map(queries).map_err(ParseError::Deserialize)
     }
 

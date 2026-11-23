@@ -2,6 +2,7 @@ use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use compact_str::CompactString;
 use indexmap::IndexMap;
 use multimap::MultiMap;
 use serde::de::value::Error as ValError;
@@ -113,7 +114,7 @@ impl Payload<'_> {
 fn split_query_values<'de>(
     raw_query: Option<&str>,
     name: &str,
-    values: &'de [String],
+    values: &'de [CompactString],
     delimiter: char,
 ) -> Vec<CowValue<'de>> {
     let raw_values = raw_query
@@ -129,7 +130,7 @@ fn split_query_values<'de>(
         .enumerate()
         .flat_map(|(index, value)| {
             if let Some((raw, decoded)) = raw_values.get(index)
-                && decoded.as_ref() == value
+                && decoded.as_ref() == value.as_str()
             {
                 let mut offset = 0;
                 let mut parts = Vec::new();
@@ -163,7 +164,7 @@ fn split_query_values<'de>(
 pub(crate) struct RequestDeserializer<'de> {
     raw_query: Option<&'de str>,
     params: &'de IndexMap<String, String>,
-    queries: &'de MultiMap<String, String>,
+    queries: &'de MultiMap<CompactString, CompactString>,
     #[cfg(feature = "cookie")]
     cookies: &'de cookie::CookieJar,
     headers: &'de HeaderMap,
@@ -427,7 +428,10 @@ impl<'de> RequestDeserializer<'de> {
                             Some(if let Some(delimiter) = field.value_delimiter {
                                 split_query_values(self.raw_query, query_name, value, delimiter)
                             } else {
-                                value.iter().map(|v| CowValue(v.into())).collect()
+                                value
+                                    .iter()
+                                    .map(|v| CowValue(Cow::Borrowed(v.as_str())))
+                                    .collect()
                             });
                         self.field_source = Some(source);
                         return Ok(true);

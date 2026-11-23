@@ -2125,8 +2125,7 @@ mod tests {
         let doc = OpenApi::new("pet api", "0.1.0");
 
         let mut req = Request::new();
-        req.queries_mut()
-            .insert("pretty".to_owned(), "true".to_owned());
+        req.queries_mut().insert("pretty".into(), "true".into());
 
         let mut depot = Depot::new();
         let mut res = salvo_core::Response::new();

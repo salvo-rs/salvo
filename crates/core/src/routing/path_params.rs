@@ -229,10 +229,9 @@ impl PathParams {
         let (index, replaced) = if name.starts_with('*') {
             self.greedy = true;
             self.tail_path = Some(path.unwrap_or_else(|| CapturedPath::from_decoded(&value)));
-            self.inner
-                .insert_full(split_wild_name(name).1.to_owned(), value)
+            insert_param(&mut self.inner, split_wild_name(name).1, value)
         } else {
-            self.inner.insert_full(name.to_owned(), value)
+            insert_param(&mut self.inner, name, value)
         };
         if let Some(path) = &mut self.tail_path {
             path.index = index;
@@ -242,6 +241,26 @@ impl PathParams {
         if track && let Some(old) = replaced {
             self.rollback_log.push((index, old));
         }
+    }
+}
+
+/// Insert `value` under `name`, returning its index and the overwritten value.
+///
+/// Reusing the existing key slot when `name` is already present (for example an
+/// ancestor router captured the same param) avoids allocating a duplicate key
+/// string on every request; a fresh key is only allocated for new names.
+fn insert_param(
+    map: &mut IndexMap<String, String>,
+    name: &str,
+    value: String,
+) -> (usize, Option<String>) {
+    if let Some(index) = map.get_index_of(name) {
+        let replaced = map
+            .get_index_mut(index)
+            .map(|(_, slot)| std::mem::replace(slot, value));
+        (index, replaced)
+    } else {
+        map.insert_full(name.to_owned(), value)
     }
 }
 

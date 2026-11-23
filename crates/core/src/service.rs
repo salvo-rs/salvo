@@ -324,8 +324,8 @@ impl HyperHandler {
         let mut depot = Depot::new();
 
         async move {
-            let path = req.uri().path().to_owned();
-            let mut path_state = PathState::from_borrowed_path(&path);
+            let uri = req.uri().clone();
+            let mut path_state = PathState::from_borrowed_path(uri.path());
             let mut allowed = Vec::new();
             let mut method_not_allowed = false;
             if !path_state.is_valid_path() {
@@ -337,7 +337,7 @@ impl HyperHandler {
             } else {
                 let matched = state.router.detect(&mut req, &mut path_state).await;
                 allowed = if matched.is_none() {
-                    state.router.allowed_methods(&mut req, &path).await
+                    state.router.allowed_methods(&mut req, uri.path()).await
                 } else {
                     Vec::new()
                 };

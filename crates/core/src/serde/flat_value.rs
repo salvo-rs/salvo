@@ -226,6 +226,24 @@ impl<'de> FlatParser<'de> {
         let start = input.find('[').map_or(0, |index| index + 1);
         Self { input, start }
     }
+
+    /// Slice the input, borrowing it when the underlying input is already
+    /// borrowed (`Cow::Borrowed`) and copying only when it is owned — this
+    /// avoids a per-item heap allocation for the common borrowed case.
+    fn slice(&self, start: usize, end: usize) -> Cow<'de, str> {
+        match &self.input {
+            Cow::Borrowed(s) => Cow::Borrowed(&s[start..end]),
+            Cow::Owned(s) => Cow::Owned(s[start..end].to_owned()),
+        }
+    }
+
+    /// Like [`slice`](Self::slice), but trims trailing whitespace.
+    fn slice_trim_end(&self, start: usize, end: usize) -> Cow<'de, str> {
+        match &self.input {
+            Cow::Borrowed(s) => Cow::Borrowed(s[start..end].trim_end()),
+            Cow::Owned(s) => Cow::Owned(s[start..end].trim_end().to_owned()),
+        }
+    }
 }
 impl<'de> Iterator for FlatParser<'de> {
     type Item = CowValue<'de>;
@@ -246,11 +264,11 @@ impl<'de> Iterator for FlatParser<'de> {
                 if c == '\\' {
                     in_escape = true;
                 } else if c == delimiter {
-                    let item = self.input.get(item_start?..current)?.to_owned();
+                    let item = self.slice(item_start?, current);
                     // Resume at the separator rather than skipping an assumed
                     // one-byte separator after the closing quote.
                     self.start = current + c.len_utf8();
-                    return Some(CowValue(Cow::Owned(item)));
+                    return Some(CowValue(item));
                 }
                 continue;
             }
@@ -270,9 +288,9 @@ impl<'de> Iterator for FlatParser<'de> {
                 item_start = Some(current);
             }
             if matches!(c, ',' | ']') {
-                let item = self.input.get(item_start?..current)?.trim_end().to_owned();
+                let item = self.slice_trim_end(item_start?, current);
                 self.start = current + c.len_utf8();
-                return Some(CowValue(Cow::Owned(item)));
+                return Some(CowValue(item));
             }
             in_escape = c == '\\';
         }

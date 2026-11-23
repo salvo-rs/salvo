@@ -97,6 +97,7 @@ async-trait = { workspace = true }
 base64 = { workspace = true }
 bytes = { workspace = true }
 chardetng = { workspace = true }
+compact_str = { workspace = true }
 content_inspector = { workspace = true }
 cookie = { workspace = true, features = [
     "percent-encode",

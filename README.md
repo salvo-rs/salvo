@@ -43,6 +43,8 @@
 - **Auto TLS** - ACME integration for automatic certificate management.
 - **OpenAPI** - First-class OpenAPI support with auto-generated documentation.
 - **WebSocket & WebTransport** - Real-time communication built-in.
+- **Zero-Copy Design** - Request parsing, body handling and static files borrow `Bytes`/`Cow` to avoid redundant allocations.
+- **Serverless Ready** - Deploy the same `Router` to AWS Lambda and Cloudflare Workers with zero code changes.
 - **Built on Hyper & Tokio** - Production-ready async foundation.
 
 ## Quick Start
@@ -140,6 +142,27 @@ For this pattern, add Serde's derive feature:
 ```bash
 cargo add serde --features derive
 ```
+
+### Zero-Copy Everywhere
+
+Salvo keeps per-request allocations to a minimum by borrowing wherever possible: request bodies are cached as `Bytes`, path and query deserialization borrows from the URI via `Cow`, static files and Range responses serve borrowed slices, and short query keys/values are stored inline in `CompactString`.
+
+### Serverless Without Forking Your Code
+
+Salvo runs where there is no long-lived TCP listener. A single `#[service]` entry point generates a native handler for AWS Lambda and Cloudflare Workers:
+
+```rust
+use salvo::prelude::*;
+
+#[service(start = init)]
+fn build() -> Router {
+    Router::new().push(Router::with_path("hello").get(|| async { "hello" }))
+}
+
+fn init() { /* one-time warm-start setup */ }
+```
+
+Request and response bodies stream end-to-end on both runtimes.
 
 ### OpenAPI in One Line
 

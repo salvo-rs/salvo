@@ -45,6 +45,8 @@
 - **自动证书** - 内置 ACME，自动获取和续期 TLS 证书
 - **OpenAPI** - 一流的 OpenAPI 支持，自动生成文档
 - **WebSocket & WebTransport** - 内置实时通信支持
+- **零拷贝设计** - 请求解析、响应体与静态文件均借用 `Bytes`/`Cow`，避免冗余内存分配
+- **无服务器就绪** - 同一套 `Router` 零改动即可部署到 AWS Lambda 与 Cloudflare Workers
 - **基于 Hyper & Tokio** - 生产级异步运行时
 
 ## 快速开始
@@ -143,6 +145,27 @@ async fn create_todo(req: &mut Request) -> Result<Json<Todo>, ParseError> {
 ```bash
 cargo add serde --features derive
 ```
+
+### 无处不在的零拷贝
+
+Salvo 通过尽可能借用来最小化每请求的内存分配：请求体以 `Bytes` 缓存，路径与查询反序列化通过 `Cow` 借用 URI，静态文件与 Range 响应直接返回借用切片，短查询键值则以 `CompactString` 内联存储。
+
+### 无需改写的 Serverless
+
+Salvo 在没有长驻 TCP 监听器的环境同样可用。单个 `#[service]` 入口即可为 AWS Lambda 与 Cloudflare Workers 生成原生处理器：
+
+```rust
+use salvo::prelude::*;
+
+#[service(start = init)]
+fn build() -> Router {
+    Router::new().push(Router::with_path("hello").get(|| async { "hello" }))
+}
+
+fn init() { /* 一次性热启动初始化 */ }
+```
+
+两个运行时的请求体与响应体均端到端流式转发。
 
 ### 一行代码支持 OpenAPI
 
