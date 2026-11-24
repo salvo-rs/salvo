@@ -4,9 +4,9 @@
 <h3>A powerful and simple Rust web framework</h3>
 
 <p>
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh.md">简体中文</a>&nbsp;&nbsp;
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md">繁體中文</a>
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.md">English</a>&nbsp;&nbsp;
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.zh.md">简体中文</a>&nbsp;&nbsp;
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.zh-hant.md">繁體中文</a>
 </p>
 <p>
 <a href="https://github.com/salvo-rs/salvo/actions">
@@ -46,7 +46,7 @@ This repository is a fork of [salvo-rs/salvo](https://github.com/salvo-rs/salvo)
 - Opt-in `rt_lambda` and `rt_worker` features gate each runtime; the Workers adapter compiles to `wasm32-unknown-unknown`.
 - Request and response bodies stream end-to-end on both runtimes. The Workers adapter exposes Cloudflare bindings (D1, R2, Queue, KV) and a WebSocket compatibility layer that lets existing `WebSocketUpgrade` handlers run unchanged on `wasm32`.
 
-### 2. Zero-Copy Request Pipeline
+### 2. Performance: Zero-Copy Request Pipeline
 
 - Bodies are cached as reference-counted `bytes::Bytes` instead of allocating `Vec<u8>` per request.
 - Path and query deserialization borrows from the URI via `Cow<'_, str>`.

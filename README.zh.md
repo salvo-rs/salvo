@@ -4,9 +4,9 @@
 **功能强大且简单易用的 Rust Web 框架**
 
 <p>
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh.md">简体中文</a>&nbsp;&nbsp;
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md">繁體中文</a>
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.md">English</a>&nbsp;&nbsp;
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.zh.md">简体中文</a>&nbsp;&nbsp;
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.zh-hant.md">繁體中文</a>
 </p>
 <p>
 <a href="https://github.com/salvo-rs/salvo/actions">
@@ -48,7 +48,7 @@
 - 通过 `rt_lambda` 与 `rt_worker` 特性分别启用对应运行时；Workers 适配器编译到 `wasm32-unknown-unknown`。
 - 请求与响应体在两种运行时上端到端流式转发。Workers 适配器还暴露了 Cloudflare 绑定（D1、R2、Queue、KV），并提供 WebSocket 兼容层，让现有 `WebSocketUpgrade` 处理器无需改动即可在 `wasm32` 上运行。
 
-### 2. 零拷贝请求管线
+### 2. 性能优化：零拷贝请求管线
 
 - 请求体以引用计数的 `bytes::Bytes` 缓存，而非每个请求分配 `Vec<u8>`。
 - 路径与查询反序列化通过 `Cow<'_, str>` 借用 URI，避免拷贝。
