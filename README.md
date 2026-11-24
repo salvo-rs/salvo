@@ -35,6 +35,30 @@
 </p>
 </div>
 
+## Differences from Upstream
+
+This repository is a fork of [salvo-rs/salvo](https://github.com/salvo-rs/salvo) maintained on the `feat/serverless` branch. It stays compatible with the upstream public API while adding the following:
+
+### 1. Serverless Runtimes (AWS Lambda + Cloudflare Workers)
+
+- A dedicated `salvo-serverless` crate adapts a single `Router` to **two** runtimes — **AWS Lambda** and **Cloudflare Workers** — with zero code changes between them.
+- The `#[service]` attribute macro turns a zero-argument router builder into the platform entry point (a Lambda handler or a Workers `#[worker::event]`), with optional one-time `start = <path>` warm-start initialization.
+- Opt-in `rt_lambda` and `rt_worker` features gate each runtime; the Workers adapter compiles to `wasm32-unknown-unknown`.
+- Request and response bodies stream end-to-end on both runtimes. The Workers adapter exposes Cloudflare bindings (D1, R2, Queue, KV) and a WebSocket compatibility layer that lets existing `WebSocketUpgrade` handlers run unchanged on `wasm32`.
+
+### 2. Zero-Copy Request Pipeline
+
+- Bodies are cached as reference-counted `bytes::Bytes` instead of allocating `Vec<u8>` per request.
+- Path and query deserialization borrows from the URI via `Cow<'_, str>`.
+- Static files and HTTP `Range` responses serve borrowed slices directly.
+- Short query keys/values are stored inline in `CompactString`.
+
+### 3. Engineering & CI
+
+- A dedicated Serverless CI workflow cross-compiles the Workers example to `wasm32-unknown-unknown` on every push.
+- An `upstream-watch` workflow automatically opens an issue when upstream `main` advances, making rebases easy to track.
+- Expanded test, benchmark and security-audit suites.
+
 ## Features
 
 - **Simple & Powerful** - Minimal boilerplate. If you can write a function, you can write a handler.
