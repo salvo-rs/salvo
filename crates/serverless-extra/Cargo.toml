@@ -1,0 +1,43 @@
+[package]
+name = "salvo-serverless-extra"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Extra middleware and compatibility layers for Salvo serverless applications"
+homepage.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/salvo-serverless-extra/"
+readme.workspace = true
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+rt_worker = [
+    "dep:salvo-serverless",
+    "dep:worker",
+    "salvo-serverless/rt_worker",
+]
+
+[dependencies]
+salvo_core.workspace = true
+base64.workspace = true
+futures-channel.workspace = true
+futures-util.workspace = true
+http.workspace = true
+
+[target.'cfg(any(target_arch = "wasm32", target_arch = "wasm64"))'.dependencies]
+salvo-serverless = { workspace = true, optional = true }
+worker = { workspace = true, optional = true }
+
+[target.'cfg(any(target_arch = "wasm32", target_arch = "wasm64"))'.dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[lints]
+workspace = true

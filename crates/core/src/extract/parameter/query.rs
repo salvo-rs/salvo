@@ -205,8 +205,7 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        req.queries_mut()
-            .insert("param".to_owned(), "param".to_owned());
+        req.queries_mut().insert("param".into(), "param".into());
         let mut depot = Depot::new();
         let result =
             QueryParam::<String, true>::extract_with_arg(&mut req, &mut depot, "param").await;
@@ -243,8 +242,7 @@ mod tests {
         let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
         let schema = req.uri().scheme().cloned().unwrap();
         let mut req = Request::from_hyper(req, schema);
-        req.queries_mut()
-            .insert("param".to_owned(), "param".to_owned());
+        req.queries_mut().insert("param".into(), "param".into());
         let mut depot = Depot::new();
         let result =
             QueryParam::<String, false>::extract_with_arg(&mut req, &mut depot, "param").await;

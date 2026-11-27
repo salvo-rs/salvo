@@ -4,9 +4,9 @@
 <h3>A powerful and simple Rust web framework</h3>
 
 <p>
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh.md">简体中文</a>&nbsp;&nbsp;
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md">繁體中文</a>
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.md">English</a>&nbsp;&nbsp;
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.zh.md">简体中文</a>&nbsp;&nbsp;
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.zh-hant.md">繁體中文</a>
 </p>
 <p>
 <a href="https://github.com/salvo-rs/salvo/actions">
@@ -35,6 +35,30 @@
 </p>
 </div>
 
+## Differences from Upstream
+
+This repository is a fork of [salvo-rs/salvo](https://github.com/salvo-rs/salvo) maintained on the `feat/serverless` branch. It stays compatible with the upstream public API while adding the following:
+
+### 1. Serverless Runtimes (AWS Lambda + Cloudflare Workers)
+
+- A dedicated `salvo-serverless` crate adapts a single `Router` to **two** runtimes — **AWS Lambda** and **Cloudflare Workers** — with zero code changes between them.
+- The `#[service]` attribute macro turns a zero-argument router builder into the platform entry point (a Lambda handler or a Workers `#[worker::event]`), with optional one-time `start = <path>` warm-start initialization.
+- Opt-in `rt_lambda` and `rt_worker` features gate each runtime; the Workers adapter compiles to `wasm32-unknown-unknown`.
+- Request and response bodies stream end-to-end on both runtimes. The Workers adapter exposes Cloudflare bindings (D1, R2, Queue, KV) and a WebSocket compatibility layer that lets existing `WebSocketUpgrade` handlers run unchanged on `wasm32`.
+
+### 2. Performance: Zero-Copy Request Pipeline
+
+- Bodies are cached as reference-counted `bytes::Bytes` instead of allocating `Vec<u8>` per request.
+- Path and query deserialization borrows from the URI via `Cow<'_, str>`.
+- Static files and HTTP `Range` responses serve borrowed slices directly.
+- Short query keys/values are stored inline in `CompactString`.
+
+### 3. Engineering & CI
+
+- A dedicated Serverless CI workflow cross-compiles the Workers example to `wasm32-unknown-unknown` on every push.
+- An `upstream-watch` workflow automatically opens an issue when upstream `main` advances, making rebases easy to track.
+- Expanded test, benchmark and security-audit suites.
+
 ## Features
 
 - **Simple & Powerful** - Minimal boilerplate. If you can write a function, you can write a handler.
@@ -43,6 +67,8 @@
 - **Auto TLS** - ACME integration for automatic certificate management.
 - **OpenAPI** - First-class OpenAPI support with auto-generated documentation.
 - **WebSocket & WebTransport** - Real-time communication built-in.
+- **Zero-Copy Design** - Request parsing, body handling and static files borrow `Bytes`/`Cow` to avoid redundant allocations.
+- **Serverless Ready** - Deploy the same `Router` to AWS Lambda and Cloudflare Workers with zero code changes.
 - **Built on Hyper & Tokio** - Production-ready async foundation.
 
 ## Quick Start
@@ -140,6 +166,27 @@ For this pattern, add Serde's derive feature:
 ```bash
 cargo add serde --features derive
 ```
+
+### Zero-Copy Everywhere
+
+Salvo keeps per-request allocations to a minimum by borrowing wherever possible: request bodies are cached as `Bytes`, path and query deserialization borrows from the URI via `Cow`, static files and Range responses serve borrowed slices, and short query keys/values are stored inline in `CompactString`.
+
+### Serverless Without Forking Your Code
+
+Salvo runs where there is no long-lived TCP listener. A single `#[service]` entry point generates a native handler for AWS Lambda and Cloudflare Workers:
+
+```rust
+use salvo::prelude::*;
+
+#[service(start = init)]
+fn build() -> Router {
+    Router::new().push(Router::with_path("hello").get(|| async { "hello" }))
+}
+
+fn init() { /* one-time warm-start setup */ }
+```
+
+Request and response bodies stream end-to-end on both runtimes.
 
 ### OpenAPI in One Line
 

@@ -1,0 +1,34 @@
+[package]
+name = "salvo-serverless-macros"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Procedural macros for Salvo serverless runtimes"
+homepage.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/salvo-serverless-macros/"
+readme.workspace = true
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+proc-macro = true
+
+[features]
+default = []
+rt_lambda = []
+rt_worker = []
+
+[dependencies]
+proc-macro2.workspace = true
+quote.workspace = true
+syn = { workspace = true, features = ["full"] }
+
+[lints]
+workspace = true

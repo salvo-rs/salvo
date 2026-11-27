@@ -182,21 +182,53 @@ impl Service {
             alt_svc_h3,
         }
     }
-    /// Handle new request, this function only used for test.
-    #[cfg(feature = "test")]
-    #[inline]
-    pub async fn handle(&self, request: impl Into<Request> + Send) -> Response {
-        let request = request.into();
-        self.hyper_handler(
+    /// Serves a [`Request`] and returns the [`Response`] produced by the router.
+    ///
+    /// This is the transport-independent entry point. It runs the same routing
+    /// pipeline as the Hyper adapter, but does not need a network connection.
+    /// Serverless runtimes such as AWS Lambda use it to dispatch requests.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use salvo_core::http::uri::Scheme;
+    /// use salvo_core::prelude::*;
+    ///
+    /// #[handler]
+    /// async fn hello() -> &'static str {
+    ///     "hello"
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let service = Service::new(Router::with_path("hello").get(hello));
+    ///     let hyper_req = salvo_core::hyper::Request::builder()
+    ///         .method("GET")
+    ///         .uri("http://localhost/hello")
+    ///         .body("")
+    ///         .unwrap();
+    ///     let request = Request::from_hyper(hyper_req, Scheme::HTTP);
+    ///     let response = service.serve(request).await;
+    ///     assert_eq!(response.status_code, Some(StatusCode::OK));
+    /// }
+    /// ```
+    pub fn serve(&self, request: Request) -> impl Future<Output = Response> + 'static {
+        let handler = self.hyper_handler(
             request.local_addr.clone(),
             request.remote_addr.clone(),
             request.scheme.clone(),
             None,
             ConnCtrl::new(),
             None,
-        )
-        .handle(request)
-        .await
+        );
+        async move { handler.handle(request).await }
+    }
+
+    /// Handle new request, this function only used for test.
+    #[cfg(feature = "test")]
+    #[inline]
+    pub async fn handle(&self, request: impl Into<Request> + Send) -> Response {
+        self.serve(request.into()).await
     }
 }
 
@@ -292,8 +324,8 @@ impl HyperHandler {
         let mut depot = Depot::new();
 
         async move {
-            let path = req.uri().path().to_owned();
-            let mut path_state = PathState::from_borrowed_path(&path);
+            let uri = req.uri().clone();
+            let mut path_state = PathState::from_borrowed_path(uri.path());
             let mut allowed = Vec::new();
             let mut method_not_allowed = false;
             if !path_state.is_valid_path() {
@@ -305,7 +337,7 @@ impl HyperHandler {
             } else {
                 let matched = state.router.detect(&mut req, &mut path_state).await;
                 allowed = if matched.is_none() {
-                    state.router.allowed_methods(&mut req, &path).await
+                    state.router.allowed_methods(&mut req, uri.path()).await
                 } else {
                     Vec::new()
                 };
@@ -521,6 +553,40 @@ mod tests {
     #[handler]
     async fn method_probe_goal() -> &'static str {
         "ok"
+    }
+
+    #[tokio::test]
+    async fn serve_dispatches_request_to_matching_route() {
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+        let service = Service::new(Router::with_path("/hello").get(hello));
+        let hyper_req = crate::hyper::Request::builder()
+            .method("GET")
+            .uri("http://localhost/hello")
+            .body("")
+            .unwrap();
+        let request = Request::from_hyper(hyper_req, crate::http::uri::Scheme::HTTP);
+        let response = service.serve(request).await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+    }
+
+    #[tokio::test]
+    async fn serve_writes_handler_body() {
+        #[handler]
+        async fn hello() -> &'static str {
+            "hello from serve"
+        }
+        let service = Service::new(Router::with_path("/hello").get(hello));
+        let hyper_req = crate::hyper::Request::builder()
+            .uri("http://localhost/hello")
+            .body("")
+            .unwrap();
+        let request = Request::from_hyper(hyper_req, crate::http::uri::Scheme::HTTP);
+        let mut response = service.serve(request).await;
+        assert_eq!(response.status_code, Some(StatusCode::OK));
+        assert_eq!(response.take_string().await.unwrap(), "hello from serve");
     }
 
     #[tokio::test]

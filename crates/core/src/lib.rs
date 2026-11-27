@@ -128,7 +128,11 @@ pub mod prelude {
         #![all(feature = "unix", unix)]
         pub use crate::conn::UnixListener;
     }
-    pub use crate::conn::{ConnCtrl, JoinedListener, Listener, TcpListener};
+    pub use crate::conn::{ConnCtrl, JoinedListener, Listener};
+    cfg_feature! {
+        #![not(any(target_arch = "wasm32", target_arch = "wasm64"))]
+        pub use crate::conn::TcpListener;
+    }
     pub use crate::handler::{self, Handler};
     pub use crate::routing::{FlowCtrl, Router};
     cfg_feature! {

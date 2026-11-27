@@ -282,10 +282,18 @@ fn render_embedded_data(
                 .expect("Range calculation overflowed");
             if end_offset <= total_data_len {
                 set_inferred_encoding(res);
-                // Check to prevent panic on slice
-                let partial_data_vec = data[offset as usize..end_offset as usize].to_vec();
+                // Zero-copy range slice: borrowed data is written directly, only an owned Vec is copied.
+                let start = offset as usize;
+                let end = end_offset as usize;
+                match data {
+                    Cow::Borrowed(d) => {
+                        let _ = res.write_body(&d[start..end]);
+                    }
+                    Cow::Owned(o) => {
+                        let _ = res.write_body(o[start..end].to_vec());
+                    }
+                }
                 res.headers_mut().typed_insert(ContentLength(length));
-                let _ = res.write_body(partial_data_vec); // write_body can take Vec<u8>
             } else {
                 // This should ideally be caught by HttpRange::parse or ContentRange::bytes
                 tracing::error!("Calculated range exceeds data bounds after HttpRange::parse");

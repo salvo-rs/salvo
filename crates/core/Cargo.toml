@@ -97,6 +97,7 @@ async-trait = { workspace = true }
 base64 = { workspace = true }
 bytes = { workspace = true }
 chardetng = { workspace = true }
+compact_str = { workspace = true }
 content_inspector = { workspace = true }
 cookie = { workspace = true, features = [
     "percent-encode",
@@ -141,15 +142,7 @@ socket2 = { workspace = true, optional = true }
 sync_wrapper = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = [
-    "fs",
-    "io-util",
-    "macros",
-    "net",
-    "rt-multi-thread",
-    "sync",
-    "time",
-] }
+tokio = { workspace = true, features = ["io-util", "macros", "sync", "time"] }
 tokio-native-tls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
 tokio-rustls = { workspace = true, optional = true, features = ["logging"] }
@@ -163,6 +156,14 @@ zstd = { workspace = true, optional = true, features = ["default"] }
 
 [target.'cfg(unix)'.dependencies]
 nix = { workspace = true, optional = true, features = ["fs", "user"] }
+
+[target.'cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))'.dependencies]
+tokio = { workspace = true, features = ["fs", "net", "rt-multi-thread"] }
+
+[target.'cfg(any(target_arch = "wasm32", target_arch = "wasm64"))'.dependencies]
+tokio = { workspace = true, features = ["rt"] }
+getrandom_0_2 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom_0_4 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 
 [dev-dependencies]
 rcgen = { workspace = true }

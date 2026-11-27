@@ -1,7 +1,9 @@
+#![allow(dead_code, unused_variables, unused_imports)]
 use std::borrow::Cow;
 use std::cmp;
 use std::ffi::OsStr;
 use std::fs::Metadata;
+use std::future::Future;
 use std::io::{Read as StdRead, Seek as StdSeek, SeekFrom};
 use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
@@ -10,15 +12,23 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use bytes::Bytes;
 use enumflags2::{BitFlags, bitflags};
 use headers::*;
 use mime::Mime;
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
-use tokio::fs::File;
-#[allow(unused_imports)]
-use tokio::io::{AsyncReadExt, AsyncSeekExt};
+cfg_feature! {
+    #![not(any(target_arch = "wasm32", target_arch = "wasm64"))]
+    use tokio::fs::File;
+    #[allow(unused_imports)]
+    use tokio::io::{AsyncReadExt, AsyncSeekExt};
+}
+cfg_feature! {
+    #![any(target_arch = "wasm32", target_arch = "wasm64")]
+    use std::fs::File;
+}
 
-use super::{ChunkedFile, ChunkedState};
+use super::{ChunkReader, ChunkedFile, ChunkedState, ChunkedStreamReader};
 use crate::http::body::ResBody;
 use crate::http::header::{
     CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_TYPE, IF_MATCH, IF_NONE_MATCH, IF_RANGE, RANGE,
@@ -354,6 +364,7 @@ impl NamedFileBuilder {
     }
 
     /// Build a new [`NamedFile`].
+    #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
     pub async fn build(self) -> Result<NamedFile> {
         let Self {
             path,
@@ -494,6 +505,14 @@ impl NamedFileBuilder {
             preload_threshold,
             length: info.length,
         })
+    }
+
+    /// Build a new [`NamedFile`].
+    #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+    pub async fn build(self) -> Result<NamedFile> {
+        let error = "wasm target does not support local file system access";
+        tracing::error!("{error}");
+        Err(Error::Io(std::io::Error::other(error)))
     }
 }
 /// Whether a browser rendering `content_type` as a document could run script in
@@ -845,6 +864,7 @@ impl NamedFile {
     ///
     /// Only GET applies byte ranges. A matching `If-None-Match` returns 304 for
     /// GET/HEAD and 412 for other methods; `If-Modified-Since` only applies to GET/HEAD.
+    #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
     pub async fn send_with_method(
         mut self,
         method: &Method,
@@ -1102,6 +1122,20 @@ impl NamedFile {
             }
         }
     }
+
+    /// Send content using the request method for conditional and range handling.
+    #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+    pub async fn send_with_method(
+        self,
+        _method: &Method,
+        _req_headers: &HeaderMap,
+        res: &mut Response,
+    ) {
+        let error = "wasm target does not support local file system access";
+        tracing::error!("{error}");
+        res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+        res.render(crate::writing::Text::Plain(error));
+    }
 }
 
 #[async_trait]
@@ -1168,6 +1202,172 @@ fn none_match(etag: Option<&ETag>, req_headers: &HeaderMap) -> bool {
                 true
             }
         }
+    }
+}
+
+/// 基于异步闭包的流式文件响应。
+/// A streaming file response driven by an async chunk-reader closure.
+///
+/// `StreamFile` 与 [`NamedFile`] 不同：它不打开本地文件系统，而是通过一个
+/// [`ChunkReader`] 闭包按偏移量逐块读取数据。这使得它可以在 `wasm32` / Cloudflare
+/// Workers 等没有本地文件系统、没有阻塞线程池的环境下流式发送大文件（例如从 R2、
+/// 远程 HTTP 响应或内存缓冲区读取），每次只占用一个 chunk 的内存，避免全量加载。
+/// Unlike [`NamedFile`], `StreamFile` does not open the local file system. It reads
+/// data chunk by chunk through a [`ChunkReader`] closure, so it can stream large
+/// files (e.g. from R2, a remote HTTP response or an in-memory buffer) on targets
+/// such as `wasm32` / Cloudflare Workers where no local file system or blocking
+/// thread pool exists, keeping only one chunk in memory at a time.
+///
+/// # 示例 / Example
+///
+/// ```ignore
+/// use salvo_core::fs::StreamFile;
+///
+/// let file = StreamFile::new("report.csv", 1024 * 1024, |offset, size| async move {
+///     let bytes = fetch_range(offset, size).await?;
+///     Ok(bytes.into())
+/// });
+/// ```
+pub struct StreamFile {
+    name: String,
+    attached_name: Option<String>,
+    content_type: Mime,
+    total_size: u64,
+    buffer_size: u64,
+    reader: ChunkReader,
+}
+
+impl std::fmt::Debug for StreamFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StreamFile")
+            .field("name", &self.name)
+            .field("attached_name", &self.attached_name)
+            .field("content_type", &self.content_type)
+            .field("total_size", &self.total_size)
+            .field("buffer_size", &self.buffer_size)
+            .finish()
+    }
+}
+
+impl StreamFile {
+    /// 从文件名、总大小和一个异步 chunk 读取闭包构造 `StreamFile`。
+    /// Constructs a `StreamFile` from a file name, total size and an async
+    /// chunk-reader closure.
+    ///
+    /// 内容类型根据文件名扩展名自动推断，未知扩展名回退为
+    /// `application/octet-stream`。闭包接收 `(offset, chunk_size)`，返回从
+    /// `offset` 开始最多 `chunk_size` 字节的数据。
+    /// The content type is inferred from the file extension, falling back to
+    /// `application/octet-stream` for unknown extensions. The closure receives
+    /// `(offset, chunk_size)` and returns at most `chunk_size` bytes starting at
+    /// `offset`.
+    ///
+    /// # 参数 / Arguments
+    ///
+    /// - `name`：用于 MIME 推断与 `Content-Disposition` 的文件名。
+    ///   The file name used for MIME inference and `Content-Disposition`.
+    /// - `total_size`：数据源的总字节数。
+    ///   The total byte length of the source.
+    /// - `reader`：接受 `(offset, chunk_size)` 的异步闭包。
+    ///   The async closure receiving `(offset, chunk_size)`.
+    pub fn new<F, Fut>(name: impl Into<String>, total_size: u64, reader: F) -> Self
+    where
+        F: Fn(u64, usize) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = std::io::Result<Bytes>> + Send + 'static,
+    {
+        let name = name.into();
+        let content_type = mime_infer::from_path(&name)
+            .first()
+            .unwrap_or(mime::APPLICATION_OCTET_STREAM);
+        Self {
+            name,
+            attached_name: None,
+            content_type,
+            total_size,
+            buffer_size: CHUNK_SIZE,
+            reader: Box::new(move |offset, size| Box::pin(reader(offset, size))),
+        }
+    }
+
+    /// 从已装箱的 [`ChunkReader`] 闭包构造 `StreamFile`。
+    /// Constructs a `StreamFile` from an already-boxed [`ChunkReader`] closure.
+    ///
+    /// 适用于闭包需要在多处复用、或由其它抽象预先构造为 [`ChunkReader`] 的场景。
+    /// Useful when the closure must be reused across multiple sites or has already
+    /// been boxed into a [`ChunkReader`] by another abstraction.
+    pub fn from_reader(
+        name: impl Into<String>,
+        total_size: u64,
+        reader: ChunkReader,
+    ) -> Self {
+        let name = name.into();
+        let content_type = mime_infer::from_path(&name)
+            .first()
+            .unwrap_or(mime::APPLICATION_OCTET_STREAM);
+        Self {
+            name,
+            attached_name: None,
+            content_type,
+            total_size,
+            buffer_size: CHUNK_SIZE,
+            reader,
+        }
+    }
+
+    /// 覆盖自动推断的内容类型。
+    /// Overrides the auto-detected content type.
+    #[inline]
+    #[must_use]
+    pub fn with_content_type(mut self, content_type: Mime) -> Self {
+        self.content_type = content_type;
+        self
+    }
+
+    /// 设置 `Content-Disposition` 使用的附件文件名，并强制 `attachment` 方式下载。
+    /// Sets the attachment file name used by `Content-Disposition` and forces an
+    /// `attachment` download.
+    #[inline]
+    #[must_use]
+    pub fn with_attached_name(mut self, attached_name: impl Into<String>) -> Self {
+        self.attached_name = Some(attached_name.into());
+        self
+    }
+
+    /// 设置每次读取的最大字节数。
+    /// Sets the maximum number of bytes read per chunk.
+    #[inline]
+    #[must_use]
+    pub fn with_buffer_size(mut self, buffer_size: u64) -> Self {
+        self.buffer_size = buffer_size.max(1);
+        self
+    }
+}
+
+#[async_trait]
+impl Writer for StreamFile {
+    async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        if !res.headers().contains_key(CONTENT_TYPE) {
+            res.headers_mut()
+                .typed_insert(ContentType::from(self.content_type.clone()));
+        }
+        if !res.headers().contains_key(CONTENT_DISPOSITION) {
+            if let Ok(disposition) = build_content_disposition(
+                Path::new(&self.name),
+                &self.content_type,
+                None,
+                self.attached_name.as_deref(),
+            ) {
+                res.headers_mut().insert(CONTENT_DISPOSITION, disposition);
+            }
+        }
+        res.headers_mut().typed_insert(AcceptRanges::bytes());
+        res.headers_mut().typed_insert(ContentLength(self.total_size));
+        res.status_code(StatusCode::OK);
+        res.stream(ChunkedStreamReader::new(
+            self.total_size,
+            self.buffer_size,
+            self.reader,
+        ));
     }
 }
 
@@ -2124,5 +2324,55 @@ mod tests {
             named.content_encoding().map(|v| v.to_str().unwrap()),
             Some("br")
         );
+    }
+
+    #[tokio::test]
+    async fn stream_file_writer_sets_headers_and_streams() {
+        use crate::http::body::ResBody;
+        use crate::http::header::{ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_TYPE};
+
+        let file = StreamFile::new("report.bin", 1024, |offset, size| async move {
+            let start = offset as usize;
+            let end = (start + size).min(1024);
+            Ok(Bytes::from(vec![b'x'; end - start]))
+        })
+        .with_attached_name("download.bin")
+        .with_buffer_size(256);
+
+        let mut req = Request::new();
+        let mut depot = Depot::new();
+        let mut res = Response::new();
+        Writer::write(file, &mut req, &mut depot, &mut res).await;
+
+        assert_eq!(res.status_code, Some(StatusCode::OK));
+        assert_eq!(res.headers().get(CONTENT_LENGTH).unwrap(), "1024");
+        assert_eq!(res.headers().get(ACCEPT_RANGES).unwrap(), "bytes");
+        assert_eq!(
+            res.headers()
+                .get(CONTENT_TYPE)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "application/octet-stream"
+        );
+        assert_eq!(
+            res.headers()
+                .get(CONTENT_DISPOSITION)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "attachment; filename=\"download.bin\""
+        );
+        assert!(matches!(res.body, ResBody::Stream(_)));
+    }
+
+    #[test]
+    fn stream_file_infers_content_type_and_overrides() {
+        let file = StreamFile::new("report.csv", 0, |_, _| async { Ok(Bytes::new()) });
+        assert_eq!(file.content_type.type_(), mime::TEXT);
+
+        let file = StreamFile::new("report.csv", 0, |_, _| async { Ok(Bytes::new()) })
+            .with_content_type(mime::APPLICATION_OCTET_STREAM);
+        assert_eq!(file.content_type, mime::APPLICATION_OCTET_STREAM);
     }
 }

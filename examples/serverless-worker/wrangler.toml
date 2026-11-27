@@ -1,0 +1,38 @@
+name = "example-serverless-worker"
+main = "shim.mjs"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Plaintext variable binding, read through `WorkerRequestExt::worker_var`.
+[vars]
+GREETING = "hello from wrangler vars"
+
+# KV namespace binding, read through `WorkerRequestExt::worker_kv`.
+# Replace `id` with your own KV namespace id.
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# D1 database binding, read through `WorkerRequestExt::worker_d1`.
+# Replace `database_id` with your own id and create a `users` table:
+#   CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+[[d1_databases]]
+binding = "DB"
+database_name = "example-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# R2 bucket binding, read through `WorkerRequestExt::worker_bucket`.
+# Replace `bucket_name` with your own bucket.
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "example-bucket"
+
+# Queue producer binding, read through `WorkerRequestExt::worker_queue`.
+# Replace `queue` with your own queue name.
+[[queues.producers]]
+binding = "QUEUE"
+queue = "example-queue"
+
+# Secrets are not declared here; add one with:
+#   wrangler secret put API_KEY
+# and read it through `WorkerRequestExt::worker_secret`.

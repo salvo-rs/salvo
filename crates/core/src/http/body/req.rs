@@ -136,6 +136,24 @@ impl ReqBody {
         matches!(*self, Self::Boxed { .. })
     }
 
+    /// Wraps an arbitrary streaming body into a boxed [`ReqBody`].
+    ///
+    /// 将一个任意流式请求体包装为 `ReqBody::Boxed`，供 serverless 适配器与代理转发使用；
+    /// 请求体必须按 `Bytes` 帧产出，并满足 `Send + Sync` 以存入类型擦除的装箱槽位。
+    ///
+    /// Serverless adapters and proxying code use this to install a type-erased
+    /// streaming body. The body must yield `Bytes` frames and be `Send + Sync`.
+    #[inline]
+    pub fn boxed<B>(body: B) -> Self
+    where
+        B: Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static,
+    {
+        Self::Boxed {
+            inner: Box::pin(body),
+            fuse_config: None,
+        }
+    }
+
     /// Set body to none and returns current body.
     #[inline]
     #[must_use]
@@ -490,6 +508,24 @@ mod tests {
         assert!(b.is_end_stream());
         let b = ReqBody::Once(Bytes::new());
         assert!(b.is_end_stream());
+    }
+
+    #[test]
+    fn test_boxed_wraps_streaming_body() {
+        struct TestBody;
+        impl Body for TestBody {
+            type Data = Bytes;
+            type Error = BoxedError;
+            fn poll_frame(
+                self: Pin<&mut Self>,
+                _cx: &mut Context<'_>,
+            ) -> Poll<Option<Result<Frame<Bytes>, Self::Error>>> {
+                Poll::Ready(None)
+            }
+        }
+
+        let body = ReqBody::boxed(TestBody);
+        assert!(body.is_boxed());
     }
 
     #[tokio::test]

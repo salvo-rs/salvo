@@ -1,0 +1,53 @@
+name: serverless
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - 'crates/serverless*/**'
+      - '.github/workflows/serverless.yml'
+      - 'Cargo.toml'
+  push:
+    branches: [main]
+    paths:
+      - 'crates/serverless*/**'
+      - '.github/workflows/serverless.yml'
+      - 'Cargo.toml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  serverless-host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - run: cargo check -p salvo --features rt_lambda,rt_worker
+      - run: cargo test -p salvo-serverless --features rt_lambda
+      - run: cargo test -p salvo-serverless-macros --features rt_lambda,rt_worker
+
+  serverless-wasm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@28bfb437c78d9b7ea8650351357e3eb8c0be2672 # wasm-bindgen-cli
+        with:
+          tool: wasm-bindgen-cli@0.2.130
+      - run: cargo check --target wasm32-unknown-unknown -p salvo --features rt_worker
+      - run: cargo test --target wasm32-unknown-unknown -p salvo-serverless --features rt_worker
+      - run: cargo test --target wasm32-unknown-unknown -p salvo-serverless-extra --features rt_worker

@@ -4,9 +4,9 @@
 **功能强大且简单易用的 Rust Web 框架**
 
 <p>
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh.md">简体中文</a>&nbsp;&nbsp;
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md">繁體中文</a>
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.md">English</a>&nbsp;&nbsp;
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.zh.md">简体中文</a>&nbsp;&nbsp;
+    <a href="https://github.com/Czlz/salvo/blob/feat/serverless/README.zh-hant.md">繁體中文</a>
 </p>
 <p>
 <a href="https://github.com/salvo-rs/salvo/actions">
@@ -37,6 +37,30 @@
 
 > 加入社区: 微信(chrislearn) | QQ群: 823441777
 
+## 与官方上游项目的差异
+
+本项目是 [salvo-rs/salvo](https://github.com/salvo-rs/salvo) 的一个 fork，维护在 `feat/serverless` 分支上。它在保持与上游公共 API 兼容的同时，额外提供了以下能力：
+
+### 1. 无服务器运行时（AWS Lambda + Cloudflare Workers）
+
+- 新增 `salvo-serverless` crate，让同一套 `Router` 零改动适配 **AWS Lambda** 与 **Cloudflare Workers** 两种运行时。
+- `#[service]` 属性宏把零参数的 Router 构建函数转换为平台入口（Lambda handler 或 Workers 的 `#[worker::event]`），并支持可选的 `start = <path>` 一次性预热初始化。
+- 通过 `rt_lambda` 与 `rt_worker` 特性分别启用对应运行时；Workers 适配器编译到 `wasm32-unknown-unknown`。
+- 请求与响应体在两种运行时上端到端流式转发。Workers 适配器还暴露了 Cloudflare 绑定（D1、R2、Queue、KV），并提供 WebSocket 兼容层，让现有 `WebSocketUpgrade` 处理器无需改动即可在 `wasm32` 上运行。
+
+### 2. 性能优化：零拷贝请求管线
+
+- 请求体以引用计数的 `bytes::Bytes` 缓存，而非每个请求分配 `Vec<u8>`。
+- 路径与查询反序列化通过 `Cow<'_, str>` 借用 URI，避免拷贝。
+- 静态文件与 HTTP `Range` 响应直接返回借用切片。
+- 短查询键值以内联方式存储在 `CompactString` 中。
+
+### 3. 工程化与 CI
+
+- 专门的 Serverless CI 工作流在每次提交时把 Workers 示例交叉编译到 `wasm32-unknown-unknown`。
+- `upstream-watch` 工作流在上游 `main` 有更新时自动创建 issue，便于跟踪与 rebase。
+- 更完善的测试、基准与安全审计套件。
+
 ## 特性
 
 - **简单强大** - 零样板代码，会写函数就会写 Handler
@@ -45,6 +69,8 @@
 - **自动证书** - 内置 ACME，自动获取和续期 TLS 证书
 - **OpenAPI** - 一流的 OpenAPI 支持，自动生成文档
 - **WebSocket & WebTransport** - 内置实时通信支持
+- **零拷贝设计** - 请求解析、响应体与静态文件均借用 `Bytes`/`Cow`，避免冗余内存分配
+- **无服务器就绪** - 同一套 `Router` 零改动即可部署到 AWS Lambda 与 Cloudflare Workers
 - **基于 Hyper & Tokio** - 生产级异步运行时
 
 ## 快速开始
@@ -143,6 +169,27 @@ async fn create_todo(req: &mut Request) -> Result<Json<Todo>, ParseError> {
 ```bash
 cargo add serde --features derive
 ```
+
+### 无处不在的零拷贝
+
+Salvo 通过尽可能借用来最小化每请求的内存分配：请求体以 `Bytes` 缓存，路径与查询反序列化通过 `Cow` 借用 URI，静态文件与 Range 响应直接返回借用切片，短查询键值则以 `CompactString` 内联存储。
+
+### 无需改写的 Serverless
+
+Salvo 在没有长驻 TCP 监听器的环境同样可用。单个 `#[service]` 入口即可为 AWS Lambda 与 Cloudflare Workers 生成原生处理器：
+
+```rust
+use salvo::prelude::*;
+
+#[service(start = init)]
+fn build() -> Router {
+    Router::new().push(Router::with_path("hello").get(|| async { "hello" }))
+}
+
+fn init() { /* 一次性热启动初始化 */ }
+```
+
+两个运行时的请求体与响应体均端到端流式转发。
 
 ### 一行代码支持 OpenAPI
 

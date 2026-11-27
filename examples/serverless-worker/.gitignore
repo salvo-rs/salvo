@@ -1,0 +1,4 @@
+# wasm-bindgen output (regenerate with `wasm-bindgen --target web --out-dir build ...`)
+build/
+# wrangler local state
+.wrangler/

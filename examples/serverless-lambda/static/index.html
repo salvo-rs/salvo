@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Salvo × AWS Lambda 测试页</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 960px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.05rem; margin-top: 28px; border-bottom: 1px solid #8884; padding-bottom: 4px; }
+    .group { display: grid; gap: 8px; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    input, button { font: inherit; padding: 6px 10px; }
+    input { flex: 1 1 180px; min-width: 0; }
+    button { cursor: pointer; }
+    pre { background: #00000014; padding: 10px; border-radius: 6px; white-space: pre-wrap; word-break: break-all; min-height: 1em; }
+    .muted { opacity: .6; }
+    .label { font-weight: 600; min-width: 120px; }
+  </style>
+</head>
+<body>
+  <h1>Salvo × AWS Lambda 测试页</h1>
+  <p class="muted">覆盖基础路由、路径/查询参数、JSON、Lambda 事件、流式响应与内存对象存储的上传下载。</p>
+
+  <h2>基础端点</h2>
+  <div class="group">
+    <div class="row"><span class="label">GET /hello</span><button onclick="req('GET','/hello')">调用</button></div>
+    <div class="row"><span class="label">GET /hello/{name}</span><input id="helloName" value="Salvo"><button onclick="req('GET','/hello/'+enc(v('helloName')))">调用</button></div>
+    <div class="row"><span class="label">GET /greet?name=</span><input id="greetName" value="Trae"><button onclick="req('GET','/greet?name='+encodeURIComponent(v('greetName')))">调用</button></div>
+    <div class="row"><span class="label">POST /echo</span><input id="echoMsg" value='{"message":"hello"}'><button onclick="req('POST','/echo',v('echoMsg'))">调用</button></div>
+    <div class="row"><span class="label">GET /event</span><button onclick="req('GET','/event')">调用</button></div>
+    <div class="row"><span class="label">GET /stream</span><button onclick="req('GET','/stream')">调用</button></div>
+  </div>
+
+  <h2>对象存储（上传 / 下载 / 删除）</h2>
+  <div class="group">
+    <div class="row"><span class="label">GET /objects</span><button onclick="req('GET','/objects')">列出对象</button></div>
+    <div class="row">
+      <span class="label">上传文本</span>
+      <input id="objKey" value="hello.txt">
+      <input id="objText" value="hello lambda">
+      <button onclick="req('PUT','/objects/'+enc(v('objKey')),v('objText'))">PUT 上传</button>
+    </div>
+    <div class="row">
+      <span class="label">上传文件</span>
+      <input id="objFile" type="file">
+      <input id="objFileKey" value="upload.bin">
+      <button onclick="uploadFile()">上传文件</button>
+    </div>
+    <div class="row"><span class="label">下载对象</span><input id="objGetKey" value="hello.txt"><button onclick="download('objGetKey')">GET 下载</button></div>
+    <div class="row"><span class="label">删除对象</span><input id="objDelKey" value="hello.txt"><button onclick="req('DELETE','/objects/'+enc(v('objDelKey')))">DELETE</button></div>
+  </div>
+
+  <h2>输出</h2>
+  <pre id="out">点击任意按钮开始测试…</pre>
+
+  <script>
+    const out = document.getElementById('out');
+    const v = id => document.getElementById(id).value;
+    const enc = s => encodeURIComponent(s);
+    function log(s) { out.textContent = (typeof s === 'string' ? s : JSON.stringify(s, null, 2)); }
+
+    // 函数入口可能被挂载在某个前缀下，例如 cargo lambda watch 会把函数挂在
+    // `/lambda-url/<函数名>`。这里从当前页面地址推导基准路径，使测试页在函数
+    // URL 根路径和本地模拟器前缀下都能正确发起请求。
+    // A function can be mounted under a prefix (cargo lambda watch exposes it at
+    // `/lambda-url/<name>`). Derive the base path from the current page URL so
+    // the test page works both at the function-URL root and behind a prefix.
+    const BASE = location.pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
+    const api = p => BASE + p;
+
+    async function req(method, path, body) {
+      try {
+        const init = { method };
+        if (body !== undefined) {
+          init.headers = { 'Content-Type': 'application/json' };
+          init.body = body;
+        }
+        const url = api(path);
+        const r = await fetch(url, init);
+        const text = await r.text();
+        log(`${r.status} ${method} ${url}\n${text}`);
+      } catch (e) { log(`请求失败: ${e}`); }
+    }
+
+    async function uploadFile() {
+      const file = document.getElementById('objFile').files[0];
+      const key = v('objFileKey');
+      if (!file) { log('请先选择文件'); return; }
+      try {
+        const url = api('/objects/' + enc(key));
+        const r = await fetch(url, { method: 'PUT', body: file });
+        log(`${r.status} PUT ${url}\n${await r.text()}`);
+      } catch (e) { log(`上传失败: ${e}`); }
+    }
+
+    async function download(keyId) {
+      const key = v(keyId);
+      try {
+        const url = api('/objects/' + enc(key));
+        const r = await fetch(url);
+        if (!r.ok) { log(`${r.status} GET ${url}\n${await r.text()}`); return; }
+        const blob = await r.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = key;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        log(`200 GET ${url}\n已下载 ${blob.size} 字节`);
+      } catch (e) { log(`下载失败: ${e}`); }
+    }
+  </script>
+</body>
+</html>
